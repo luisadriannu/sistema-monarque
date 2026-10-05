@@ -1,0 +1,56 @@
+// Prisma schema for Monarque - Plan Elite
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  nombre       String
+  rol          String    @default("clienta") // "clienta" | "admin"
+  creado_en    DateTime  @default(now())
+  eventos      Evento[]
+}
+
+model Evento {
+  id                     String     @id @default(uuid())
+  usuario_id             String
+  usuario                Usuario    @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  slug                   String     @unique
+  nombre                 String
+  anfitriones            String
+  fecha_evento           DateTime
+  lugar                  String
+  fecha_limite_rsvp      DateTime
+  plantilla_mensaje      String     @default("¡Hola {nombre}! Te invitamos cordialmente a nuestro evento. Tienes {pases} pases reservados. Por favor confirma tu asistencia aquí: {link}")
+  plantilla_recordatorio String     @default("¡Hola {nombre}! Te recordamos que la fecha límite para confirmar tu asistencia a nuestro evento está próxima ({pases} pases). Puedes confirmar aquí: {link}")
+  creado_en              DateTime   @default(now())
+  actualizado_en         DateTime   @updatedAt
+  invitados              Invitado[]
+
+  @@index([usuario_id])
+}
+
+model Invitado {
+  id                  String    @id @default(uuid())
+  evento_id           String
+  evento              Evento    @relation(fields: [evento_id], references: [id], onDelete: Cascade)
+  nombre              String
+  grupo               String?
+  pases_asignados     Int       @default(1)
+  pases_confirmados   Int?
+  estado              String    @default("pendiente") // "pendiente" | "visto" | "confirmado" | "declinado"
+  token               String    @unique
+  ultima_respuesta_en DateTime?
+  creado_en           DateTime  @default(now())
+  actualizado_en      DateTime  @updatedAt
+
+  @@index([evento_id])
+  @@index([token])
+}

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #faf8f5;
+  --foreground: #1c1917;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Clases de utilidad para estética editorial/lujo Monarque */
+.font-display {
+  font-family: var(--font-serif), "Playfair Display", Georgia, serif;
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #c5a059 0%, #e0c896 50%, #b88d3f 100%);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #a17c38 0%, #c5a059 50%, #8c672b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
