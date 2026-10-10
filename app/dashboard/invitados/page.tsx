@@ -120,6 +120,19 @@ export default function InvitadosPage() {
     fetchInvitados();
   }, [search, filtroEstado]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalAgregar(false);
+        setModalEditar(null);
+        setModalImportar(false);
+        setModalEliminar(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Generar link completo
   const getInvitationUrl = (token: string) => {
     if (typeof window === "undefined" || !evento) return "";
@@ -706,8 +719,14 @@ export default function InvitadosPage() {
 
       {/* MODAL: AGREGAR INVITADO (RF-08) */}
       {modalAgregar && (
-        <div className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200">
+        <div
+          onClick={() => setModalAgregar(false)}
+          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif text-xl font-bold text-stone-900">
                 + Agregar Nuevo Invitado
@@ -794,8 +813,14 @@ export default function InvitadosPage() {
 
       {/* MODAL: EDITAR INVITADO (RF-09, RN-02) */}
       {modalEditar && (
-        <div className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200">
+        <div
+          onClick={() => setModalEditar(null)}
+          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif text-xl font-bold text-stone-900">
                 Editar Invitado
@@ -882,8 +907,14 @@ export default function InvitadosPage() {
 
       {/* MODAL: ELIMINAR INVITADO (RF-09, RF-15) */}
       {modalEliminar && (
-        <div className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200">
+        <div
+          onClick={() => setModalEliminar(null)}
+          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200"
+          >
             <h3 className="font-serif text-lg font-bold text-stone-900 mb-2">
               ¿Eliminar a {modalEliminar.nombre}?
             </h3>
@@ -913,11 +944,21 @@ export default function InvitadosPage() {
       {/* MODAL: IMPORTACIÓN MASIVA CSV/EXCEL (RF-10) */}
       {modalImportar && (
         <div
+          onClick={() => {
+            setModalImportar(false);
+            setFilasImportadas([]);
+            setResumenImportacion(null);
+            setNombreArchivo(null);
+            setArchivoError(null);
+          }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => e.preventDefault()}
           className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
         >
-          <div className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-stone-200 relative max-h-[90vh] flex flex-col">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-stone-200 relative max-h-[90vh] flex flex-col"
+          >
             <div className="flex items-center justify-between pb-4 border-b border-stone-100">
               <div>
                 <h3 className="font-serif text-xl font-bold text-stone-900">

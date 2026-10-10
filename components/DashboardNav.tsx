@@ -41,7 +41,7 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
       icon: Users,
     },
     {
-      label: "Configurar Evento",
+      label: "Gestionar Evento",
       href: "/dashboard/configuracion",
       icon: Settings,
     },
