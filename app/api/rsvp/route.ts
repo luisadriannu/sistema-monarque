@@ -52,15 +52,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // RF-21: Al abrir la invitación con un token válido por primera vez, el estado cambia a Visto
-    if (invitado.estado === "pendiente") {
-      await prisma.invitado.update({
-        where: { id: invitado.id },
-        data: { estado: "visto" },
-      });
-      invitado.estado = "visto";
-    }
-
     const now = new Date();
     const fechaLimite = new Date(invitado.evento.fecha_limite_rsvp);
     const expirado = now > fechaLimite;
@@ -191,5 +182,32 @@ export async function POST(request: Request) {
       { error: "Ocurrió un error al registrar tu respuesta." },
       { status: 500 }
     );
+  }
+}
+
+// Marcar "visto" únicamente cuando JavaScript se ejecuta en un navegador real
+// (evita que los bots de previsualización de WhatsApp marquen como visto)
+export async function PATCH(request: Request) {
+  try {
+    const { token } = await request.json();
+    if (!token) {
+      return NextResponse.json({ ok: false }, { status: 400 });
+    }
+
+    const invitado = await prisma.invitado.findUnique({
+      where: { token: String(token).trim() },
+    });
+
+    if (invitado && invitado.estado === "pendiente") {
+      await prisma.invitado.update({
+        where: { id: invitado.id },
+        data: { estado: "visto" },
+      });
+      return NextResponse.json({ ok: true, estado: "visto" });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

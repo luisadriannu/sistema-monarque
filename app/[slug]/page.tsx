@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import prisma from "@/lib/prisma";
 import InvitationGuestView from "@/components/InvitationGuestView";
-import { Sparkles, ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 
-// RNF-02: Metaetiqueta noindex en las páginas de invitación para que no aparezcan en buscadores
 export const metadata: Metadata = {
   robots: {
     index: false,
@@ -21,7 +21,6 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   const { id, token } = await searchParams;
   const effectiveToken = (id || token || "").trim();
 
-  // Si no hay token en la URL (RF-23)
   if (!effectiveToken) {
     return <InvitacionNoDisponible />;
   }
@@ -42,25 +41,18 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     },
   });
 
-  // Si el token no existe, fue regenerado o el invitado fue borrado (RF-15, RF-23)
   if (!invitado) {
     return <InvitacionNoDisponible />;
   }
 
-  // RF-21: Al abrir la invitación con un token válido por primera vez, el estado cambia a Visto
-  if (invitado.estado === "pendiente") {
-    await prisma.invitado.update({
-      where: { id: invitado.id },
-      data: { estado: "visto" },
-    });
-    invitado.estado = "visto";
-  }
+  // Nota: El estado "visto" no se actualiza en el servidor para evitar que los scrapers/bots
+  // de previsualización de enlaces de WhatsApp lo activen falsamente. Se actualiza mediante JavaScript
+  // en el componente del cliente InvitationGuestView.
 
   const now = new Date();
   const fechaLimite = new Date(evento.fecha_limite_rsvp);
   const expirado = now > fechaLimite;
 
-  // RF-24: Solo enviar los datos permitidos para el invitado
   const invitationData = {
     invitado: {
       nombre: invitado.nombre,
@@ -82,13 +74,19 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   return <InvitationGuestView data={invitationData} token={effectiveToken} />;
 }
 
-// Vista genérica de seguridad (RF-23)
+// Vista genérica de seguridad
 function InvitacionNoDisponible() {
   return (
-    <main className="min-h-screen bg-[#faf8f5] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white border border-[#e6d7c3] rounded-3xl p-8 text-center shadow-xl shadow-stone-200/50">
-        <div className="w-14 h-14 rounded-2xl bg-[#faf8f5] border border-stone-200 text-stone-400 mx-auto flex items-center justify-center mb-4">
-          <ShieldAlert className="w-7 h-7 text-[#ab8153]" />
+    <main className="min-h-screen bg-[#fbf8f4] flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white border border-[#ebd9c4] rounded-3xl p-8 text-center shadow-xl shadow-stone-200/50">
+        <div className="w-16 h-16 rounded-full bg-[#fbf8f4] border border-[#dec0a2] mx-auto flex items-center justify-center mb-4 overflow-hidden relative shadow-xs">
+          <Image
+            src="/logo.png"
+            alt="Monarque Invitaciones"
+            width={64}
+            height={64}
+            className="w-full h-full object-cover"
+          />
         </div>
 
         <h1 className="font-serif text-2xl font-bold text-stone-900 mb-2">
@@ -96,13 +94,13 @@ function InvitacionNoDisponible() {
         </h1>
 
         <p className="text-xs text-stone-600 leading-relaxed mb-6">
-          El enlace que intentas abrir no es válido o ha expirado. Por favor contacta a los anfitriones del evento para recibir un enlace actualizado.
+          El enlace que intentas abrir no es válido o ha sido renovado. Por favor contacta a los anfitriones del evento para recibir un enlace actualizado.
         </p>
 
-        <div className="h-[1px] w-16 bg-[#c5a059] mx-auto opacity-40 mb-4" />
+        <div className="h-[1px] w-16 bg-[#c59b4c] mx-auto opacity-50 mb-4" />
 
-        <p className="text-[10px] uppercase tracking-widest text-[#ab8153] font-semibold">
-          Monarque • Invitaciones Digitales
+        <p className="text-[10px] uppercase tracking-widest text-[#a3704d] font-semibold">
+          Monarque • Invitaciones Web
         </p>
       </div>
     </main>

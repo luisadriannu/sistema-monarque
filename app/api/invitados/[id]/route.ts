@@ -47,6 +47,19 @@ export async function PUT(
       });
     }
 
+    // Acción especial: Marcar como enviado al copiar o enviar WhatsApp
+    if (body.action === "marcar_enviado") {
+      const actualizado = await prisma.invitado.update({
+        where: { id },
+        data: { enviado_en: new Date() },
+      });
+      return NextResponse.json({
+        ok: true,
+        enviado_en: actualizado.enviado_en,
+        invitado: actualizado,
+      });
+    }
+
     // Edición normal
     const { nombre, grupo, pases_asignados } = body;
     const updateData: Record<string, unknown> = {};

@@ -47,6 +47,7 @@ model Invitado {
   pases_confirmados   Int?
   estado              String    @default("pendiente") // "pendiente" | "visto" | "confirmado" | "declinado"
   token               String    @unique
+  enviado_en          DateTime?
   ultima_respuesta_en DateTime?
   creado_en           DateTime  @default(now())
   actualizado_en      DateTime  @updatedAt

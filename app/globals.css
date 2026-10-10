@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #faf8f5;
-  --foreground: #1c1917;
+  --background: #fbf8f4;
+  --foreground: #231c18;
 }
 
 body {
@@ -19,11 +19,19 @@ body {
 }
 
 .gold-gradient {
-  background: linear-gradient(135deg, #c5a059 0%, #e0c896 50%, #b88d3f 100%);
+  background: linear-gradient(135deg, #c59b4c 0%, #e0c896 50%, #b88d3f 100%);
 }
 
 .gold-gradient-text {
-  background: linear-gradient(135deg, #a17c38 0%, #c5a059 50%, #8c672b 100%);
+  background: linear-gradient(135deg, #a17c38 0%, #c59b4c 50%, #8c672b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.monarque-gradient-warm {
+  background: linear-gradient(135deg, #2b211b 0%, #3e3027 100%);
+}
+
+.monarque-accent-gradient {
+  background: linear-gradient(135deg, #e05a1b 0%, #f97316 100%);
 }
