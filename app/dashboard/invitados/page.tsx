@@ -18,6 +18,8 @@ import {
   AlertCircle,
   CheckCircle,
   MessageCircle,
+  Download,
+  FileUp,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -85,6 +87,9 @@ export default function InvitadosPage() {
     invalidos: number;
   } | null>(null);
   const [importando, setImportando] = useState(false);
+  const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [archivoError, setArchivoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Feedback de copiado
@@ -284,49 +289,79 @@ export default function InvitadosPage() {
   };
 
   // Procesar archivo Excel o CSV (RF-10)
-  const handleArchivoSeleccionado = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const procesarArchivo = async (file: File) => {
     if (!file) return;
+    setArchivoError(null);
+    setNombreArchivo(file.name);
 
     const extension = file.name.split(".").pop()?.toLowerCase();
 
-    if (extension === "csv") {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          procesarFilasImportadas(results.data as Record<string, string>[]);
-        },
-      });
-    } else if (extension === "xlsx" || extension === "xls") {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
+    try {
+      if (extension === "csv") {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            procesarFilasImportadas(results.data as Record<string, unknown>[]);
+          },
+          error: (err) => {
+            setArchivoError("Error al leer el archivo CSV: " + err.message);
+          },
+        });
+      } else if (extension === "xlsx" || extension === "xls") {
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: "array" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws) as Record<string, string>[];
+        const data = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[];
         procesarFilasImportadas(data);
-      };
-      reader.readAsBinaryString(file);
-    } else {
-      alert("Por favor selecciona un archivo .csv o .xlsx");
+      } else {
+        setArchivoError(
+          `Formato ".${extension}" no compatible. Por favor sube un archivo Excel (.xlsx, .xls) o CSV (.csv).`
+        );
+      }
+    } catch (err: unknown) {
+      console.error("Error al procesar archivo:", err);
+      setArchivoError(
+        "No se pudo leer el archivo. Asegúrate de que no esté abierto en otro programa ni protegido con contraseña."
+      );
     }
   };
 
-  const procesarFilasImportadas = (data: Record<string, unknown>[]) => {
-    const procesadas = data.map((fila) => {
-      // Buscar nombres de columnas comunes
-      const nombre = String(
-        fila["nombre"] || fila["Nombre"] || fila["invitado"] || fila["Invitado"] || fila["Familia"] || ""
-      ).trim();
-      const pasesRaw =
-        fila["pases"] || fila["Pases"] || fila["pases_asignados"] || fila["Pases Asignados"] || "1";
-      const grupo = String(
-        fila["grupo"] || fila["Grupo"] || fila["categoria"] || fila["Familia de"] || ""
-      ).trim();
+  const handleArchivoSeleccionado = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      procesarArchivo(file);
+    }
+    // Reiniciar para permitir seleccionar el mismo archivo si se desea reintentar
+    e.target.value = "";
+  };
 
-      const pasesNum = parseInt(String(pasesRaw), 10);
+  const procesarFilasImportadas = (data: Record<string, unknown>[]) => {
+    if (!data || data.length === 0) {
+      setArchivoError("El archivo parece estar vacío o no contiene filas con datos.");
+      return;
+    }
+
+    const procesadas = data.map((fila) => {
+      const keys = Object.keys(fila);
+
+      // Búsqueda flexible de nombres de columnas
+      const nombreKey = keys.find((k) =>
+        /^(nombre|invitado|familia|name)/i.test(k.trim())
+      );
+      const pasesKey = keys.find((k) =>
+        /^(pases|pases_asignados|boletos|lugares|personas|tickets)/i.test(k.trim())
+      );
+      const grupoKey = keys.find((k) =>
+        /^(grupo|categoria|categoría|familia de|mesa|group)/i.test(k.trim())
+      );
+
+      const nombre = String((nombreKey ? fila[nombreKey] : "") || "").trim();
+      const pasesRaw = pasesKey ? fila[pasesKey] : "1";
+      const grupo = String((grupoKey ? fila[grupoKey] : "") || "").trim();
+
+      const pasesNum = parseInt(String(pasesRaw ?? "1"), 10);
       const valido = Boolean(nombre.length > 0 && !isNaN(pasesNum) && pasesNum >= 1);
 
       let error = undefined;
@@ -335,7 +370,7 @@ export default function InvitadosPage() {
 
       return {
         nombre,
-        pases_asignados: isNaN(pasesNum) ? 1 : pasesNum,
+        pases_asignados: isNaN(pasesNum) || pasesNum < 1 ? 1 : pasesNum,
         grupo,
         valido,
         error,
@@ -351,6 +386,33 @@ export default function InvitadosPage() {
       validos,
       invalidos,
     });
+  };
+
+  // Descargar plantilla de ejemplo lista para usar
+  const handleDescargarPlantilla = (formato: "xlsx" | "csv") => {
+    const ejemplo = [
+      { nombre: "Familia Gómez Pérez", pases: 4, grupo: "Familia de la Novia" },
+      { nombre: "Carlos Mendoza y Acompañante", pases: 2, grupo: "Amigos de Luis" },
+      { nombre: "Dra. Sofía Alarcón", pases: 1, grupo: "Colegas" },
+      { nombre: "Familia Treviño Morales", pases: 3, grupo: "Familia del Novio" },
+      { nombre: "Mateo Silva & Pareja", pases: 2, grupo: "Amigos de la Novia" },
+    ];
+
+    if (formato === "xlsx") {
+      const ws = XLSX.utils.json_to_sheet(ejemplo);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Invitados");
+      XLSX.writeFile(wb, "Plantilla_Invitados_Monarque.xlsx");
+    } else {
+      const csv = Papa.unparse(ejemplo);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Plantilla_Invitados_Monarque.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   // Guardar importación masiva en base de datos (RF-10)
@@ -850,7 +912,11 @@ export default function InvitadosPage() {
 
       {/* MODAL: IMPORTACIÓN MASIVA CSV/EXCEL (RF-10) */}
       {modalImportar && (
-        <div className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
           <div className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-stone-200 relative max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-stone-100">
               <div>
@@ -867,6 +933,8 @@ export default function InvitadosPage() {
                   setModalImportar(false);
                   setFilasImportadas([]);
                   setResumenImportacion(null);
+                  setNombreArchivo(null);
+                  setArchivoError(null);
                 }}
                 className="text-stone-400 hover:text-stone-600"
               >
@@ -876,33 +944,120 @@ export default function InvitadosPage() {
 
             {/* Zona de subida */}
             {!resumenImportacion ? (
-              <div className="py-10 text-center flex flex-col items-center justify-center">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) procesarArchivo(file);
+                }}
+                className={`py-8 px-6 text-center flex flex-col items-center justify-center border-2 border-dashed rounded-2xl transition-all duration-200 ${
+                  isDragging
+                    ? "border-[#c5a059] bg-[#fdf9f2] scale-[1.01]"
+                    : "border-stone-200 bg-[#faf8f5]/50 hover:bg-[#faf8f5] hover:border-stone-300"
+                }`}
+              >
                 <input
+                  id="subir-archivo-input"
                   type="file"
                   ref={fileInputRef}
-                  accept=".csv, .xlsx, .xls"
+                  accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
                   onChange={handleArchivoSeleccionado}
-                  className="hidden"
+                  className="sr-only"
                 />
-                <div className="w-16 h-16 rounded-2xl bg-[#faf8f5] border border-[#e6d7c3] flex items-center justify-center text-[#ab8153] mb-4">
-                  <FileSpreadsheet className="w-8 h-8 text-[#c5a059]" />
-                </div>
-                <h4 className="font-semibold text-stone-800 text-sm mb-1">
-                  Arrastra tu archivo o haz clic para seleccionarlo
-                </h4>
-                <p className="text-xs text-stone-500 max-w-sm mb-6">
-                  Columnas admitidas en la primera fila: <strong>nombre</strong>,{" "}
-                  <strong>pases</strong> y opcionalmente <strong>grupo</strong>.
-                </p>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-5 py-2.5 bg-stone-900 hover:bg-[#946943] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors"
+
+                <label
+                  htmlFor="subir-archivo-input"
+                  className="cursor-pointer flex flex-col items-center w-full"
                 >
-                  Seleccionar archivo Excel o CSV
-                </button>
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-[#e6d7c3] flex items-center justify-center text-[#c5a059] mb-4 shadow-xs">
+                    <FileUp className="w-8 h-8 text-[#c5a059]" />
+                  </div>
+
+                  <h4 className="font-semibold text-stone-900 text-sm mb-1">
+                    {isDragging
+                      ? "¡Suelta tu archivo aquí!"
+                      : "Arrastra tu archivo aquí o haz clic para seleccionarlo"}
+                  </h4>
+
+                  <p className="text-xs text-stone-500 max-w-sm mb-4">
+                    Admite <strong>.xlsx (Excel)</strong> o <strong>.csv</strong>. Columnas reconocidas: <code>nombre</code>, <code>pases</code> y opcionalmente <code>grupo</code>.
+                  </p>
+
+                  <span className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-900 hover:bg-[#946943] text-white text-xs font-semibold rounded-xl shadow-sm transition-all pointer-events-none">
+                    <Upload className="w-4 h-4 text-[#c5a059]" />
+                    <span>Seleccionar archivo Excel o CSV</span>
+                  </span>
+                </label>
+
+                {archivoError && (
+                  <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2 text-left">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <span>{archivoError}</span>
+                  </div>
+                )}
+
+                {/* Descargar plantillas de ayuda */}
+                <div className="mt-6 pt-5 border-t border-stone-200/60 w-full flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-stone-500">
+                  <span className="font-medium">¿Quieres una plantilla prediseñada?</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDescargarPlantilla("xlsx")}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#faf8f5] text-stone-700 border border-stone-200 rounded-lg font-medium text-[11px] transition-colors shadow-xs"
+                    >
+                      <Download className="w-3 h-3 text-[#ab8153]" />
+                      <span>Descargar Plantilla Excel (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDescargarPlantilla("csv")}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#faf8f5] text-stone-700 border border-stone-200 rounded-lg font-medium text-[11px] transition-colors shadow-xs"
+                    >
+                      <Download className="w-3 h-3 text-stone-500" />
+                      <span>Descargar Plantilla CSV (.csv)</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="py-4 flex-1 overflow-y-auto space-y-4">
+                {/* Archivo cargado */}
+                {nombreArchivo && (
+                  <div className="flex items-center justify-between bg-[#faf8f5] px-3.5 py-2 rounded-xl border border-stone-200 text-xs">
+                    <span className="text-stone-500">
+                      Archivo: <strong className="text-stone-800">{nombreArchivo}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResumenImportacion(null);
+                        setFilasImportadas([]);
+                        setNombreArchivo(null);
+                      }}
+                      className="text-[#ab8153] hover:underline font-semibold text-[11px]"
+                    >
+                      Cambiar archivo
+                    </button>
+                  </div>
+                )}
+
                 {/* Resumen de validación (RF-10) */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-[#faf8f5] p-3 rounded-xl border border-stone-200 text-center">
