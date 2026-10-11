@@ -24,6 +24,7 @@ interface EventoConfig {
   anfitriones: string;
   fecha_evento: string;
   lugar: string;
+  capacidad_total?: number | null;
   fecha_limite_rsvp: string;
   plantilla_mensaje: string;
   plantilla_recordatorio: string;
@@ -42,6 +43,7 @@ export default function ConfiguracionPage() {
   const [anfitriones, setAnfitriones] = useState("");
   const [fechaEvento, setFechaEvento] = useState("");
   const [lugar, setLugar] = useState("");
+  const [capacidadTotal, setCapacidadTotal] = useState<string>("");
   const [fechaLimiteRsvp, setFechaLimiteRsvp] = useState("");
   const [plantillaMensaje, setPlantillaMensaje] = useState("");
   const [plantillaRecordatorio, setPlantillaRecordatorio] = useState("");
@@ -57,6 +59,11 @@ export default function ConfiguracionPage() {
           setNombre(ev.nombre || "");
           setAnfitriones(ev.anfitriones || "");
           setLugar(ev.lugar || "");
+          setCapacidadTotal(
+            ev.capacidad_total !== null && ev.capacidad_total !== undefined
+              ? String(ev.capacidad_total)
+              : ""
+          );
 
           // Conversión segura respetando zona horaria de México
           setFechaEvento(toDateTimeInputValue(ev.fecha_evento));
@@ -101,6 +108,7 @@ export default function ConfiguracionPage() {
           anfitriones,
           fecha_evento: new Date(fechaEvento).toISOString(),
           lugar,
+          capacidad_total: capacidadTotal.trim() ? parseInt(capacidadTotal, 10) : null,
           fecha_limite_rsvp: fechaLimiteEndOfDay.toISOString(),
           plantilla_mensaje: plantillaMensaje,
           plantilla_recordatorio: plantillaRecordatorio,
@@ -275,6 +283,31 @@ export default function ConfiguracionPage() {
                 placeholder="ej. Hacienda San José, Carretera Cuernavaca-Acapulco Km 18, Morelos"
                 className="w-full px-4 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
               />
+            </div>
+
+            {/* Capacidad / Cupo Total del Evento */}
+            <div className="md:col-span-2 bg-[#fbf8f4] p-4 rounded-2xl border border-[#ebd9c4]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
+                  Capacidad del Evento (Cupo de asientos)
+                </label>
+                <span className="text-[11px] text-[#e05a1b] font-semibold">
+                  Opcional
+                </span>
+              </div>
+              <div className="max-w-xs">
+                <input
+                  type="number"
+                  min="1"
+                  value={capacidadTotal}
+                  onChange={(e) => setCapacidadTotal(e.target.value)}
+                  placeholder="ej. 100"
+                  className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                />
+              </div>
+              <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
+                Si defines un cupo máximo, verás en tu Resumen una barra de control que te indica cuántos cupos te quedan disponibles (ej. &quot;71 de 100 cupos asignados • Te quedan 29 disponibles&quot;). Si lo dejas vacío, no se mostrará.
+              </p>
             </div>
           </div>
         </div>

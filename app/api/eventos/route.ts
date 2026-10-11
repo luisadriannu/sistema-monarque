@@ -38,6 +38,7 @@ export async function PUT(request: Request) {
       anfitriones,
       fecha_evento,
       lugar,
+      capacidad_total,
       fecha_limite_rsvp,
       plantilla_mensaje,
       plantilla_recordatorio,
@@ -71,6 +72,12 @@ export async function PUT(request: Request) {
         ...(anfitriones && { anfitriones }),
         ...(fecha_evento && { fecha_evento: new Date(fecha_evento) }),
         ...(lugar && { lugar }),
+        ...(capacidad_total !== undefined && {
+          capacidad_total:
+            capacidad_total === null || capacidad_total === ""
+              ? null
+              : parseInt(String(capacidad_total), 10) || null,
+        }),
         ...(fecha_limite_rsvp && { fecha_limite_rsvp: new Date(fecha_limite_rsvp) }),
         ...(plantilla_mensaje && { plantilla_mensaje }),
         ...(plantilla_recordatorio && { plantilla_recordatorio }),

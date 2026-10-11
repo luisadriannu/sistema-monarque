@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import {
   Users,
   CheckCircle2,
+  XCircle,
   Clock,
   Sparkles,
   Calendar,
@@ -44,25 +45,20 @@ export default async function DashboardPage() {
   const invitados = evento.invitados;
 
   // Cálculo de los 4 números clave:
-  // Asignados = Confirmados + Pendientes + Disponibles
+  // Asignados, Confirmados, Declinados y Pendientes
   let total_asignados = 0;
   let total_confirmados = 0;
+  let total_declinados = 0;
   let total_pendientes = 0;
-  let total_disponibles = 0;
 
   for (const inv of invitados) {
     total_asignados += inv.pases_asignados;
 
     if (inv.estado === "confirmado") {
-      const conf = inv.pases_confirmados || 0;
-      total_confirmados += conf;
-      // Pases sin usar de quien confirmó menos
-      total_disponibles += Math.max(0, inv.pases_asignados - conf);
+      total_confirmados += inv.pases_confirmados || 0;
     } else if (inv.estado === "declinado") {
-      // Todo el pase queda disponible al declinar
-      total_disponibles += inv.pases_asignados;
+      total_declinados += inv.pases_asignados;
     } else {
-      // pendiente o visto
       total_pendientes += inv.pases_asignados;
     }
   }
@@ -142,57 +138,166 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* 4 Métricas Clave (Sin números que se pisen) */}
+      {/* Barra de Capacidad del Evento (Si fue configurado el cupo) */}
+      {evento.capacidad_total && (
+        <div className="bg-white border border-[#ebd9c4] rounded-2xl p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                Capacidad del Evento
+              </span>
+              <span className="text-[11px] text-stone-300">•</span>
+              <span className="text-xs text-stone-700">
+                <strong>{total_asignados}</strong> de <strong>{evento.capacidad_total}</strong> cupos asignados
+              </span>
+            </div>
+            <div>
+              {evento.capacidad_total - total_asignados >= 0 ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c]">
+                  Te quedan {evento.capacidad_total - total_asignados}{" "}
+                  {evento.capacidad_total - total_asignados === 1 ? "cupo" : "cupos"} disponibles
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
+                  Has sobrepasado el cupo por {Math.abs(evento.capacidad_total - total_asignados)} asientos
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="w-full bg-[#fbf8f4] border border-[#ebd9c4] h-3 rounded-full overflow-hidden p-0.5">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                total_asignados > evento.capacidad_total
+                  ? "bg-amber-500"
+                  : total_asignados / evento.capacidad_total >= 0.9
+                  ? "bg-[#e05a1b]"
+                  : "bg-emerald-600"
+              }`}
+              style={{
+                width: `${Math.min(
+                  100,
+                  Math.round((total_asignados / evento.capacidad_total) * 100)
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 4 Métricas Clave Clicables (Toca para ver quiénes son) */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs uppercase tracking-wider font-bold text-stone-500">
-            Estado de Pases y Asistencia
-          </h2>
+          <div>
+            <h2 className="text-xs uppercase tracking-wider font-bold text-stone-500">
+              Estado de Pases y Asistencia
+            </h2>
+            <p className="text-[11px] text-stone-400 mt-0.5">
+              Haz clic en cualquier tarjeta para ver la lista filtrada de invitados
+            </p>
+          </div>
           <span className="text-xs text-stone-500 font-medium">
-            {invitados.length} familias e invitados registrados
+            {invitados.length} familias e invitados
           </span>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 1. Asignados */}
-          <div className="bg-white border border-[#ebd9c4] rounded-2xl p-5 shadow-xs hover:border-[#e05a1b] transition-colors">
-            <div className="flex items-center justify-between text-stone-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Asignados</span>
-              <Users className="w-4 h-4 text-stone-400" />
+          <Link
+            href="/dashboard/invitados"
+            title="Ver todos los invitados asignados"
+            className="bg-white border border-[#ebd9c4] rounded-2xl p-5 shadow-xs hover:border-[#e05a1b] hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-stone-500 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-[#e05a1b] transition-colors">
+                  Asignados
+                </span>
+                <Users className="w-4 h-4 text-stone-400 group-hover:text-[#e05a1b] transition-colors" />
+              </div>
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-[#2b211b]">
+                {total_asignados}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">Pases totales repartidos</p>
             </div>
-            <p className="text-3xl sm:text-4xl font-serif font-bold text-[#2b211b]">{total_asignados}</p>
-            <p className="text-xs text-stone-500 mt-1">Pases totales reservados</p>
-          </div>
+            <div className="mt-3 pt-2.5 border-t border-[#f5ede2] flex items-center justify-between text-[11px] font-semibold text-[#e05a1b]">
+              <span>Ver todos</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
           {/* 2. Confirmados */}
-          <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between text-emerald-700 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Confirmados</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <Link
+            href="/dashboard/invitados?estado=confirmado"
+            title="Ver invitados que ya confirmaron asistencia"
+            className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 shadow-xs hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-emerald-700 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-emerald-950 transition-colors">
+                  Confirmados
+                </span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+              </div>
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-emerald-950">
+                {total_confirmados}
+              </p>
+              <p className="text-xs text-emerald-700 mt-1 font-medium">Platillos a pagar</p>
             </div>
-            <p className="text-3xl sm:text-4xl font-serif font-bold text-emerald-950">{total_confirmados}</p>
-            <p className="text-xs text-emerald-700 mt-1 font-medium">Platillos a pagar confirmados</p>
-          </div>
+            <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[11px] font-semibold text-emerald-800">
+              <span>Ver quiénes van</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
-          {/* 3. Pendientes */}
-          <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between text-stone-600 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Pendientes</span>
-              <Clock className="w-4 h-4 text-stone-400" />
+          {/* 3. Declinados */}
+          <Link
+            href="/dashboard/invitados?estado=declinado"
+            title="Ver invitados que indicaron que no asistirán"
+            className="bg-rose-50/70 border border-rose-200 rounded-2xl p-5 shadow-xs hover:border-rose-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-rose-700 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-rose-950 transition-colors">
+                  Declinados
+                </span>
+                <XCircle className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+              </div>
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-rose-950">
+                {total_declinados}
+              </p>
+              <p className="text-xs text-rose-700 mt-1 font-medium">Pases liberados</p>
             </div>
-            <p className="text-3xl sm:text-4xl font-serif font-bold text-stone-900">{total_pendientes}</p>
-            <p className="text-xs text-stone-500 mt-1">Aún no confirman o han visto</p>
-          </div>
+            <div className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[11px] font-semibold text-rose-800">
+              <span>Ver quiénes no van</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
-          {/* 4. Disponibles (Declinados + Pases liberados) */}
-          <div className="bg-[#fbf8f4] border border-[#dec0a2] rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between text-[#86583d] mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Disponibles</span>
-              <Sparkles className="w-4 h-4 text-[#e05a1b]" />
+          {/* 4. Pendientes */}
+          <Link
+            href="/dashboard/invitados?estado=pendiente"
+            title="Ver invitados que aún no confirman ni declinan"
+            className="bg-stone-50/80 border border-stone-200 rounded-2xl p-5 shadow-xs hover:border-stone-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-stone-600 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-stone-900 transition-colors">
+                  Pendientes
+                </span>
+                <Clock className="w-4 h-4 text-stone-400 group-hover:scale-110 transition-transform" />
+              </div>
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-stone-900">
+                {total_pendientes}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">Aún sin respuesta</p>
             </div>
-            <p className="text-3xl sm:text-4xl font-serif font-bold text-[#e05a1b]">{total_disponibles}</p>
-            <p className="text-xs text-[#86583d] mt-1 font-medium">Pases listos para reasignar</p>
-          </div>
+            <div className="mt-3 pt-2.5 border-t border-stone-200/60 flex items-center justify-between text-[11px] font-semibold text-stone-700">
+              <span>Ver quiénes faltan</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
         </div>
       </div>
 

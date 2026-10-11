@@ -27,6 +27,7 @@ model Evento {
   anfitriones            String
   fecha_evento           DateTime
   lugar                  String
+  capacidad_total        Int?
   fecha_limite_rsvp      DateTime
   plantilla_mensaje      String     @default("¡Hola {nombre}! Te invitamos cordialmente a nuestro evento. Tienes {pases} pases reservados. Por favor confirma tu asistencia aquí: {link}")
   plantilla_recordatorio String     @default("¡Hola {nombre}! Te recordamos que la fecha límite para confirmar tu asistencia a nuestro evento está próxima ({pases} pases). Puedes confirmar aquí: {link}")

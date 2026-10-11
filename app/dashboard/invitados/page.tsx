@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
@@ -50,19 +51,30 @@ interface Evento {
   anfitriones: string;
   fecha_evento: string;
   lugar: string;
+  capacidad_total: number | null;
   fecha_limite_rsvp: string;
   plantilla_mensaje: string;
   plantilla_recordatorio: string;
 }
 
-export default function InvitadosPage() {
+function InvitadosContent() {
+  const searchParams = useSearchParams();
+  const estadoParam = searchParams.get("estado");
+
   const [evento, setEvento] = useState<Evento | null>(null);
   const [invitados, setInvitados] = useState<Invitado[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtros
+  // Filtros (conectados con la URL al hacer clic desde el dashboard)
   const [search, setSearch] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [filtroEstado, setFiltroEstado] = useState(estadoParam || "todos");
+
+  useEffect(() => {
+    const estado = searchParams.get("estado");
+    if (estado) {
+      setFiltroEstado(estado);
+    }
+  }, [searchParams]);
 
   // Modales
   const [modalAgregar, setModalAgregar] = useState(false);
@@ -126,11 +138,28 @@ export default function InvitadosPage() {
         !term ||
         inv.nombre.toLowerCase().includes(term) ||
         (inv.grupo && inv.grupo.toLowerCase().includes(term));
-      const matchEstado =
-        filtroEstado === "todos" || inv.estado === filtroEstado;
+
+      let matchEstado = true;
+      if (filtroEstado === "todos") {
+        matchEstado = true;
+      } else if (filtroEstado === "pendiente") {
+        // Muestra todos los que aún no responden (pendientes o vistos)
+        matchEstado = inv.estado === "pendiente" || inv.estado === "visto";
+      } else if (filtroEstado === "visto") {
+        matchEstado = inv.estado === "visto";
+      } else {
+        matchEstado = inv.estado === filtroEstado;
+      }
+
       return matchSearch && matchEstado;
     });
   }, [invitados, search, filtroEstado]);
+
+  // Total de pases para aviso de cupo / capacidad
+  const totalPasesAsignados = useMemo(
+    () => invitados.reduce((sum, i) => sum + i.pases_asignados, 0),
+    [invitados]
+  );
 
   // Cerrar modales con tecla Escape y cerrar menú de opciones al hacer clic afuera
   useEffect(() => {
@@ -743,8 +772,8 @@ export default function InvitadosPage() {
             className="w-full sm:w-auto px-3 py-2 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs text-stone-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
           >
             <option value="todos">Todos los estados</option>
-            <option value="pendiente">⚪ Pendientes</option>
-            <option value="visto">🔵 Vistos</option>
+            <option value="pendiente">⚪ Pendientes (sin responder)</option>
+            <option value="visto">🔵 Solo Vistos</option>
             <option value="confirmado">🟢 Confirmados</option>
             <option value="declinado">🔴 Declinados</option>
           </select>
@@ -1021,6 +1050,24 @@ export default function InvitadosPage() {
                   onChange={(e) => setFormPases(parseInt(e.target.value, 10) || 1)}
                   className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                 />
+
+                {/* Aviso informativo de cupo (sin bloquear) */}
+                {evento?.capacidad_total &&
+                  totalPasesAsignados + formPases > evento.capacidad_total && (
+                    <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold">Aviso de cupo:</span> Con este invitado superarás la capacidad del evento ({evento.capacidad_total} asientos) por{" "}
+                        <strong>
+                          {totalPasesAsignados + formPases - evento.capacidad_total}{" "}
+                          {totalPasesAsignados + formPases - evento.capacidad_total === 1
+                            ? "cupo"
+                            : "cupos"}
+                        </strong>
+                        . Puedes guardar si planeas sobreinvitar.
+                      </div>
+                    </div>
+                  )}
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-3">
@@ -1115,6 +1162,32 @@ export default function InvitadosPage() {
                     Confirmados actualmente: <strong>{modalEditar.pases_confirmados}</strong>.
                   </p>
                 )}
+
+                {/* Aviso informativo de cupo (sin bloquear) */}
+                {evento?.capacidad_total &&
+                  totalPasesAsignados - modalEditar.pases_asignados + formPases >
+                    evento.capacidad_total && (
+                    <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold">Aviso de cupo:</span> Con esta cantidad superarás la capacidad del evento ({evento.capacidad_total} asientos) por{" "}
+                        <strong>
+                          {totalPasesAsignados -
+                            modalEditar.pases_asignados +
+                            formPases -
+                            evento.capacidad_total}{" "}
+                          {totalPasesAsignados -
+                            modalEditar.pases_asignados +
+                            formPases -
+                            evento.capacidad_total ===
+                          1
+                            ? "cupo"
+                            : "cupos"}
+                        </strong>
+                        .
+                      </div>
+                    </div>
+                  )}
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-3">
@@ -1437,5 +1510,19 @@ export default function InvitadosPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function InvitadosPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-20 text-center text-stone-400 text-xs">
+          Cargando lista de invitados...
+        </div>
+      }
+    >
+      <InvitadosContent />
+    </Suspense>
   );
 }
