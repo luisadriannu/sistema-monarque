@@ -3,17 +3,14 @@
 import { useState, useEffect } from "react";
 import {
   Calendar,
-  MapPin,
   MessageSquare,
   Save,
   CheckCircle,
   AlertCircle,
-  Clock,
-  Sparkles,
+  Users,
 } from "lucide-react";
 import {
   toDateInputValue,
-  toDateTimeInputValue,
   endOfDayMexicoDate,
   formatDateMx,
 } from "@/lib/utils";
@@ -28,7 +25,6 @@ interface EventoConfig {
   fecha_limite_rsvp: string;
   texto_edad_nino?: string;
   plantilla_mensaje: string;
-  plantilla_recordatorio: string;
   slug: string;
 }
 
@@ -39,16 +35,11 @@ export default function ConfiguracionPage() {
   const [mensajeExito, setMensajeExito] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form states
-  const [nombre, setNombre] = useState("");
-  const [anfitriones, setAnfitriones] = useState("");
-  const [fechaEvento, setFechaEvento] = useState("");
-  const [lugar, setLugar] = useState("");
+  // Form states - Solo los campos configurables por la clienta
   const [capacidadTotal, setCapacidadTotal] = useState<string>("");
   const [fechaLimiteRsvp, setFechaLimiteRsvp] = useState("");
   const [textoEdadNino, setTextoEdadNino] = useState("menores de 12 años");
   const [plantillaMensaje, setPlantillaMensaje] = useState("");
-  const [plantillaRecordatorio, setPlantillaRecordatorio] = useState("");
 
   useEffect(() => {
     async function loadEvento() {
@@ -58,27 +49,16 @@ export default function ConfiguracionPage() {
         if (res.ok && data.eventos?.[0]) {
           const ev = data.eventos[0];
           setEvento(ev);
-          setNombre(ev.nombre || "");
-          setAnfitriones(ev.anfitriones || "");
-          setLugar(ev.lugar || "");
           setCapacidadTotal(
             ev.capacidad_total !== null && ev.capacidad_total !== undefined
               ? String(ev.capacidad_total)
               : ""
           );
           setTextoEdadNino(ev.texto_edad_nino || "menores de 12 años");
-
-          // Conversión segura respetando zona horaria de México
-          setFechaEvento(toDateTimeInputValue(ev.fecha_evento));
           setFechaLimiteRsvp(toDateInputValue(ev.fecha_limite_rsvp));
-
           setPlantillaMensaje(
             ev.plantilla_mensaje ||
               "¡Hola {nombre}! Te invitamos con mucho cariño a nuestro evento. Tienes {pases} pases reservados. Por favor confírmanos tu asistencia aquí: {link}"
-          );
-          setPlantillaRecordatorio(
-            ev.plantilla_recordatorio ||
-              "¡Hola {nombre}! Te recordamos con mucho cariño que la fecha límite para confirmar tu asistencia a nuestro evento está próxima ({pases} pases reservados). Por favor confírmanos aquí: {link}"
           );
         }
       } catch (e) {
@@ -107,15 +87,10 @@ export default function ConfiguracionPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: evento.id,
-          nombre,
-          anfitriones,
-          fecha_evento: new Date(fechaEvento).toISOString(),
-          lugar,
           capacidad_total: capacidadTotal.trim() ? parseInt(capacidadTotal, 10) : null,
           fecha_limite_rsvp: fechaLimiteEndOfDay.toISOString(),
           texto_edad_nino: textoEdadNino.trim() || "menores de 12 años",
           plantilla_mensaje: plantillaMensaje,
-          plantilla_recordatorio: plantillaRecordatorio,
         }),
       });
 
@@ -132,17 +107,8 @@ export default function ConfiguracionPage() {
     }
   };
 
-  // Previsualizaciones de texto con variables simuladas
+  // Previsualización de texto con variables simuladas
   const previewMensaje = plantillaMensaje
-    .replace(/{nombre}/g, "Familia Gómez Pérez")
-    .replace(/{pases}/g, "4")
-    .replace(/{fecha_limite}/g, formatDateMx(fechaLimiteRsvp))
-    .replace(
-      /{link}/g,
-      `https://tudominio.com/${evento?.slug || "evento"}?id=x7k2p9qa`
-    );
-
-  const previewRecordatorio = plantillaRecordatorio
     .replace(/{nombre}/g, "Familia Gómez Pérez")
     .replace(/{pases}/g, "4")
     .replace(/{fecha_limite}/g, formatDateMx(fechaLimiteRsvp))
@@ -181,7 +147,7 @@ export default function ConfiguracionPage() {
             Configuración
           </h1>
           <p className="text-xs text-stone-500 mt-1">
-            Personaliza los datos principales, la fecha límite de confirmación y los mensajes de WhatsApp
+            Gestiona la fecha límite de confirmación, la capacidad de tu evento y el mensaje de invitación por WhatsApp
           </p>
         </div>
 
@@ -201,105 +167,49 @@ export default function ConfiguracionPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Datos Generales y Fechas */}
+        {/* Parámetros de Asistencia y Capacidad */}
         <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex items-center gap-2.5 pb-4 border-b border-[#f5ede2]">
             <Calendar className="w-5 h-5 text-[#e05a1b]" />
             <h2 className="font-serif text-lg font-bold text-[#2b211b]">
-              Datos Principales del Evento
+              Control de Asistencia y Capacidad
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-                Nombre del Evento
-              </label>
-              <input
-                type="text"
-                required
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="ej. Boda Ana & Luis / XV Años Sofía"
-                className="w-full px-4 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-                Nombres de los Anfitriones
-              </label>
-              <input
-                type="text"
-                required
-                value={anfitriones}
-                onChange={(e) => setAnfitriones(e.target.value)}
-                placeholder="ej. Ana Martínez y Luis Rodríguez / Familia Gómez"
-                className="w-full px-4 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-                Fecha y Hora del Evento
-              </label>
-              <input
-                type="datetime-local"
-                required
-                value={fechaEvento}
-                onChange={(e) => setFechaEvento(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-              />
-              <p className="text-[11px] text-stone-500 mt-1">
-                Formato local en horario de México.
-              </p>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Fecha Límite de Confirmación */}
-            <div className="bg-[#fbf8f4] p-4 rounded-2xl border border-[#ebd9c4]">
-              <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                <span>Fecha Límite de Confirmación (RSVP)</span>
-                <span className="text-[10px] text-[#e05a1b] font-semibold lowercase">
-                  cierre a las 23:59 hrs
-                </span>
-              </label>
-              <input
-                type="date"
-                required
-                value={fechaLimiteRsvp}
-                onChange={(e) => setFechaLimiteRsvp(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-              />
-              <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
-                Al terminar este día (23:59 hrs), el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante.
+            <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
+              <div>
+                <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Fecha Límite de Confirmación (RSVP)</span>
+                  <span className="text-[10px] text-[#e05a1b] font-semibold lowercase">
+                    cierre 23:59 hrs
+                  </span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={fechaLimiteRsvp}
+                  onChange={(e) => setFechaLimiteRsvp(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                />
+              </div>
+              <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
+                Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante.
               </p>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-                Lugar o Dirección Completa
-              </label>
-              <input
-                type="text"
-                required
-                value={lugar}
-                onChange={(e) => setLugar(e.target.value)}
-                placeholder="ej. Hacienda San José, Carretera Cuernavaca-Acapulco Km 18, Morelos"
-                className="w-full px-4 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-              />
             </div>
 
             {/* Capacidad / Cupo Total del Evento */}
-            <div className="md:col-span-2 bg-[#fbf8f4] p-4 rounded-2xl border border-[#ebd9c4]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-                <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
-                  Capacidad del Evento (Cupo de asientos)
-                </label>
-                <span className="text-[11px] text-[#e05a1b] font-semibold">
-                  Opcional
-                </span>
-              </div>
-              <div className="max-w-xs">
+            <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
+                    Capacidad del Evento (Cupo de asientos)
+                  </label>
+                  <span className="text-[11px] text-[#e05a1b] font-semibold">
+                    Opcional
+                  </span>
+                </div>
                 <input
                   type="number"
                   min="1"
@@ -309,13 +219,13 @@ export default function ConfiguracionPage() {
                   className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                 />
               </div>
-              <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
+              <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
                 Si defines un cupo máximo, verás en tu Resumen una barra de control que te indica cuántos cupos te quedan disponibles (ej. &quot;71 de 100 cupos asignados • Te quedan 29 disponibles&quot;). Si lo dejas vacío, no se mostrará.
               </p>
             </div>
 
             {/* Definición de Niño */}
-            <div className="md:col-span-2 bg-[#fbf8f4] p-4 rounded-2xl border border-[#ebd9c4]">
+            <div className="md:col-span-2 bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4]">
               <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5">
                 Definición de Niño para tu Evento
               </label>
@@ -336,15 +246,15 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
-        {/* Plantillas de Mensajes */}
+        {/* Plantilla de Mensaje para WhatsApp */}
         <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex items-center gap-2.5 pb-4 border-b border-[#f5ede2]">
             <MessageSquare className="w-5 h-5 text-[#e05a1b]" />
             <div>
               <h2 className="font-serif text-lg font-bold text-[#2b211b]">
-                Plantillas de Mensajes para WhatsApp
+                Mensaje de Invitación para WhatsApp
               </h2>
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-stone-500 mt-0.5">
                 Variables dinámicas disponibles:{" "}
                 <code className="bg-[#fbf8f4] border border-[#ebd9c4] px-1.5 py-0.5 rounded text-[#e05a1b] font-semibold">
                   {"{nombre}"}
@@ -366,56 +276,39 @@ export default function ConfiguracionPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Plantilla Principal */}
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                1. Plantilla de Invitación Inicial
+                Texto del Mensaje
               </label>
               <textarea
-                rows={4}
+                rows={5}
                 required
                 value={plantillaMensaje}
                 onChange={(e) => setPlantillaMensaje(e.target.value)}
                 className="w-full p-3.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e05a1b] font-mono leading-relaxed"
               />
-              <div className="bg-[#fbf8f4] p-3 rounded-xl border border-[#ebd9c4] text-xs">
-                <span className="font-semibold text-stone-500 text-[10px] uppercase block mb-1">
-                  Vista Previa en WhatsApp:
-                </span>
-                <p className="text-stone-800 whitespace-pre-wrap leading-relaxed text-[11px]">
-                  {previewMensaje}
-                </p>
-              </div>
+              <p className="text-[11px] text-stone-500">
+                Este es el texto que se copiará y enviará a cada invitado junto con su enlace personalizado.
+              </p>
             </div>
 
-            {/* Plantilla de Recordatorio */}
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                2. Plantilla de Recordatorio
+                Vista Previa en WhatsApp
               </label>
-              <textarea
-                rows={4}
-                required
-                value={plantillaRecordatorio}
-                onChange={(e) => setPlantillaRecordatorio(e.target.value)}
-                className="w-full p-3.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e05a1b] font-mono leading-relaxed"
-              />
-              <p className="text-[11px] text-stone-500">
-                Se envía automáticamente a los invitados que aún no confirman.
-              </p>
-              <div className="bg-[#fbf8f4] p-3 rounded-xl border border-[#ebd9c4] text-xs">
-                <span className="font-semibold text-stone-500 text-[10px] uppercase block mb-1">
-                  Vista Previa en WhatsApp:
-                </span>
-                <p className="text-stone-800 whitespace-pre-wrap leading-relaxed text-[11px]">
-                  {previewRecordatorio}
+              <div className="bg-[#fbf8f4] p-4 rounded-2xl border border-[#ebd9c4] h-full flex flex-col justify-between">
+                <p className="text-stone-800 whitespace-pre-wrap leading-relaxed text-[11px] font-sans">
+                  {previewMensaje}
                 </p>
+                <span className="text-[10px] text-stone-400 font-medium block mt-3 pt-2 border-t border-stone-200/50">
+                  Simulación con datos de ejemplo
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Botón de guardado con acento de mariposa */}
+        {/* Botón de guardado */}
         <div className="flex items-center justify-end">
           <button
             type="submit"

@@ -216,8 +216,9 @@ function InvitadosContent() {
   // Construir mensaje para WhatsApp o Copiar con variables neutras
   const getArmadoMensaje = (invitado: Invitado) => {
     if (!evento) return "";
-    const esRecordatorio = invitado.estado === "pendiente" || invitado.estado === "visto";
-    const plantilla = esRecordatorio ? evento.plantilla_recordatorio : evento.plantilla_mensaje;
+    const plantilla =
+      evento.plantilla_mensaje ||
+      "¡Hola {nombre}! Te invitamos con mucho cariño a nuestro evento. Tienes {pases} pases reservados. Por favor confírmanos tu asistencia aquí: {link}";
     const link = getInvitationUrl(invitado.token);
 
     return plantilla
