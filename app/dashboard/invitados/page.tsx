@@ -155,11 +155,18 @@ function InvitadosContent() {
     });
   }, [invitados, search, filtroEstado]);
 
-  // Total de pases para aviso de cupo / capacidad
-  const totalPasesAsignados = useMemo(
-    () => invitados.reduce((sum, i) => sum + i.pases_asignados, 0),
-    [invitados]
-  );
+  // Total de pases comprometidos (confirmados + pendientes; declinados liberan lugar)
+  const totalPasesAsignados = useMemo(() => {
+    return invitados.reduce((sum, inv) => {
+      if (inv.estado === "confirmado") {
+        return sum + (inv.pases_confirmados || 0);
+      } else if (inv.estado === "declinado") {
+        return sum; // Declinado no ocupa cupo
+      } else {
+        return sum + inv.pases_asignados;
+      }
+    }, 0);
+  }, [invitados]);
 
   // Cerrar modales con tecla Escape y cerrar menú de opciones al hacer clic afuera
   useEffect(() => {
@@ -1165,26 +1172,18 @@ function InvitadosContent() {
 
                 {/* Aviso informativo de cupo (sin bloquear) */}
                 {evento?.capacidad_total &&
-                  totalPasesAsignados - modalEditar.pases_asignados + formPases >
+                  totalPasesAsignados -
+                    (modalEditar.estado === "confirmado"
+                      ? modalEditar.pases_confirmados || 0
+                      : modalEditar.estado === "declinado"
+                      ? 0
+                      : modalEditar.pases_asignados) +
+                    formPases >
                     evento.capacidad_total && (
                     <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-semibold">Aviso de cupo:</span> Con esta cantidad superarás la capacidad del evento ({evento.capacidad_total} asientos) por{" "}
-                        <strong>
-                          {totalPasesAsignados -
-                            modalEditar.pases_asignados +
-                            formPases -
-                            evento.capacidad_total}{" "}
-                          {totalPasesAsignados -
-                            modalEditar.pases_asignados +
-                            formPases -
-                            evento.capacidad_total ===
-                          1
-                            ? "cupo"
-                            : "cupos"}
-                        </strong>
-                        .
+                        <span className="font-semibold">Aviso de cupo:</span> Con esta modificación superarás la capacidad configurada ({evento.capacidad_total} asientos).
                       </div>
                     </div>
                   )}

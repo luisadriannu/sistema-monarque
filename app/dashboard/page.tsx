@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { formatDateLongMx, formatDateMx, formatDateTimeMx } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
@@ -62,6 +64,15 @@ export default async function DashboardPage() {
       total_pendientes += inv.pases_asignados;
     }
   }
+
+  const capacidad = evento.capacidad_total || 0;
+  // Cupos comprometidos reales: Confirmados + Pendientes (quienes declinaron ya liberaron su lugar)
+  const cuposComprometidos = total_confirmados + total_pendientes;
+  const cuposDisponibles = capacidad - cuposComprometidos;
+
+  const pctConfirmados = capacidad > 0 ? Math.min(100, (total_confirmados / capacidad) * 100) : 0;
+  const pctPendientes =
+    capacidad > 0 ? Math.min(Math.max(0, 100 - pctConfirmados), (total_pendientes / capacidad) * 100) : 0;
 
   const now = new Date();
   const fechaLimite = new Date(evento.fecha_limite_rsvp);
@@ -138,50 +149,80 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Barra de Capacidad del Evento (Si fue configurado el cupo) */}
+      {/* Barra de Capacidad del Evento (Dinámica y en tiempo real) */}
       {evento.capacidad_total && (
-        <div className="bg-white border border-[#ebd9c4] rounded-2xl p-5 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
-                Capacidad del Evento
-              </span>
-              <span className="text-[11px] text-stone-300">•</span>
-              <span className="text-xs text-stone-700">
-                <strong>{total_asignados}</strong> de <strong>{evento.capacidad_total}</strong> cupos asignados
-              </span>
-            </div>
+        <div className="bg-white border border-[#ebd9c4] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div>
-              {evento.capacidad_total - total_asignados >= 0 ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c]">
-                  Te quedan {evento.capacidad_total - total_asignados}{" "}
-                  {evento.capacidad_total - total_asignados === 1 ? "cupo" : "cupos"} disponibles
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                  Capacidad del Evento
+                </span>
+                <span className="text-stone-300">•</span>
+                <span className="text-xs font-bold text-[#2b211b]">
+                  {evento.capacidad_total} asientos totales
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 mt-0.5">
+                {total_confirmados} confirmados • {total_pendientes} en espera de responder
+              </p>
+            </div>
+
+            <div>
+              {cuposDisponibles >= 0 ? (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
+                  Te quedan {cuposDisponibles} {cuposDisponibles === 1 ? "cupo disponible" : "cupos disponibles"}
                 </span>
               ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
-                  Has sobrepasado el cupo por {Math.abs(evento.capacidad_total - total_asignados)} asientos
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                  Has sobrepasado la capacidad por {Math.abs(cuposDisponibles)} {Math.abs(cuposDisponibles) === 1 ? "asiento" : "asientos"}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Barra de progreso */}
-          <div className="w-full bg-[#fbf8f4] border border-[#ebd9c4] h-3 rounded-full overflow-hidden p-0.5">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                total_asignados > evento.capacidad_total
-                  ? "bg-amber-500"
-                  : total_asignados / evento.capacidad_total >= 0.9
-                  ? "bg-[#e05a1b]"
-                  : "bg-emerald-600"
-              }`}
-              style={{
-                width: `${Math.min(
-                  100,
-                  Math.round((total_asignados / evento.capacidad_total) * 100)
-                )}%`,
-              }}
-            />
+          {/* Barra de progreso visual segmentada dinámica */}
+          <div className="w-full bg-[#fbf8f4] border border-[#ebd9c4] h-3.5 rounded-full overflow-hidden p-0.5 flex">
+            {/* Segmento verde: Confirmados reales (sube al confirmar) */}
+            {pctConfirmados > 0 && (
+              <div
+                title={`${total_confirmados} confirmados (${Math.round(pctConfirmados)}%)`}
+                className="bg-emerald-600 h-full rounded-l-full transition-all duration-500"
+                style={{ width: `${pctConfirmados}%` }}
+              />
+            )}
+            {/* Segmento naranja: Pendientes en espera */}
+            {pctPendientes > 0 && (
+              <div
+                title={`${total_pendientes} pendientes (${Math.round(pctPendientes)}%)`}
+                className={`bg-[#e05a1b] h-full transition-all duration-500 ${
+                  pctConfirmados === 0 ? "rounded-l-full" : ""
+                } ${pctConfirmados + pctPendientes >= 100 ? "rounded-r-full" : ""}`}
+                style={{ width: `${pctPendientes}%` }}
+              />
+            )}
+          </div>
+
+          {/* Leyenda visual rápida de los colores de la barra */}
+          <div className="flex flex-wrap items-center gap-4 text-[11px] text-stone-600 pt-1 border-t border-[#f5ede2]">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
+              <span>
+                <strong>{total_confirmados}</strong> confirmados ({Math.round(pctConfirmados)}%)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#e05a1b] inline-block" />
+              <span>
+                <strong>{total_pendientes}</strong> en espera ({Math.round(pctPendientes)}%)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#dec0a2] inline-block" />
+              <span>
+                <strong>{Math.max(0, cuposDisponibles)}</strong> libres para invitar
+              </span>
+            </div>
           </div>
         </div>
       )}
