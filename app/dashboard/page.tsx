@@ -52,18 +52,27 @@ export default async function DashboardPage() {
   let total_confirmados = 0;
   let total_declinados = 0;
   let total_pendientes = 0;
+  let total_parciales_count = 0;
+  let total_liberados_parciales = 0;
 
   for (const inv of invitados) {
     total_asignados += inv.pases_asignados;
 
     if (inv.estado === "confirmado") {
-      total_confirmados += inv.pases_confirmados || 0;
+      const conf = inv.pases_confirmados || 0;
+      total_confirmados += conf;
+      if (conf < inv.pases_asignados) {
+        total_parciales_count += 1;
+        total_liberados_parciales += inv.pases_asignados - conf;
+      }
     } else if (inv.estado === "declinado") {
       total_declinados += inv.pases_asignados;
     } else {
       total_pendientes += inv.pases_asignados;
     }
   }
+
+  const total_pases_liberados = total_declinados + total_liberados_parciales;
 
   const capacidad = evento.capacidad_total || 0;
   // Cupos comprometidos reales: Confirmados + Pendientes (quienes declinaron ya liberaron su lugar)
@@ -292,26 +301,32 @@ export default async function DashboardPage() {
             </div>
           </Link>
 
-          {/* 3. Declinados */}
+          {/* 3. Pases Liberados / Declinados */}
           <Link
-            href="/dashboard/invitados?estado=declinado"
-            title="Ver invitados que indicaron que no asistirán"
+            href="/dashboard/invitados?estado=liberados"
+            title="Ver invitados que liberaron pases (declinados o confirmación parcial)"
             className="bg-rose-50/70 border border-rose-200 rounded-2xl p-5 shadow-xs hover:border-rose-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between text-rose-700 mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-rose-950 transition-colors">
-                  Declinados
+                  Pases Liberados
                 </span>
                 <XCircle className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
               </div>
               <p className="text-3xl sm:text-4xl font-serif font-bold text-rose-950">
-                {total_declinados}
+                {total_pases_liberados}
               </p>
-              <p className="text-xs text-rose-700 mt-1 font-medium">Pases liberados</p>
+              <p className="text-xs text-rose-700 mt-1 font-medium leading-relaxed">
+                {total_liberados_parciales > 0
+                  ? `${total_declinados} de declinados y ${total_liberados_parciales} de ${
+                      total_parciales_count === 1 ? "parcial" : "parciales"
+                    }`
+                  : "Pases disponibles para reasignar"}
+              </p>
             </div>
             <div className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[11px] font-semibold text-rose-800">
-              <span>Ver quiénes no van</span>
+              <span>Ver quiénes liberaron</span>
               <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
@@ -384,12 +399,19 @@ export default async function DashboardPage() {
 
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-xs font-semibold text-stone-800">
-                    {inv.pases_confirmados ?? 0} de {inv.pases_asignados} pases
+                    {inv.pases_confirmados ?? 0} de {inv.pases_asignados}{" "}
+                    {inv.pases_asignados === 1 ? "pase" : "pases"}
                   </span>
                   {inv.estado === "confirmado" ? (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                      Confirmó
-                    </span>
+                    (inv.pases_confirmados || 0) < inv.pases_asignados ? (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                        Parcial
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        Confirmó
+                      </span>
+                    )
                   ) : (
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
                       Declinó

@@ -147,6 +147,23 @@ function InvitadosContent() {
         matchEstado = inv.estado === "pendiente" || inv.estado === "visto";
       } else if (filtroEstado === "visto") {
         matchEstado = inv.estado === "visto";
+      } else if (filtroEstado === "confirmado") {
+        // Todos los confirmados (incluye parciales)
+        matchEstado = inv.estado === "confirmado";
+      } else if (filtroEstado === "parcial") {
+        // Solo los que confirmaron menos de los asignados
+        matchEstado =
+          inv.estado === "confirmado" &&
+          (inv.pases_confirmados || 0) > 0 &&
+          (inv.pases_confirmados || 0) < inv.pases_asignados;
+      } else if (filtroEstado === "declinado") {
+        matchEstado = inv.estado === "declinado";
+      } else if (filtroEstado === "liberados") {
+        // Declinados o que confirmaron menos pases de los asignados
+        matchEstado =
+          inv.estado === "declinado" ||
+          (inv.estado === "confirmado" &&
+            (inv.pases_confirmados || 0) < inv.pases_asignados);
       } else {
         matchEstado = inv.estado === filtroEstado;
       }
@@ -655,39 +672,52 @@ function InvitadosContent() {
     );
   };
 
-  // Helper de badges de estado
-  const renderBadgeEstado = (estado: Invitado["estado"]) => {
-    switch (estado) {
-      case "confirmado":
+  // Helper de badges de estado (con distinción de Confirmado total vs Parcial)
+  const renderBadgeEstado = (inv: Invitado) => {
+    if (inv.estado === "confirmado") {
+      const conf = inv.pases_confirmados || 0;
+      if (conf < inv.pases_asignados) {
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-            Confirmado
+          <span
+            title={`Confirmó ${conf} de ${inv.pases_asignados} pases. Liberó ${inv.pases_asignados - conf} ${
+              inv.pases_asignados - conf === 1 ? "pase" : "pases"
+            }`}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Parcial
           </span>
         );
-      case "declinado":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-            Declinado
-          </span>
-        );
-      case "visto":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-            Visto
-          </span>
-        );
-      case "pendiente":
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 border border-stone-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
-            Pendiente
-          </span>
-        );
+      }
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+          Confirmado
+        </span>
+      );
     }
+    if (inv.estado === "declinado") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+          Declinado
+        </span>
+      );
+    }
+    if (inv.estado === "visto") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+          Visto
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 border border-stone-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
+        Pendiente
+      </span>
+    );
   };
 
   const totalConfirmados = invitados.filter((i) => i.estado === "confirmado").length;
@@ -781,8 +811,10 @@ function InvitadosContent() {
             <option value="todos">Todos los estados</option>
             <option value="pendiente">⚪ Pendientes (sin responder)</option>
             <option value="visto">🔵 Solo Vistos</option>
-            <option value="confirmado">🟢 Confirmados</option>
+            <option value="confirmado">🟢 Confirmados (todos)</option>
+            <option value="parcial">🟠 Parciales (confirmaron menos)</option>
             <option value="declinado">🔴 Declinados</option>
+            <option value="liberados">♻️ Pases liberados (declinados + parciales)</option>
           </select>
         </div>
       </div>
@@ -852,7 +884,7 @@ function InvitadosContent() {
 
                       {/* Estado */}
                       <td className="py-3.5 px-4 text-center">
-                        {renderBadgeEstado(inv.estado)}
+                        {renderBadgeEstado(inv)}
                       </td>
 
                       {/* Pases */}
@@ -861,6 +893,19 @@ function InvitadosContent() {
                           {inv.pases_confirmados !== null ? inv.pases_confirmados : "-"}
                         </span>
                         <span className="text-stone-400"> / {inv.pases_asignados}</span>
+                        {inv.estado === "confirmado" &&
+                          (inv.pases_confirmados || 0) < inv.pases_asignados && (
+                            <span
+                              title={`Liberó ${inv.pases_asignados - (inv.pases_confirmados || 0)} ${
+                                inv.pases_asignados - (inv.pases_confirmados || 0) === 1
+                                  ? "pase"
+                                  : "pases"
+                              }`}
+                              className="block text-[10px] text-amber-700 font-semibold mt-0.5"
+                            >
+                              +{inv.pases_asignados - (inv.pases_confirmados || 0)} libre
+                            </span>
+                          )}
                       </td>
 
                       {/* Última Respuesta */}
