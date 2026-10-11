@@ -296,11 +296,40 @@ export default async function DashboardPage() {
               <p className="text-3xl sm:text-4xl font-serif font-bold text-emerald-950">
                 {total_confirmados}
               </p>
-              <p className="text-xs text-emerald-700 mt-1 font-medium">
-                {total_confirmados === 1 ? "1 persona" : `${total_confirmados} personas`}:{" "}
-                {total_adultos} {total_adultos === 1 ? "adulto" : "adultos"} y {total_ninos}{" "}
-                {total_ninos === 1 ? "niño" : "niños"}
-              </p>
+
+              {/* Etiquetas destacadas de adultos y niños */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-emerald-100/90 text-emerald-900 border border-emerald-200 font-medium shadow-xs">
+                  <span>👤</span>
+                  <span>
+                    <strong className="font-bold text-sm text-emerald-950">{total_adultos}</strong>{" "}
+                    {total_adultos === 1 ? "adulto" : "adultos"}
+                  </span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-amber-100/90 text-amber-900 border border-amber-200 font-medium shadow-xs">
+                  <span>🧒</span>
+                  <span>
+                    <strong className="font-bold text-sm text-amber-950">{total_ninos}</strong>{" "}
+                    {total_ninos === 1 ? "niño" : "niños"}
+                  </span>
+                </span>
+              </div>
+
+              {/* Barra fina visual de proporción */}
+              {total_confirmados > 0 && (
+                <div className="w-full bg-emerald-100/60 h-1.5 rounded-full overflow-hidden flex mt-2.5">
+                  <div
+                    title={`${total_adultos} adultos`}
+                    className="bg-emerald-600 h-full transition-all"
+                    style={{ width: `${(total_adultos / total_confirmados) * 100}%` }}
+                  />
+                  <div
+                    title={`${total_ninos} niños`}
+                    className="bg-amber-500 h-full transition-all"
+                    style={{ width: `${(total_ninos / total_confirmados) * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
             <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[11px] font-semibold text-emerald-800">
               <span>Ver quiénes van</span>
@@ -399,7 +428,10 @@ export default async function DashboardPage() {
                   <div>
                     <p className="text-sm font-semibold text-stone-900">{inv.nombre}</p>
                     <p className="text-xs text-stone-500">
-                      {inv.grupo || "General"} • Respondido: {formatDateTimeMx(inv.ultima_respuesta_en)}
+                      {inv.grupo || "General"}
+                      {inv.estado === "confirmado" && (inv.ninos_confirmados || 0) > 0 ? (
+                        <> • <span className="font-semibold text-amber-700">{inv.ninos_confirmados} {inv.ninos_confirmados === 1 ? "niño" : "niños"}</span></>
+                      ) : null} • Respondido: {formatDateTimeMx(inv.ultima_respuesta_en)}
                     </p>
                   </div>
                 </div>
