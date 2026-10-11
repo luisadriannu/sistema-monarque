@@ -54,8 +54,9 @@ interface Evento {
   lugar: string;
   capacidad_total: number | null;
   fecha_limite_rsvp: string;
+  texto_edad_nino?: string;
   plantilla_mensaje: string;
-  plantilla_recordatorio: string;
+  plantilla_recordatorio?: string;
 }
 
 function InvitadosContent() {
@@ -565,6 +566,9 @@ function InvitadosContent() {
       return;
     }
 
+    const criterioNino = evento.texto_edad_nino || "menores de 12 años";
+    const columnaNinos = `Niños (${criterioNino})`;
+
     let totalAdultos = 0;
     let totalNinos = 0;
     let totalAsistentes = 0;
@@ -583,7 +587,7 @@ function InvitadosContent() {
         "Invitado / Familia": inv.nombre,
         "Grupo": inv.grupo || "General",
         "Adultos": adultos,
-        "Niños": ninos,
+        [columnaNinos]: ninos,
         "Total de Asistentes": conf,
         "Fecha de Confirmación": formatDateTimeMx(inv.ultima_respuesta_en),
       };
@@ -594,7 +598,7 @@ function InvitadosContent() {
       "Invitado / Familia": "TOTAL GENERAL",
       "Grupo": "",
       "Adultos": totalAdultos,
-      "Niños": totalNinos,
+      [columnaNinos]: totalNinos,
       "Total de Asistentes": totalAsistentes,
       "Fecha de Confirmación": "",
     });
@@ -617,6 +621,8 @@ function InvitadosContent() {
       return;
     }
 
+    const criterioNino = evento.texto_edad_nino || "menores de 12 años";
+
     let totalAdultos = 0;
     let totalNinos = 0;
     let totalAsistentes = 0;
@@ -636,38 +642,62 @@ function InvitadosContent() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(43, 33, 27);
-    doc.text("MONARQUE • LISTA DE CONFIRMADOS", 14, 20);
+    doc.text("MONARQUE • LISTA DE CONFIRMADOS", 14, 18);
 
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 120, 120);
-    doc.text(`Lista oficial de asistentes confirmados`, 14, 26);
+    doc.text("Lista oficial de asistentes confirmados", 14, 24);
 
     doc.setDrawColor(224, 90, 27);
-    doc.line(14, 30, 196, 30);
+    doc.setLineWidth(0.5);
+    doc.line(14, 28, 196, 28);
 
-    doc.setFontSize(10);
+    // Datos del Evento (ancho máx 98 mm para evitar colisión con la tarjeta derecha)
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(43, 33, 27);
-    doc.text(`Evento: ${evento.nombre}`, 14, 37);
-    doc.text(`Anfitriones: ${evento.anfitriones}`, 14, 43);
-    doc.text(`Fecha: ${formatDateLongMx(evento.fecha_evento)}`, 14, 49);
-    doc.text(`Lugar: ${evento.lugar}`, 14, 55);
+    doc.text(`Evento: ${evento.nombre}`, 14, 35);
+    doc.text(`Anfitriones: ${evento.anfitriones}`, 14, 41);
+    doc.text(`Fecha: ${formatDateLongMx(evento.fecha_evento)}`, 14, 47);
 
-    // Caja de Resumen
+    // Lugar multilínea para que no se corte ni colisione con la caja derecha
+    const lugarTexto = `Lugar: ${evento.lugar}`;
+    const lugarLineas = doc.splitTextToSize(lugarTexto, 98);
+    doc.text(lugarLineas, 14, 53);
+
+    // Caja de Resumen Destacada (Lado derecho, x=116, y=31, w=80, h=31)
     doc.setFillColor(251, 248, 244);
-    doc.roundedRect(120, 34, 76, 25, 3, 3, "F");
-    doc.setFontSize(8.5);
+    doc.setDrawColor(235, 217, 196);
+    doc.roundedRect(116, 31, 80, 31, 2.5, 2.5, "FD");
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(224, 90, 27);
-    doc.text("TOTAL ASISTENTES CONFIRMADOS", 125, 41);
-    doc.setFontSize(15);
+    doc.text("TOTAL ASISTENTES CONFIRMADOS", 121, 37);
+
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(43, 33, 27);
-    doc.text(`${totalAsistentes} personas`, 125, 49);
+    doc.text(
+      `${totalAsistentes} ${totalAsistentes === 1 ? "persona" : "personas"}`,
+      121,
+      45
+    );
+
     doc.setFontSize(8.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(50, 50, 50);
+    const labelAdultos = `${totalAdultos} ${totalAdultos === 1 ? "adulto" : "adultos"}`;
+    const labelNinos = `${totalNinos} ${totalNinos === 1 ? "niño" : "niños"}`;
+    doc.text(`${labelAdultos}  ·  ${labelNinos}`, 121, 51.5);
+
+    doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-    doc.text(`${totalAdultos} adultos · ${totalNinos} niños`, 125, 55);
+    doc.setTextColor(150, 90, 50);
+    doc.text(`* Criterio niños: ${criterioNino}`, 121, 57.5);
+
+    const startYTable = Math.max(65, 53 + lugarLineas.length * 4.5 + 4);
 
     const bodyData = confirmados.map((inv, idx) => {
       const conf = inv.pases_confirmados || 0;
@@ -684,16 +714,18 @@ function InvitadosContent() {
       ];
     });
 
+    const headerNinos = `Niños (${criterioNino})`;
+
     autoTable(doc, {
-      startY: 64,
-      head: [["#", "Invitado / Familia", "Grupo", "Adultos", "Niños", "Total Asistentes", "Fecha Confirmación"]],
+      startY: startYTable,
+      head: [["#", "Invitado / Familia", "Grupo", "Adultos", headerNinos, "Total Asistentes", "Fecha Confirmación"]],
       body: bodyData,
       theme: "striped",
       headStyles: {
         fillColor: [43, 33, 27],
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        fontSize: 8.5,
+        fontSize: 8,
       },
       styles: { fontSize: 8, cellPadding: 2.5 },
       foot: [["", "TOTAL GENERAL", "", `${totalAdultos}`, `${totalNinos}`, `${totalAsistentes} personas`, ""]],
@@ -704,6 +736,19 @@ function InvitadosContent() {
         fontSize: 8.5,
       },
     });
+
+    // Nota al pie para el salón / banquete
+    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 200;
+    if (finalY < 275) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(110, 110, 110);
+      doc.text(
+        `* Especificación para salón y servicio de banquete: Se consideran niños a ${criterioNino}.`,
+        14,
+        finalY + 6
+      );
+    }
 
     doc.save(
       `Lista_Confirmados_${evento.nombre.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`
