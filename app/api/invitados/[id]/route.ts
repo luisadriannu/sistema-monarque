@@ -83,13 +83,26 @@ export async function PUT(
 
       updateData.pases_asignados = nuevoAsignados;
 
-      // RN-02: Si la clienta reduce los pases asignados por debajo de lo ya confirmado,
-      // ajustar la confirmación al nuevo máximo.
+      let avisoAjuste: string | null = null;
+
+      // RN-02 & RN-06: Si la clienta reduce los pases asignados por debajo de lo ya confirmado,
+      // ajustar la confirmación y niños confirmados al nuevo máximo y avisarle.
       if (
         invitado.pases_confirmados !== null &&
         invitado.pases_confirmados > nuevoAsignados
       ) {
         updateData.pases_confirmados = nuevoAsignados;
+        avisoAjuste = `Se ajustaron los pases confirmados al nuevo límite de ${nuevoAsignados}.`;
+      }
+
+      const pasesConfirmadosEfectivos =
+        (updateData.pases_confirmados !== undefined
+          ? (updateData.pases_confirmados as number)
+          : invitado.pases_confirmados) ?? 0;
+
+      if (invitado.ninos_confirmados > pasesConfirmadosEfectivos) {
+        updateData.ninos_confirmados = pasesConfirmadosEfectivos;
+        avisoAjuste = `Se ajustaron los pases y niños confirmados al nuevo límite de ${nuevoAsignados}.`;
       }
     }
 
@@ -98,7 +111,13 @@ export async function PUT(
       data: updateData,
     });
 
-    return NextResponse.json({ ok: true, invitado: actualizado });
+    return NextResponse.json({
+      ok: true,
+      invitado: actualizado,
+      aviso: (updateData.pases_asignados !== undefined && (updateData.pases_confirmados !== undefined || updateData.ninos_confirmados !== undefined))
+        ? "Se redujeron los pases asignados; se ajustaron automáticamente los asistentes y niños confirmados."
+        : undefined,
+    });
   } catch (error) {
     console.error("Error al modificar invitado:", error);
     return NextResponse.json(

@@ -50,6 +50,7 @@ export default async function DashboardPage() {
   // Asignados, Confirmados, Declinados y Pendientes
   let total_asignados = 0;
   let total_confirmados = 0;
+  let total_ninos = 0;
   let total_declinados = 0;
   let total_pendientes = 0;
   let total_parciales_count = 0;
@@ -61,6 +62,7 @@ export default async function DashboardPage() {
     if (inv.estado === "confirmado") {
       const conf = inv.pases_confirmados || 0;
       total_confirmados += conf;
+      total_ninos += inv.ninos_confirmados || 0;
       if (conf < inv.pases_asignados) {
         total_parciales_count += 1;
         total_liberados_parciales += inv.pases_asignados - conf;
@@ -72,6 +74,7 @@ export default async function DashboardPage() {
     }
   }
 
+  const total_adultos = Math.max(0, total_confirmados - total_ninos);
   const total_pases_liberados = total_declinados + total_liberados_parciales;
 
   const capacidad = evento.capacidad_total || 0;
@@ -293,7 +296,11 @@ export default async function DashboardPage() {
               <p className="text-3xl sm:text-4xl font-serif font-bold text-emerald-950">
                 {total_confirmados}
               </p>
-              <p className="text-xs text-emerald-700 mt-1 font-medium">Platillos a pagar</p>
+              <p className="text-xs text-emerald-700 mt-1 font-medium">
+                {total_confirmados === 1 ? "1 persona" : `${total_confirmados} personas`}:{" "}
+                {total_adultos} {total_adultos === 1 ? "adulto" : "adultos"} y {total_ninos}{" "}
+                {total_ninos === 1 ? "niño" : "niños"}
+              </p>
             </div>
             <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center justify-between text-[11px] font-semibold text-emerald-800">
               <span>Ver quiénes van</span>

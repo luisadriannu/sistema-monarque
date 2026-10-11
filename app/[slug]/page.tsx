@@ -58,6 +58,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       nombre: invitado.nombre,
       pases_asignados: invitado.pases_asignados,
       pases_confirmados: invitado.pases_confirmados,
+      ninos_confirmados: invitado.ninos_confirmados,
       estado: invitado.estado,
       ultima_respuesta_en: invitado.ultima_respuesta_en?.toISOString() || null,
     },
@@ -67,6 +68,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       fecha_evento: evento.fecha_evento.toISOString(),
       lugar: evento.lugar,
       fecha_limite_rsvp: evento.fecha_limite_rsvp.toISOString(),
+      texto_edad_nino: evento.texto_edad_nino || "menores de 12 años",
       expirado,
     },
   };

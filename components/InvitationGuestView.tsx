@@ -18,6 +18,7 @@ interface InvitationData {
     nombre: string;
     pases_asignados: number;
     pases_confirmados: number | null;
+    ninos_confirmados?: number;
     estado: string;
     ultima_respuesta_en: string | null;
   };
@@ -27,6 +28,7 @@ interface InvitationData {
     fecha_evento: string;
     lugar: string;
     fecha_limite_rsvp: string;
+    texto_edad_nino?: string;
     expirado: boolean;
   };
 }
@@ -68,6 +70,16 @@ export default function InvitationGuestView({
     return initialInvitado.pases_asignados;
   });
 
+  const [ninosSeleccionados, setNinosSeleccionados] = useState<number>(() => {
+    if (
+      initialInvitado.ninos_confirmados !== undefined &&
+      initialInvitado.ninos_confirmados !== null
+    ) {
+      return initialInvitado.ninos_confirmados;
+    }
+    return 0;
+  });
+
   const [enviando, setEnviando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
@@ -83,7 +95,23 @@ export default function InvitationGuestView({
 
   const handleDecrement = () => {
     if (pasesSeleccionados > 0) {
-      setPasesSeleccionados(pasesSeleccionados - 1);
+      const nuevo = pasesSeleccionados - 1;
+      setPasesSeleccionados(nuevo);
+      if (ninosSeleccionados > nuevo) {
+        setNinosSeleccionados(nuevo);
+      }
+    }
+  };
+
+  const handleIncrementNinos = () => {
+    if (ninosSeleccionados < pasesSeleccionados) {
+      setNinosSeleccionados(ninosSeleccionados + 1);
+    }
+  };
+
+  const handleDecrementNinos = () => {
+    if (ninosSeleccionados > 0) {
+      setNinosSeleccionados(ninosSeleccionados - 1);
     }
   };
 
@@ -100,6 +128,8 @@ export default function InvitationGuestView({
         body: JSON.stringify({
           token,
           pases_confirmados: pasesSeleccionados,
+          ninos_confirmados:
+            maxPases >= 2 && pasesSeleccionados > 0 ? ninosSeleccionados : 0,
         }),
       });
 
@@ -222,7 +252,12 @@ export default function InvitationGuestView({
               >
                 {invitado.estado === "confirmado"
                   ? `${invitado.pases_confirmados} ${
-                      invitado.pases_confirmados === 1 ? "pase confirmado" : "pases confirmados"
+                      invitado.pases_confirmados === 1 ? "asistente" : "asistentes"
+                    }${
+                      invitado.pases_asignados >= 2 &&
+                      (invitado.ninos_confirmados ?? 0) > 0
+                        ? ` (${(invitado.pases_confirmados || 0) - (invitado.ninos_confirmados || 0)} adultos, ${invitado.ninos_confirmados} niños)`
+                        : ""
                     }`
                   : "Declinado"}
               </span>
@@ -282,6 +317,63 @@ export default function InvitationGuestView({
                   )}
                 </p>
               </div>
+
+              {/* Selector de niños (RF-30: si el invitado tiene 2 o más pases asignados y asistirán 1 o más) */}
+              {maxPases >= 2 && pasesSeleccionados > 0 && (
+                <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] text-center space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                      ¿Cuántos de ellos son niños?
+                    </label>
+                    <span className="text-[11px] text-[#e05a1b] font-medium block mt-0.5">
+                      ({evento.texto_edad_nino || "menores de 12 años"})
+                    </span>
+                  </div>
+
+                  {/* Contador interactivo de niños */}
+                  <div className="flex items-center justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={handleDecrementNinos}
+                      disabled={ninosSeleccionados <= 0}
+                      className="w-12 h-12 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 flex items-center justify-center font-bold text-lg disabled:opacity-30 disabled:cursor-not-allowed shadow-xs active:scale-95 transition-all"
+                    >
+                      -
+                    </button>
+
+                    <div className="w-20 text-center">
+                      <span className="font-serif text-4xl font-bold text-[#2b211b] block leading-none">
+                        {ninosSeleccionados}
+                      </span>
+                      <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
+                        de {pasesSeleccionados} máx.
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleIncrementNinos}
+                      disabled={ninosSeleccionados >= pasesSeleccionados}
+                      className="w-12 h-12 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 flex items-center justify-center font-bold text-lg disabled:opacity-30 disabled:cursor-not-allowed shadow-xs active:scale-95 transition-all"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Desglose resumen */}
+                  <p className="text-xs font-medium text-stone-600">
+                    <span className="text-stone-800 font-semibold">
+                      {pasesSeleccionados - ninosSeleccionados}{" "}
+                      {pasesSeleccionados - ninosSeleccionados === 1 ? "adulto" : "adultos"}
+                    </span>
+                    <span className="mx-2 text-stone-400">·</span>
+                    <span className="text-stone-800 font-semibold">
+                      {ninosSeleccionados}{" "}
+                      {ninosSeleccionados === 1 ? "niño" : "niños"}
+                    </span>
+                  </p>
+                </div>
+              )}
 
               {/* Botón de envío con gradiente mariposa monarca */}
               <button

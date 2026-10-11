@@ -37,6 +37,7 @@ interface Invitado {
   grupo: string | null;
   pases_asignados: number;
   pases_confirmados: number | null;
+  ninos_confirmados: number;
   estado: "pendiente" | "visto" | "confirmado" | "declinado";
   token: string;
   enviado_en: string | null;
@@ -350,7 +351,7 @@ function InvitadosContent() {
       formPases < modalEditar.pases_confirmados
     ) {
       const confirmar = confirm(
-        `Atención: El invitado ya tiene ${modalEditar.pases_confirmados} pases confirmados. Al reducir los pases a ${formPases}, su confirmación se ajustará automáticamente a ${formPases}. ¿Deseas continuar?`
+        `Atención: El invitado ya tiene ${modalEditar.pases_confirmados} pases confirmados. Al reducir los pases a ${formPases}, su confirmación y desglose de niños se ajustarán automáticamente al nuevo límite. ¿Deseas continuar?`
       );
       if (!confirmar) {
         setGuardando(false);
@@ -374,6 +375,10 @@ function InvitadosContent() {
 
       setModalEditar(null);
       await fetchInvitados();
+
+      if (data.aviso) {
+        alert(data.aviso);
+      }
     } catch (err: unknown) {
       if (err instanceof Error) setFormError(err.message);
       else setFormError("Error inesperado al guardar.");
@@ -550,7 +555,7 @@ function InvitadosContent() {
     }
   };
 
-  // EXPORTAR: Lista de confirmados a Excel (.xlsx)
+  // EXPORTAR: Lista de confirmados a Excel (.xlsx) (RF-31, RF-32)
   const handleExportarExcelConfirmados = () => {
     if (!evento) return;
     const confirmados = invitados.filter((i) => i.estado === "confirmado");
@@ -559,24 +564,37 @@ function InvitadosContent() {
       return;
     }
 
-    const totalPlatillos = confirmados.reduce(
-      (sum, i) => sum + (i.pases_confirmados || 0),
-      0
-    );
+    let totalAdultos = 0;
+    let totalNinos = 0;
+    let totalAsistentes = 0;
 
-    const filas = confirmados.map((inv, index) => ({
-      "#": index + 1,
-      "Invitado / Familia": inv.nombre,
-      "Grupo": inv.grupo || "General",
-      "Platillos Confirmados": inv.pases_confirmados || 0,
-      "Fecha de Confirmación": formatDateTimeMx(inv.ultima_respuesta_en),
-    }));
+    const filas = confirmados.map((inv, index) => {
+      const conf = inv.pases_confirmados || 0;
+      const ninos = inv.ninos_confirmados || 0;
+      const adultos = Math.max(0, conf - ninos);
+
+      totalAdultos += adultos;
+      totalNinos += ninos;
+      totalAsistentes += conf;
+
+      return {
+        "#": index + 1,
+        "Invitado / Familia": inv.nombre,
+        "Grupo": inv.grupo || "General",
+        "Adultos": adultos,
+        "Niños": ninos,
+        "Total de Asistentes": conf,
+        "Fecha de Confirmación": formatDateTimeMx(inv.ultima_respuesta_en),
+      };
+    });
 
     filas.push({
       "#": "" as unknown as number,
-      "Invitado / Familia": "TOTAL PLATILLOS A PREPARAR",
+      "Invitado / Familia": "TOTAL GENERAL",
       "Grupo": "",
-      "Platillos Confirmados": totalPlatillos,
+      "Adultos": totalAdultos,
+      "Niños": totalNinos,
+      "Total de Asistentes": totalAsistentes,
       "Fecha de Confirmación": "",
     });
 
@@ -589,7 +607,7 @@ function InvitadosContent() {
     );
   };
 
-  // EXPORTAR: Lista de confirmados a PDF
+  // EXPORTAR: Lista de confirmados a PDF (RF-31, RF-32)
   const handleExportarPDFConfirmados = () => {
     if (!evento) return;
     const confirmados = invitados.filter((i) => i.estado === "confirmado");
@@ -598,10 +616,18 @@ function InvitadosContent() {
       return;
     }
 
-    const totalPlatillos = confirmados.reduce(
-      (sum, i) => sum + (i.pases_confirmados || 0),
-      0
-    );
+    let totalAdultos = 0;
+    let totalNinos = 0;
+    let totalAsistentes = 0;
+
+    confirmados.forEach((inv) => {
+      const conf = inv.pases_confirmados || 0;
+      const ninos = inv.ninos_confirmados || 0;
+      const adultos = Math.max(0, conf - ninos);
+      totalAdultos += adultos;
+      totalNinos += ninos;
+      totalAsistentes += conf;
+    });
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -611,10 +637,10 @@ function InvitadosContent() {
     doc.setTextColor(43, 33, 27);
     doc.text("MONARQUE • LISTA DE CONFIRMADOS", 14, 20);
 
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 120, 120);
-    doc.text(`Lista oficial para salón y banquete`, 14, 26);
+    doc.text(`Lista oficial de asistentes confirmados`, 14, 26);
 
     doc.setDrawColor(224, 90, 27);
     doc.line(14, 30, 196, 30);
@@ -627,43 +653,54 @@ function InvitadosContent() {
     doc.text(`Fecha: ${formatDateLongMx(evento.fecha_evento)}`, 14, 49);
     doc.text(`Lugar: ${evento.lugar}`, 14, 55);
 
-    // Caja de Platillos
+    // Caja de Resumen
     doc.setFillColor(251, 248, 244);
-    doc.roundedRect(125, 34, 71, 25, 3, 3, "F");
-    doc.setFontSize(9);
+    doc.roundedRect(120, 34, 76, 25, 3, 3, "F");
+    doc.setFontSize(8.5);
     doc.setTextColor(224, 90, 27);
-    doc.text("TOTAL PLATILLOS A PAGAR", 130, 41);
-    doc.setFontSize(17);
+    doc.text("TOTAL ASISTENTES CONFIRMADOS", 125, 41);
+    doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(43, 33, 27);
-    doc.text(`${totalPlatillos} Platillos`, 130, 52);
+    doc.text(`${totalAsistentes} personas`, 125, 49);
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${totalAdultos} adultos · ${totalNinos} niños`, 125, 55);
 
-    const bodyData = confirmados.map((inv, idx) => [
-      idx + 1,
-      inv.nombre,
-      inv.grupo || "-",
-      `${inv.pases_confirmados || 0} pases`,
-      formatDateTimeMx(inv.ultima_respuesta_en),
-    ]);
+    const bodyData = confirmados.map((inv, idx) => {
+      const conf = inv.pases_confirmados || 0;
+      const ninos = inv.ninos_confirmados || 0;
+      const adultos = Math.max(0, conf - ninos);
+      return [
+        idx + 1,
+        inv.nombre,
+        inv.grupo || "-",
+        adultos,
+        ninos,
+        `${conf} ${conf === 1 ? "persona" : "personas"}`,
+        formatDateTimeMx(inv.ultima_respuesta_en),
+      ];
+    });
 
     autoTable(doc, {
       startY: 64,
-      head: [["#", "Invitado / Familia", "Grupo", "Platillos Conf.", "Fecha Confirmación"]],
+      head: [["#", "Invitado / Familia", "Grupo", "Adultos", "Niños", "Total Asistentes", "Fecha Confirmación"]],
       body: bodyData,
       theme: "striped",
       headStyles: {
         fillColor: [43, 33, 27],
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        fontSize: 9,
+        fontSize: 8.5,
       },
-      styles: { fontSize: 8.5, cellPadding: 3 },
-      foot: [["", "TOTAL GENERAL", "", `${totalPlatillos} platillos`, ""]],
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      foot: [["", "TOTAL GENERAL", "", `${totalAdultos}`, `${totalNinos}`, `${totalAsistentes} personas`, ""]],
       footStyles: {
         fillColor: [245, 237, 226],
         textColor: [43, 33, 27],
         fontStyle: "bold",
-        fontSize: 9,
+        fontSize: 8.5,
       },
     });
 
@@ -893,6 +930,19 @@ function InvitadosContent() {
                           {inv.pases_confirmados !== null ? inv.pases_confirmados : "-"}
                         </span>
                         <span className="text-stone-400"> / {inv.pases_asignados}</span>
+                        {inv.estado === "confirmado" && (inv.pases_confirmados || 0) > 0 && (
+                          <div className="text-[10px] text-stone-600 font-medium mt-0.5 whitespace-nowrap">
+                            {(inv.pases_confirmados || 0) - (inv.ninos_confirmados || 0)} ad.
+                            {(inv.ninos_confirmados || 0) > 0 ? (
+                              <span className="text-[#e05a1b] font-semibold">
+                                {" "}· {inv.ninos_confirmados}{" "}
+                                {inv.ninos_confirmados === 1 ? "niño" : "niños"}
+                              </span>
+                            ) : (
+                              <span className="text-stone-400"> · 0 niños</span>
+                            )}
+                          </div>
+                        )}
                         {inv.estado === "confirmado" &&
                           (inv.pases_confirmados || 0) < inv.pases_asignados && (
                             <span

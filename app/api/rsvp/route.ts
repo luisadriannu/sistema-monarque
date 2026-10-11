@@ -39,6 +39,7 @@ export async function GET(request: Request) {
             fecha_evento: true,
             lugar: true,
             fecha_limite_rsvp: true,
+            texto_edad_nino: true,
           },
         },
       },
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
         nombre: invitado.nombre,
         pases_asignados: invitado.pases_asignados,
         pases_confirmados: invitado.pases_confirmados,
+        ninos_confirmados: invitado.ninos_confirmados,
         estado: invitado.estado,
         ultima_respuesta_en: invitado.ultima_respuesta_en,
       },
@@ -71,6 +73,7 @@ export async function GET(request: Request) {
         fecha_evento: invitado.evento.fecha_evento,
         lugar: invitado.evento.lugar,
         fecha_limite_rsvp: invitado.evento.fecha_limite_rsvp,
+        texto_edad_nino: invitado.evento.texto_edad_nino || "menores de 12 años",
         expirado,
       },
     });
@@ -94,7 +97,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { token, pases_confirmados } = await request.json();
+    const body = await request.json();
+    const { token, pases_confirmados, ninos_confirmados } = body;
 
     if (!token) {
       return NextResponse.json(
@@ -148,6 +152,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // RN-06: Validación de desglose de niños
+    let ninos = 0;
+    if (pases > 0 && invitado.pases_asignados >= 2) {
+      const parsedNinos = parseInt(String(ninos_confirmados ?? 0), 10);
+      if (isNaN(parsedNinos) || parsedNinos < 0 || parsedNinos > pases) {
+        return NextResponse.json(
+          {
+            error: `El número de niños debe ser un valor válido entre 0 y los asistentes confirmados (${pases}).`,
+          },
+          { status: 400 }
+        );
+      }
+      ninos = parsedNinos;
+    } else {
+      // Con 1 pase asignado o si declina (pases === 0), niños confirmados siempre es 0
+      ninos = 0;
+    }
+
     // RF-20: Si elige 0 -> declinado; si > 0 -> confirmado
     const nuevoEstado = pases === 0 ? "declinado" : "confirmado";
 
@@ -155,6 +177,7 @@ export async function POST(request: Request) {
       where: { id: invitado.id },
       data: {
         pases_confirmados: pases,
+        ninos_confirmados: ninos,
         estado: nuevoEstado,
         ultima_respuesta_en: new Date(),
       },
@@ -172,6 +195,7 @@ export async function POST(request: Request) {
         nombre: actualizado.nombre,
         pases_asignados: actualizado.pases_asignados,
         pases_confirmados: actualizado.pases_confirmados,
+        ninos_confirmados: actualizado.ninos_confirmados,
         estado: actualizado.estado,
         ultima_respuesta_en: actualizado.ultima_respuesta_en,
       },

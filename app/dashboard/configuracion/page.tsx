@@ -26,6 +26,7 @@ interface EventoConfig {
   lugar: string;
   capacidad_total?: number | null;
   fecha_limite_rsvp: string;
+  texto_edad_nino?: string;
   plantilla_mensaje: string;
   plantilla_recordatorio: string;
   slug: string;
@@ -45,6 +46,7 @@ export default function ConfiguracionPage() {
   const [lugar, setLugar] = useState("");
   const [capacidadTotal, setCapacidadTotal] = useState<string>("");
   const [fechaLimiteRsvp, setFechaLimiteRsvp] = useState("");
+  const [textoEdadNino, setTextoEdadNino] = useState("menores de 12 años");
   const [plantillaMensaje, setPlantillaMensaje] = useState("");
   const [plantillaRecordatorio, setPlantillaRecordatorio] = useState("");
 
@@ -64,6 +66,7 @@ export default function ConfiguracionPage() {
               ? String(ev.capacidad_total)
               : ""
           );
+          setTextoEdadNino(ev.texto_edad_nino || "menores de 12 años");
 
           // Conversión segura respetando zona horaria de México
           setFechaEvento(toDateTimeInputValue(ev.fecha_evento));
@@ -110,6 +113,7 @@ export default function ConfiguracionPage() {
           lugar,
           capacidad_total: capacidadTotal.trim() ? parseInt(capacidadTotal, 10) : null,
           fecha_limite_rsvp: fechaLimiteEndOfDay.toISOString(),
+          texto_edad_nino: textoEdadNino.trim() || "menores de 12 años",
           plantilla_mensaje: plantillaMensaje,
           plantilla_recordatorio: plantillaRecordatorio,
         }),
@@ -307,6 +311,26 @@ export default function ConfiguracionPage() {
               </div>
               <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
                 Si defines un cupo máximo, verás en tu Resumen una barra de control que te indica cuántos cupos te quedan disponibles (ej. &quot;71 de 100 cupos asignados • Te quedan 29 disponibles&quot;). Si lo dejas vacío, no se mostrará.
+              </p>
+            </div>
+
+            {/* Definición de Niño */}
+            <div className="md:col-span-2 bg-[#fbf8f4] p-4 rounded-2xl border border-[#ebd9c4]">
+              <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5">
+                Definición de Niño para tu Evento
+              </label>
+              <div className="max-w-md">
+                <input
+                  type="text"
+                  required
+                  value={textoEdadNino}
+                  onChange={(e) => setTextoEdadNino(e.target.value)}
+                  placeholder="ej. menores de 12 años"
+                  className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                />
+              </div>
+              <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
+                Este texto aparecerá en la invitación cuando el invitado indique cuántos de sus asistentes son niños (ej. &quot;¿Cuántos de ellos son niños? (menores de 12 años)&quot;).
               </p>
             </div>
           </div>
