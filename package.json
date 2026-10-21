@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
+    "db:export-sqlite": "node scripts/export-sqlite-data.js",
+    "db:import-postgres": "node scripts/import-postgres-data.js",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {

@@ -3,10 +3,19 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateInvitationToken } from "@/lib/tokens";
 
+export const dynamic = "force-dynamic";
+
+const noStoreHeaders = {
+  "Cache-Control": "no-store, max-age=0",
+};
+
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    return NextResponse.json(
+      { error: "No autorizado." },
+      { status: 401, headers: noStoreHeaders }
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -28,25 +37,28 @@ export async function GET(request: Request) {
   }
 
   if (!evento) {
-    return NextResponse.json({
-      evento: null,
-      invitados: [],
-      kpis: {
-        total_asignados: 0,
-        total_confirmados: 0,
-        total_declinados: 0,
-        total_pendientes: 0,
-        pases_liberados: 0,
-        total_invitados: 0,
+    return NextResponse.json(
+      {
+        evento: null,
+        invitados: [],
+        kpis: {
+          total_asignados: 0,
+          total_confirmados: 0,
+          total_declinados: 0,
+          total_pendientes: 0,
+          pases_liberados: 0,
+          total_invitados: 0,
+        },
       },
-    });
+      { headers: noStoreHeaders }
+    );
   }
 
   // Verificar pertenencia (RF-02)
   if (user.rol !== "admin" && evento.usuario_id !== user.id) {
     return NextResponse.json(
       { error: "No tienes permiso para ver los invitados de este evento." },
-      { status: 403 }
+      { status: 403, headers: noStoreHeaders }
     );
   }
 
@@ -96,18 +108,21 @@ export async function GET(request: Request) {
     invitadosFiltrados = invitadosFiltrados.filter((inv) => inv.estado === estado);
   }
 
-  return NextResponse.json({
-    evento,
-    invitados: invitadosFiltrados,
-    kpis: {
-      total_asignados,
-      total_confirmados,
-      total_declinados: total_declinados_pases,
-      total_pendientes: total_pendientes_pases,
-      pases_liberados,
-      total_invitados: todosInvitados.length,
+  return NextResponse.json(
+    {
+      evento,
+      invitados: invitadosFiltrados,
+      kpis: {
+        total_asignados,
+        total_confirmados,
+        total_declinados: total_declinados_pases,
+        total_pendientes: total_pendientes_pases,
+        pases_liberados,
+        total_invitados: todosInvitados.length,
+      },
     },
-  });
+    { headers: noStoreHeaders }
+  );
 }
 
 export async function POST(request: Request) {
@@ -173,7 +188,7 @@ export async function POST(request: Request) {
 
     // Creación individual (RF-08)
     const nombreLimpio = String(nombre || "").trim();
-    const pasesNum = parseInt(String(pases_asignados || "1"), 10);
+    const pasesNum = Number(pases_asignados);
 
     if (!nombreLimpio) {
       return NextResponse.json(
@@ -182,7 +197,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (isNaN(pasesNum) || pasesNum < 1) {
+    if (!Number.isInteger(pasesNum) || pasesNum < 1) {
       return NextResponse.json(
         { error: "Los pases asignados deben ser un número entero mayor o igual a 1." },
         { status: 400 }

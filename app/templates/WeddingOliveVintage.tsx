@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   CalendarDays,
   Clock,
@@ -10,6 +10,13 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Heart,
+  Camera,
+  Wine,
+  UtensilsCrossed,
+  Music2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Cormorant_Garamond, Libre_Baskerville } from "next/font/google";
 import CountDown from "@/app/components/CountDown";
@@ -55,6 +62,150 @@ function Leaf({ flip = false }: { flip?: boolean }) {
         opacity=".72"
       />
     </svg>
+  );
+}
+
+const vintageParticles = [
+  [8, 16, 0], [17, 72, 1.1], [27, 35, 2.4], [39, 83, 0.7], [49, 19, 1.8],
+  [58, 61, 3.1], [68, 29, 1.4], [77, 78, 2.7], [88, 42, 0.3], [94, 67, 2],
+] as const;
+
+function VintageParticles({ reduceMotion }: { reduceMotion: boolean | null }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      {vintageParticles.map(([left, top, delay], index) => (
+        <motion.span
+          key={`${left}-${top}`}
+          className="absolute h-1 w-1 rounded-full bg-[#F5E6B8] shadow-[0_0_10px_rgba(245,230,184,.8)]"
+          style={{ left: `${left}%`, top: `${top}%` }}
+          animate={reduceMotion ? undefined : { y: [0, -18, 0], x: [0, index % 2 ? 7 : -7, 0], opacity: [0.2, 0.85, 0.2], scale: [0.8, 1.5, 0.8] }}
+          transition={{ duration: 5 + (index % 3), delay, repeat: Infinity, ease: "easeInOut" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FloralSpray({ className = "" }: { className?: string }) {
+  return (
+    <Image
+      src="/pictures/wedding/ivory-rose-spray.png"
+      alt=""
+      aria-hidden
+      width={1024}
+      height={1536}
+      className={`pointer-events-none absolute object-contain ${className}`}
+    />
+  );
+}
+
+function VintageDivider() {
+  return (
+    <div className="relative z-10 flex items-center justify-center gap-4 py-5 text-[#A18142]" aria-hidden="true">
+      <span className="h-px w-16 bg-gradient-to-r from-transparent to-current opacity-55 sm:w-28" />
+      <span className="text-xl">❦</span>
+      <span className="h-px w-16 bg-gradient-to-l from-transparent to-current opacity-55 sm:w-28" />
+    </div>
+  );
+}
+
+function WeddingRings() {
+  return (
+    <div className="relative h-14 w-24" aria-hidden="true">
+      <span className="absolute left-2 top-3 h-11 w-11 -rotate-12 rounded-full border-2 border-[#DABF7C] shadow-[inset_0_0_0_2px_rgba(93,73,35,.28),0_3px_10px_rgba(0,0,0,.2)]" />
+      <span className="absolute right-2 top-3 h-11 w-11 rotate-12 rounded-full border-2 border-[#E7CF91] shadow-[inset_0_0_0_2px_rgba(93,73,35,.28),0_3px_10px_rgba(0,0,0,.2)]" />
+      <span className="absolute right-[1.15rem] top-1 h-4 w-4 rotate-45 border border-[#EAD9AB] bg-[#FFF8E8]/90 shadow-[0_0_12px_rgba(244,224,170,.65)]" />
+      <span className="absolute right-[1.42rem] top-[.14rem] h-2.5 w-2.5 rotate-45 border border-white/80" />
+    </div>
+  );
+}
+
+function OpeningCover({
+  groom,
+  bride,
+  date,
+  image,
+  onOpen,
+  reduceMotion,
+}: {
+  groom: string;
+  bride: string;
+  date: string;
+  image: string;
+  onOpen: () => void;
+  reduceMotion: boolean | null;
+}) {
+  const shortGroom = groom.trim().split(/\s+/)[0] || groom;
+  const shortBride = bride.trim().split(/\s+/)[0] || bride;
+  const openingNames = shortBride ? `${shortGroom} y ${shortBride}` : shortGroom;
+
+  return (
+    <motion.section
+      key="opening-cover"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.035, filter: "blur(7px)" }}
+      transition={{ duration: reduceMotion ? 0.15 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+      className={`${display.variable} ${utility.variable} fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#293025] px-5 py-8 text-center`}
+      style={{ fontFamily: "var(--font-cy-display)" }}
+    >
+      <Image src={image} alt="" fill priority className="object-cover opacity-30 sepia-[.45] saturate-[.65] scale-105" sizes="100vw" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(61,70,50,.38),rgba(25,30,22,.94)_72%)]" />
+      <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(244,226,180,.18)_0.7px,transparent_0.7px)] [background-size:7px_7px]" />
+      <VintageParticles reduceMotion={reduceMotion} />
+
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 1, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+        className="relative flex min-h-[min(760px,90dvh)] w-full max-w-lg flex-col items-center justify-center px-3 py-10"
+      >
+        <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -left-28 -top-20 h-64 w-72 -rotate-6 object-contain opacity-75 drop-shadow-[0_12px_20px_rgba(0,0,0,.3)]" />
+        <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -bottom-24 -right-28 h-72 w-80 rotate-[174deg] object-contain opacity-70 drop-shadow-[0_12px_20px_rgba(0,0,0,.3)]" />
+
+        <p className="relative text-[9px] font-bold uppercase tracking-[0.5em] text-[#E5CE94]" style={{ fontFamily: "var(--font-cy-utility)" }}>
+          Invitación de boda
+        </p>
+        <div className="relative my-5 flex items-center gap-4 text-[#D9BD79]">
+          <span className="h-px w-16 bg-current opacity-45" />
+          <WeddingRings />
+          <span className="h-px w-16 bg-current opacity-45" />
+        </div>
+        <h1 className="relative max-w-md text-[clamp(3.15rem,14vw,5.5rem)] font-medium leading-[.88] text-[#FFF9EE] [text-shadow:0_5px_30px_rgba(0,0,0,.55)]">
+          {openingNames}
+        </h1>
+        <p className="relative mt-7 text-[9px] font-bold uppercase tracking-[0.3em] text-[#F1DEAA]" style={{ fontFamily: "var(--font-cy-utility)" }}>
+          {date}
+        </p>
+
+        <div className="relative mt-16 h-48 w-full max-w-sm drop-shadow-[0_25px_40px_rgba(0,0,0,.38)]">
+          <div className="absolute inset-x-4 bottom-0 h-40 rounded-b-xl bg-[#D7C7A7]" />
+          <div className="absolute inset-x-4 bottom-0 h-40 bg-[#E8DDC7] [clip-path:polygon(0_0,50%_58%,100%_0,100%_100%,0_100%)]" />
+          <div className="absolute inset-x-4 top-0 h-32 bg-[#CDBB98] [clip-path:polygon(0_0,100%_0,50%_100%)]" />
+          <div className="absolute left-8 right-8 top-[-2.25rem] h-28 border border-[#B69A61]/35 bg-[#F4EBDD] px-5 pt-5 shadow-md">
+            <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-[#94763C]" style={{ fontFamily: "var(--font-cy-utility)" }}>Con cariño para ti</p>
+            <p className="mt-3 text-2xl italic text-[#4B5340]">{openingNames}</p>
+          </div>
+          <div className="absolute inset-x-0 top-[4.25rem] z-10 flex justify-center">
+            <motion.button
+              type="button"
+              onClick={onOpen}
+              whileHover={reduceMotion ? undefined : { scale: 1.035 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+              className="relative flex flex-col items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E6CD8D] focus-visible:ring-offset-4 focus-visible:ring-offset-[#293025]"
+              aria-label="Abrir invitación"
+            >
+              <span className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-double border-[#D7BA72]/70 bg-[#4B573F] text-2xl italic text-[#F1DDA7] shadow-[0_10px_24px_rgba(0,0,0,.3)]">
+                {groom[0]}<span className="mx-1 text-sm">&amp;</span>{bride[0]}
+              </span>
+              <span className="rounded-full border border-[#D5BD7E]/45 bg-[#263022]/90 px-6 py-2 text-[9px] font-bold uppercase tracking-[0.3em] text-[#F1DDA7] backdrop-blur-sm" style={{ fontFamily: "var(--font-cy-utility)" }}>
+                Abrir invitación
+              </span>
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.section>
   );
 }
 
@@ -119,8 +270,21 @@ export default function WeddingOliveVintage({
   const nameParts = data.event.name.split(" & ");
   const groom = nameParts[0] ?? data.event.name;
   const bride = nameParts[1] ?? "";
+  const [opened, setOpened] = useState(false);
+  const galleryPhotos = Array.from(new Set([data.media.coverImage, ...data.media.gallery]));
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryDirection, setGalleryDirection] = useState(1);
 
   const [invitado, setInvitado] = useState(initialInvitado);
+
+  useEffect(() => {
+    if (opened) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [opened]);
 
   useEffect(() => {
     if (invitado.estado === "pendiente") {
@@ -153,6 +317,13 @@ export default function WeddingOliveVintage({
   const maxPases = invitado.pases_asignados;
   const yaRespondio =
     invitado.estado === "confirmado" || invitado.estado === "declinado";
+
+  const changeGalleryPhoto = (direction: number) => {
+    setGalleryDirection(direction);
+    setGalleryIndex((current) =>
+      (current + direction + galleryPhotos.length) % galleryPhotos.length
+    );
+  };
 
   const handleSubmit = async () => {
     if (evento.expirado) return;
@@ -189,14 +360,36 @@ export default function WeddingOliveVintage({
   };
 
   return (
-    <main
+    <AnimatePresence mode="wait" initial={false}>
+      {!opened ? (
+        <OpeningCover
+          key="opening"
+          groom={groom}
+          bride={bride}
+          date={formatDateLongMx(evento.fecha_evento)}
+          image={data.media.coverImage}
+          reduceMotion={reduceMotion}
+          onOpen={() => {
+            window.scrollTo({ top: 0, behavior: "auto" });
+            setOpened(true);
+          }}
+        />
+      ) : (
+    <motion.main
+      key="invitation"
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.65 }}
       className={`${display.variable} ${utility.variable} overflow-hidden bg-[#E9DEC8] text-[#454938] [background-image:radial-gradient(circle_at_15%_20%,rgba(111,83,39,.09),transparent_28%),radial-gradient(circle_at_85%_70%,rgba(111,83,39,.08),transparent_30%)]`}
       style={{ fontFamily: "var(--font-cy-display)" }}
     >
       {/* Hero */}
       <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-6 py-12 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)]">
+        <VintageParticles reduceMotion={reduceMotion} />
         <div className="absolute inset-3 border border-[#C9AB68]/45" />
         <div className="absolute inset-5 border border-[#C9AB68]/15" />
+        <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -left-24 -top-20 h-64 w-72 -rotate-6 object-contain opacity-40" />
+        <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-80 rotate-[174deg] object-contain opacity-35" />
         <div className="absolute left-4 top-2 opacity-55">
           <Leaf />
         </div>
@@ -204,64 +397,65 @@ export default function WeddingOliveVintage({
           <Leaf flip />
         </div>
         <motion.div
-          initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="relative flex min-h-[82svh] w-full max-w-lg flex-col items-center justify-end overflow-hidden border-[9px] border-[#D7C7A8] px-7 pb-16 pt-32 text-center outline outline-1 outline-offset-4 outline-[#B49350]/65 shadow-[0_25px_70px_rgba(22,28,18,.32)]"
+          initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+          className="relative min-h-[86svh] w-full max-w-2xl overflow-hidden rounded-t-[10rem] border-[7px] border-[#D7C7A8] text-center outline outline-1 outline-offset-4 outline-[#B49350]/65 shadow-[0_30px_90px_rgba(14,20,12,.45)] sm:rounded-t-[16rem]"
         >
           <Image
             src={data.media.coverImage}
             alt="Fotografía de portada"
             fill
             priority
-            className="object-cover object-center sepia-[.35] saturate-[.8] contrast-[.92]"
-            sizes="(max-width: 640px) calc(100vw - 40px), 512px"
+            className="object-cover object-center sepia-[.32] saturate-[.78] contrast-[.94]"
+            sizes="(max-width: 640px) calc(100vw - 40px), 672px"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#272B20]/95 via-[#463D2D]/25 to-[#6F5B39]/15" />
-          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#263020]/90 to-transparent" />
-          <span
-            className="absolute left-3 top-2 text-4xl text-[#E0C687]/80"
-            aria-hidden="true"
+          <div className="absolute inset-0 bg-gradient-to-b from-[#253020]/25 via-transparent to-[#1E271B]/80" />
+          <div className="absolute inset-x-0 top-0 h-52 bg-gradient-to-b from-[#23301F]/65 to-transparent" />
+
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45, duration: 0.8 }}
+            className="absolute left-1/2 top-10 flex -translate-x-1/2 flex-col items-center"
           >
-            ⌜
-          </span>
-          <span
-            className="absolute right-3 top-2 text-4xl text-[#E0C687]/80"
-            aria-hidden="true"
-          >
-            ⌝
-          </span>
-          <div className="relative mb-7 flex h-18 w-18 items-center justify-center rounded-full border-4 border-double border-[#B49350]/70 bg-[#EDE1C8]/95">
-            <span className="text-2xl italic text-[#657052]">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-[#F2DEAA]/65 bg-[#2F392A]/70 shadow-[0_12px_35px_rgba(0,0,0,.28)] backdrop-blur-sm">
+              <span className="text-3xl italic text-[#F1DDA7]">
               {groom[0]}
-              <span className="mx-1 text-base text-[#B49350]">&</span>
+                <span className="mx-1 text-base text-[#CBA85C]">&amp;</span>
               {bride[0]}
             </span>
-          </div>
-          <p
-            className="relative text-[10px] font-semibold uppercase tracking-[0.38em] text-[#E0C687]"
-            style={{ fontFamily: "var(--font-cy-utility)" }}
+            </div>
+            <p className="mt-3 text-[8px] font-bold uppercase tracking-[0.42em] text-[#F2DEAA]" style={{ fontFamily: "var(--font-cy-utility)" }}>
+              Save the date
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-x-5 bottom-7 border border-[#B69959]/55 bg-[#F3E9D8]/[.94] px-5 py-8 shadow-[0_24px_55px_rgba(17,23,14,.38)] backdrop-blur-[3px] before:absolute before:inset-2 before:border before:border-[#99814C]/25 sm:inset-x-10 sm:bottom-10 sm:px-10"
           >
-            Celebración
-          </p>
-          <h1 className="relative mt-7 max-w-md text-[clamp(2.7rem,10vw,5rem)] font-medium leading-[.9] text-[#FFF9EE] [text-shadow:0_3px_24px_rgba(0,0,0,.45)]">
-            <span className="block">{groom}</span>
-            {bride && (
-              <>
-                <span className="my-4 block text-2xl italic text-[#E0C687]">
-                  y
-                </span>
-                <span className="block">{bride}</span>
-              </>
-            )}
-          </h1>
-          <div className="relative my-7 h-px w-20 bg-[#E0C687]/70" />
-          <p
-            className="relative text-sm font-medium uppercase tracking-[0.22em] text-[#F5E9D0]"
-            style={{ fontFamily: "var(--font-cy-utility)" }}
-          >
-            {formatDateLongMx(evento.fecha_evento)}
-          </p>
+            <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -left-14 -top-14 h-36 w-40 -rotate-6 object-contain drop-shadow-[0_8px_10px_rgba(54,60,43,.16)]" />
+            <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -bottom-14 -right-14 h-36 w-40 rotate-[174deg] object-contain drop-shadow-[0_8px_10px_rgba(54,60,43,.16)]" />
+            <p className="relative text-[9px] font-bold uppercase tracking-[0.38em] text-[#8B7139]" style={{ fontFamily: "var(--font-cy-utility)" }}>
+              Nuestra historia continúa
+            </p>
+            <h1 className="relative mt-5 text-[clamp(3rem,11vw,5.5rem)] font-medium leading-[.78] text-[#3F4735]">
+              <span className="block">{groom}</span>
+              {bride && <span className="my-5 block text-2xl italic text-[#AA8743]">&amp;</span>}
+              {bride && <span className="block">{bride}</span>}
+            </h1>
+            <div className="relative mx-auto my-6 flex max-w-[16rem] items-center gap-3 text-[#A38445]" aria-hidden="true">
+              <span className="h-px flex-1 bg-current opacity-45" />
+              <Heart className="h-4 w-4 fill-current" strokeWidth={1} />
+              <span className="h-px flex-1 bg-current opacity-45" />
+            </div>
+            <p className="relative text-[10px] font-bold uppercase tracking-[0.2em] text-[#626A51]" style={{ fontFamily: "var(--font-cy-utility)" }}>
+              {formatDateLongMx(evento.fecha_evento)}
+            </p>
+          </motion.div>
         </motion.div>
       </section>
 
@@ -304,7 +498,9 @@ export default function WeddingOliveVintage({
       </section>
 
       {data.event.phrase && (
-        <section className="relative px-7 py-24 text-center">
+        <section className="relative overflow-hidden px-7 py-24 text-center">
+          <FloralSpray className="-left-20 top-1/2 h-80 w-52 -translate-y-1/2 -rotate-6 opacity-25" />
+          <FloralSpray className="-right-20 top-1/2 h-72 w-48 -translate-y-1/2 scale-x-[-1] rotate-6 opacity-20" />
           <motion.div {...reveal} className="relative mx-auto max-w-xl">
             <span className="text-5xl leading-none text-[#B08D46]/50">"</span>
             <p className="mt-1 text-2xl italic leading-relaxed text-[#555A45] sm:text-3xl">
@@ -361,9 +557,84 @@ export default function WeddingOliveVintage({
         </section>
       )}
 
+      {/* Galería completa */}
+      <section className="relative overflow-hidden bg-[#30382B] px-5 py-28 text-[#F7F0E2]">
+        <div className="absolute inset-4 rounded-[3rem] border border-[#D2B777]/20" />
+        <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(226,204,150,.22)_0.7px,transparent_0.7px)] [background-size:10px_10px]" />
+        <motion.div {...reveal} className="relative mx-auto max-w-5xl">
+          <div className="text-center">
+            <p className="text-[9px] font-bold uppercase tracking-[0.42em] text-[#D2B777]" style={{ fontFamily: "var(--font-cy-utility)" }}>Nuestros recuerdos</p>
+            <h2 className="mt-4 text-5xl font-medium italic sm:text-6xl">Galería</h2>
+            <p className="mx-auto mt-4 max-w-md text-base italic text-[#C8C6B2]">Pequeños instantes de una historia que seguimos escribiendo juntos.</p>
+          </div>
+
+          <div className="relative mx-auto mt-12 max-w-4xl">
+            <div className="absolute -inset-3 rounded-t-[9rem] rounded-b-[2.5rem] border border-[#D2B777]/35" />
+            <div className="relative h-[62svh] min-h-[480px] max-h-[720px] overflow-hidden rounded-t-[8rem] rounded-b-[2rem] border-[6px] border-[#D8C69F] bg-[#171C15] shadow-[0_35px_90px_rgba(0,0,0,.5)] sm:h-[68svh]">
+              <AnimatePresence initial={false} mode="popLayout" custom={galleryDirection}>
+                <motion.div
+                  key={galleryPhotos[galleryIndex]}
+                  custom={galleryDirection}
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: galleryDirection > 0 ? 70 : -70, scale: 1.03 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: galleryDirection > 0 ? -70 : 70, scale: 0.98 }}
+                  transition={{ duration: reduceMotion ? 0.15 : 0.55, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={galleryPhotos[galleryIndex]}
+                    alt={`Recuerdo de ${groom} y ${bride}, fotografía ${galleryIndex + 1}`}
+                    fill
+                    className="object-cover sepia-[.18] saturate-[.86] contrast-[.96]"
+                    sizes="(max-width: 768px) 100vw, 896px"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#1D241A]/80 to-transparent" />
+                </motion.div>
+              </AnimatePresence>
+
+              {galleryPhotos.length > 1 && (
+                <>
+                  <button type="button" onClick={() => changeGalleryPhoto(-1)} aria-label="Fotografía anterior" className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#E6D4A7]/55 bg-[#293226]/80 text-[#F4E4BA] shadow-lg backdrop-blur-sm transition-transform hover:scale-105 sm:left-5">
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button type="button" onClick={() => changeGalleryPhoto(1)} aria-label="Fotografía siguiente" className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#E6D4A7]/55 bg-[#293226]/80 text-[#F4E4BA] shadow-lg backdrop-blur-sm transition-transform hover:scale-105 sm:right-5">
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+
+              <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-full border border-[#E6D4A7]/35 bg-[#293226]/75 px-4 py-2 text-[9px] font-bold uppercase tracking-[0.25em] text-[#F1DDA7] backdrop-blur-sm" style={{ fontFamily: "var(--font-cy-utility)" }}>
+                {String(galleryIndex + 1).padStart(2, "0")} / {String(galleryPhotos.length).padStart(2, "0")}
+              </div>
+            </div>
+          </div>
+
+          {galleryPhotos.length > 1 && (
+            <div className="mx-auto mt-8 flex max-w-3xl gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
+              {galleryPhotos.map((photo, index) => (
+                <button
+                  type="button"
+                  key={photo}
+                  onClick={() => {
+                    setGalleryDirection(index > galleryIndex ? 1 : -1);
+                    setGalleryIndex(index);
+                  }}
+                  aria-label={`Ver fotografía ${index + 1}`}
+                  aria-current={galleryIndex === index}
+                  className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-[1rem] border-2 transition-all sm:h-20 sm:w-20 ${galleryIndex === index ? "scale-105 border-[#E0C687] opacity-100" : "border-transparent opacity-50 hover:opacity-80"}`}
+                >
+                  <Image src={photo} alt="" fill className="object-cover sepia-[.25]" sizes="80px" />
+                </button>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </section>
+
       {/* Detalles del evento */}
-      <section className="bg-[#DED3BE] px-5 py-20">
-        <motion.div {...reveal} className="mx-auto max-w-3xl">
+      <section className="relative overflow-hidden bg-[#DED3BE] px-5 py-20">
+        <FloralSpray className="-right-24 top-8 h-96 w-64 rotate-6 opacity-30" />
+        <motion.div {...reveal} className="relative mx-auto max-w-3xl">
           <SectionHeading eyebrow="Acompáñanos">La celebración</SectionHeading>
           <div className="mt-12 grid border-4 border-double border-[#A78340]/45 bg-[#F3E9D5] sm:grid-cols-3">
             <div className="flex min-h-40 flex-col items-center justify-center border-b border-[#A78340]/25 p-6 text-center sm:border-b-0 sm:border-r">
@@ -411,12 +682,14 @@ export default function WeddingOliveVintage({
               </p>
             </div>
           </div>
+          <VintageDivider />
         </motion.div>
       </section>
 
       {/* Mapa */}
-      <section className="relative overflow-hidden bg-[#2C3326] py-28 px-5">
-        {/* Foto de fondo desenfocada */}
+      <section className="relative overflow-hidden bg-[#2C3326] px-5 py-28">
+        <VintageParticles reduceMotion={reduceMotion} />
+        <FloralSpray className="-left-28 bottom-0 h-[30rem] w-72 -rotate-6 opacity-[.12]" />
         <div className="absolute inset-0">
           <Image
             src={data.media.coverImage}
@@ -426,83 +699,58 @@ export default function WeddingOliveVintage({
             className="object-cover object-center opacity-20 blur-sm sepia-[.6] saturate-[.5]"
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#2C3326]/80 via-[#2C3326]/60 to-[#2C3326]/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#2C3326]/90 via-[#2C3326]/70 to-[#1F261C]/95" />
         </div>
 
-        <motion.div {...reveal} className="relative mx-auto max-w-2xl">
-
-          {/* Encabezado */}
-          <div className="mb-10 text-center">
+        <motion.div {...reveal} className="relative mx-auto max-w-3xl">
+          <div className="mb-12 text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.38em] text-[#D2B777]" style={{ fontFamily: "var(--font-cy-utility)" }}>Cómo llegar</p>
             <h2 className="mt-3 text-4xl font-medium italic text-[#FFF9EE] sm:text-5xl">El lugar</h2>
             <p className="mt-3 text-lg text-[#D2B777]">❦</p>
           </div>
 
-          {/* Pastilla de ubicación */}
-          <div className="mb-6 flex items-center justify-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#C9AB68]/40" />
-            <div className="flex items-center gap-2 rounded-full border border-[#C9AB68]/40 bg-[#37402F]/80 px-5 py-2 backdrop-blur-sm">
-              <MapPin size={13} strokeWidth={1.5} className="text-[#D2B777]" />
-              <span className="text-sm italic text-[#F5E9D0]">{data.location.reception}</span>
-            </div>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C9AB68]/40" />
-          </div>
-
-          {/* Mapa con forma de sobre / postal */}
-          <div className="relative">
-            {/* Sombra exterior difuminada */}
-            <div className="absolute -inset-1 rounded-2xl bg-[#C9AB68]/20 blur-md" />
-
-            {/* Marco dorado */}
-            <div className="relative overflow-hidden rounded-2xl border-2 border-[#C9AB68]/60 shadow-[0_32px_80px_rgba(0,0,0,.55)]">
-
-              {/* Franja superior decorativa */}
-              <div className="flex h-8 items-center justify-between bg-[#37402F] px-4">
-                <div className="flex gap-1.5">
-                  {["#C9AB68","#9A7837","#687054"].map(c => (
-                    <span key={c} className="h-2 w-2 rounded-full opacity-70" style={{ background: c }} />
-                  ))}
-                </div>
-                <p className="text-[8px] uppercase tracking-[0.3em] text-[#C9AB68]/70" style={{ fontFamily: "var(--font-cy-utility)" }}>
-                  {data.location.reception}
-                </p>
-                <div className="flex gap-1.5">
-                  {["#687054","#9A7837","#C9AB68"].map(c => (
-                    <span key={c} className="h-2 w-2 rounded-full opacity-70" style={{ background: c }} />
-                  ))}
-                </div>
-              </div>
-
-              {/* iframe */}
+          <div className="relative mx-auto max-w-xl">
+            <div className="absolute -inset-x-3 -top-3 h-[466px] rounded-t-[16rem] rounded-b-[2.75rem] border border-[#D2B777]/30 sm:h-[526px]" />
+            <div className="relative h-[460px] overflow-hidden rounded-t-[15rem] rounded-b-[2.25rem] border-[5px] border-[#D6C294] bg-[#D6C294] shadow-[0_38px_90px_rgba(0,0,0,.58)] sm:h-[520px]">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d483680.5891845961!2d-99.19703368462967!3d18.719801575826544!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85cef1665ac3fa17%3A0x85a88bedb3e9838f!2sFINCA%20SAN%20JOS%C3%89!5e0!3m2!1ses-419!2smx!4v1792553073980!5m2!1ses-419!2smx"
                 width="100%"
-                height="360"
-                style={{ border: 0, display: "block", filter: "sepia(0.2) saturate(0.9)" }}
+                height="100%"
+                style={{ border: 0, display: "block", filter: "sepia(0.28) saturate(0.75) contrast(0.94)" }}
                 allowFullScreen
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 title="Ubicación del evento"
               />
+              <div className="pointer-events-none absolute left-1/2 top-7 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#D2B777]/50 bg-[#30382B]/90 px-5 py-2 text-[#F5E9D0] shadow-lg backdrop-blur-sm">
+                <MapPin size={13} strokeWidth={1.4} className="text-[#D2B777]" />
+                <span className="whitespace-nowrap text-xs italic">Nuestra celebración</span>
+              </div>
+            </div>
 
-              {/* Franja inferior con botón */}
-              <div className="flex items-center justify-between gap-4 bg-[#37402F] px-5 py-3">
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="relative mx-auto mt-7 max-w-lg rounded-[1.5rem] border border-[#B99A58]/45 bg-[#F2E8D5] px-5 py-4 text-center text-[#414936] shadow-[0_18px_38px_rgba(10,15,9,.28)]"
+            >
+              <div className="flex flex-col items-center justify-between gap-4 sm:flex-row sm:text-left">
                 <div>
-                  <p className="text-[8px] uppercase tracking-[0.25em] text-[#9A9E7A]" style={{ fontFamily: "var(--font-cy-utility)" }}>Fecha</p>
-                  <p className="text-sm italic text-[#E0C687]">{formatDateLongMx(evento.fecha_evento)}</p>
+                  <p className="text-[8px] font-bold uppercase tracking-[0.28em] text-[#9A7837]" style={{ fontFamily: "var(--font-cy-utility)" }}>Te esperamos en</p>
+                  <h3 className="mt-1 text-xl font-medium italic">{data.location.reception}</h3>
+                  <p className="mt-1 text-xs italic text-[#73765F]">{formatDateLongMx(evento.fecha_evento)}</p>
                 </div>
                 <a
                   href="https://maps.google.com/?q=Finca+San+Jose"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#C9AB68]/50 bg-[#464B38] px-4 py-2 text-[8px] uppercase tracking-[0.22em] text-[#D2B777] transition-colors hover:bg-[#596146]"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#3E4635] px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#E8D194] transition-transform hover:scale-[1.03]"
                   style={{ fontFamily: "var(--font-cy-utility)" }}
                 >
-                  <MapPin size={10} strokeWidth={1.5} />
-                  Ver en Maps
+                  <MapPin size={12} strokeWidth={1.5} /> Ver en Maps
                 </a>
               </div>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
       </section>
@@ -510,7 +758,8 @@ export default function WeddingOliveVintage({
       {/* Familia */}
       {data.family &&
         (data.family.groomParents || data.family.brideParents) && (
-          <section className="relative px-6 py-24 before:absolute before:inset-4 before:border before:border-[#9A7837]/20">
+          <section className="relative overflow-hidden px-6 py-24 before:absolute before:inset-4 before:border before:border-[#9A7837]/20">
+            <FloralSpray className="-right-24 top-1/2 h-[28rem] w-72 -translate-y-1/2 scale-x-[-1] opacity-25" />
             <motion.div {...reveal} className="mx-auto max-w-3xl">
               <SectionHeading eyebrow="Con la bendición de">
                 Nuestros padres
@@ -560,7 +809,9 @@ export default function WeddingOliveVintage({
         )}
 
       {/* Countdown */}
-      <section className="relative bg-[#3E4635] px-8 py-20 text-center text-[#F5F0E7] [background-image:radial-gradient(rgba(214,190,133,.08)_1px,transparent_1px)] [background-size:12px_12px]">
+      <section className="relative overflow-hidden bg-[#3E4635] px-8 py-20 text-center text-[#F5F0E7] [background-image:radial-gradient(rgba(214,190,133,.08)_1px,transparent_1px)] [background-size:12px_12px]">
+        <VintageParticles reduceMotion={reduceMotion} />
+        <FloralSpray className="-right-20 -top-20 h-80 w-52 rotate-12 opacity-[.16]" />
         <div className="absolute inset-4 border-4 border-double border-[#D2B777]/30" />
         <motion.div {...reveal} className="relative mx-auto max-w-xl">
           <p
@@ -578,46 +829,54 @@ export default function WeddingOliveVintage({
 
       {/* Itinerario */}
       {data.event.itinerary && (
-        <section className="px-5 py-24">
-          <motion.div {...reveal} className="mx-auto max-w-2xl">
-            <SectionHeading eyebrow="El orden del día">
-              Nuestro programa
-            </SectionHeading>
-            <div className="mt-12 border-4 border-double border-[#B08D46]/35 bg-[#F2E8D3]/65 px-5 py-4 sm:px-8">
-              {data.event.itinerary.map((item, index) => (
+        <section className="relative overflow-hidden bg-[#E5D9C2] px-5 py-28">
+          <div className="absolute inset-4 rounded-[2.5rem] border border-[#9A7837]/20" />
+          <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -left-28 -top-16 h-72 w-80 -rotate-6 object-contain opacity-30" />
+          <Image src="/pictures/wedding/ivory-rose-corner.png" alt="" aria-hidden width={1300} height={1221} className="pointer-events-none absolute -bottom-24 -right-28 h-80 w-96 rotate-[174deg] object-contain opacity-25" />
+          <motion.div {...reveal} className="relative mx-auto max-w-4xl">
+            <div className="text-center text-[#414936]">
+              <p className="text-[9px] font-bold uppercase tracking-[0.42em] text-[#987536]" style={{ fontFamily: "var(--font-cy-utility)" }}>Momentos para compartir</p>
+              <h2 className="mt-4 text-5xl font-medium italic sm:text-6xl">Nuestro programa</h2>
+              <div className="mx-auto mt-5 flex max-w-44 items-center gap-3 text-[#A17F3F]" aria-hidden="true">
+                <span className="h-px flex-1 bg-current opacity-40" /><span>❦</span><span className="h-px flex-1 bg-current opacity-40" />
+              </div>
+            </div>
+
+            <div className="mt-14 grid gap-5 sm:grid-cols-2">
+              {data.event.itinerary.map((item, index) => {
+                const TimelineIcon = [Heart, Camera, Wine, UtensilsCrossed, Music2][index % 5];
+                return (
                 <motion.div
                   key={`${item.hour}-${item.title}`}
-                  initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.05 }}
-                  className="grid grid-cols-[5.5rem_1fr] gap-5 border-b border-[#B08D46]/20 py-6 last:border-b-0 sm:grid-cols-[8rem_1fr]"
+                  initial={reduceMotion ? false : { opacity: 0, y: 22, rotate: index % 2 ? 1 : -1 }}
+                  whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ delay: index * 0.07, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                  className={`relative overflow-hidden border border-[#B79554]/35 bg-[#F5EDDE] px-6 py-7 shadow-[0_16px_35px_rgba(73,62,40,.13)] ${index % 2 ? "rounded-[2rem_.5rem_2rem_2rem]" : "rounded-[.5rem_2rem_2rem_2rem]"}`}
                 >
-                  <p
-                    className="pt-1 text-right text-[9px] font-semibold uppercase leading-relaxed tracking-[0.1em] text-[#987536]"
-                    style={{ fontFamily: "var(--font-cy-utility)" }}
-                  >
-                    {item.hour}
-                  </p>
-                  <div className="border-l border-[#7C8261]/35 pl-5">
-                    <h3 className="text-2xl font-medium text-[#464B38]">
-                      {item.title}
-                    </h3>
-                    {item.description && (
-                      <p className="mt-1 text-base italic text-[#777565]">
-                        {item.description}
-                      </p>
-                    )}
+                  <span className="pointer-events-none absolute -right-1 -top-6 text-[7rem] font-medium leading-none text-[#B79554]/[.08]">{String(index + 1).padStart(2, "0")}</span>
+                  <div className="relative flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#B79554]/45 bg-[#3E4635] text-[#E4CC8F] shadow-md">
+                      <TimelineIcon className="h-5 w-5" strokeWidth={1.25} />
+                    </div>
+                    <div className="pt-1">
+                      <p className="inline-flex rounded-full bg-[#E7D9BD] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-[#886C35]" style={{ fontFamily: "var(--font-cy-utility)" }}>{item.hour}</p>
+                      <h3 className="mt-3 text-2xl font-medium italic text-[#414936]">{item.title}</h3>
+                    </div>
                   </div>
+                  {item.description && <p className="relative mt-5 border-t border-[#B79554]/20 pt-4 text-sm italic leading-relaxed text-[#777565]">{item.description}</p>}
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         </section>
       )}
 
       {/* RSVP */}
-      <section className="relative bg-[#DED3BE] px-5 py-20">
+      <section className="relative overflow-hidden bg-[#DED3BE] px-5 py-20">
+        <FloralSpray className="-left-24 top-16 h-[30rem] w-72 -rotate-6 opacity-25" />
+        <FloralSpray className="-bottom-24 -right-28 h-80 w-56 scale-x-[-1] rotate-12 opacity-20" />
         <div className="absolute inset-4 border border-[#9A7837]/20" />
         <motion.div {...reveal} className="relative mx-auto max-w-lg">
           <SectionHeading eyebrow="Confirmación de asistencia">
@@ -840,8 +1099,10 @@ export default function WeddingOliveVintage({
       </section>
 
       {/* Footer */}
-      <footer className="relative border-t-4 border-double border-[#9A7837]/35 bg-[#CDBD9C] px-6 py-16 text-center">
-        <div className="mx-auto flex max-w-sm items-center justify-center gap-2">
+      <footer className="relative overflow-hidden border-t-4 border-double border-[#9A7837]/35 bg-[#CDBD9C] px-6 py-16 text-center">
+        <FloralSpray className="-bottom-28 -left-20 h-80 w-52 -rotate-12 opacity-30" />
+        <FloralSpray className="-bottom-28 -right-20 h-80 w-52 scale-x-[-1] rotate-12 opacity-30" />
+        <div className="relative mx-auto flex max-w-sm items-center justify-center gap-2">
           <Leaf />
           <div>
             <p className="text-4xl italic text-[#4F5842]">
@@ -857,6 +1118,8 @@ export default function WeddingOliveVintage({
           <Leaf flip />
         </div>
       </footer>
-    </main>
+    </motion.main>
+      )}
+    </AnimatePresence>
   );
 }

@@ -14,6 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 interface DashboardNavProps {
   user: {
@@ -61,7 +62,7 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
   return (
     <>
       {/* Mobile Topbar */}
-      <div className="lg:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+      <div className="lg:hidden bg-white border-b border-stone-200 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full overflow-hidden border border-[#ebd9c4] shrink-0">
             <Image
@@ -129,17 +130,24 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
                     isActive
-                      ? "bg-[#2b211b] text-white shadow-sm"
+                      ? "text-white"
                       : "text-stone-600 hover:bg-[#fbf8f4] hover:text-[#2b211b]"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  {isActive && (
+                    <motion.span
+                      layoutId="dashboard-active-nav"
+                      className="absolute inset-0 rounded-xl bg-[#2b211b] shadow-sm"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    />
+                  )}
+                  <div className="relative z-10 flex items-center gap-3">
                     <Icon className={`w-4 h-4 ${isActive ? "text-[#e05a1b]" : "text-stone-400"}`} />
                     <span>{item.label}</span>
                   </div>
-                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#e05a1b]" />}
+                  {isActive && <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-[#e05a1b]" />}
                 </Link>
               );
             })}
@@ -186,12 +194,17 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
       </aside>
 
       {/* Backdrop for mobile */}
-      {mobileMenuOpen && (
-        <div
+      <AnimatePresence>
+        {mobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           onClick={() => setMobileMenuOpen(false)}
           className="fixed inset-0 bg-stone-900/40 z-40 lg:hidden backdrop-blur-xs"
         />
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 }

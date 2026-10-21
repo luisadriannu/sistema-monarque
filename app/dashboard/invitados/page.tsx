@@ -30,6 +30,7 @@ import Papa from "papaparse";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateTimeMx, formatDateMx, formatDateLongMx } from "@/lib/utils";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 interface Invitado {
   id: string;
@@ -59,8 +60,15 @@ interface Evento {
   plantilla_recordatorio?: string;
 }
 
+type Toast = {
+  type: "success" | "error";
+  title: string;
+  message: string;
+};
+
 function InvitadosContent() {
   const searchParams = useSearchParams();
+  const reduceMotion = useReducedMotion();
   const estadoParam = searchParams.get("estado");
 
   const [evento, setEvento] = useState<Evento | null>(null);
@@ -90,13 +98,36 @@ function InvitadosContent() {
   // Formulario Agregar / Editar
   const [formNombre, setFormNombre] = useState("");
   const [formGrupo, setFormGrupo] = useState("");
-  const [formPases, setFormPases] = useState(2);
+  const [formPases, setFormPases] = useState("2");
   const [guardando, setGuardando] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const formPasesNumero = Number(formPases);
+  const formPasesValido = /^\d+$/.test(formPases) && formPasesNumero >= 1;
+
+  const handleCambiarPases = (value: string) => {
+    if (/^\d*$/.test(value)) {
+      setFormPases(value);
+      if (formError) setFormError(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timer = window.setTimeout(() => setToast(null), 4200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   // Importación masiva
   const [filasImportadas, setFilasImportadas] = useState<
-    Array<{ nombre: string; pases_asignados: number; grupo: string; valido: boolean; error?: string }>
+    Array<{
+      nombre: string;
+      pases_asignados: number;
+      grupo: string;
+      valido: boolean;
+      error?: string;
+    }>
   >([]);
   const [resumenImportacion, setResumenImportacion] = useState<{
     total: number;
@@ -115,7 +146,7 @@ function InvitadosContent() {
   // Cargar lista de invitados
   const fetchInvitados = async () => {
     try {
-      const res = await fetch("/api/invitados");
+      const res = await fetch("/api/invitados", { cache: "no-store" });
       const data = await res.json();
       if (res.ok) {
         setEvento(data.evento);
@@ -241,8 +272,8 @@ function InvitadosContent() {
         const data = await res.json();
         setInvitados((prev) =>
           prev.map((i) =>
-            i.id === invitadoId ? { ...i, enviado_en: data.enviado_en } : i
-          )
+            i.id === invitadoId ? { ...i, enviado_en: data.enviado_en } : i,
+          ),
         );
       }
     } catch (e) {
@@ -275,7 +306,7 @@ function InvitadosContent() {
   const handleRegenerarLink = async (invitado: Invitado) => {
     if (
       !confirm(
-        `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`
+        `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`,
       )
     ) {
       return;
@@ -289,7 +320,9 @@ function InvitadosContent() {
       });
       if (res.ok) {
         await fetchInvitados();
-        alert("Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.");
+        alert(
+          "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.",
+        );
       }
     } catch (e) {
       console.error("Error al regenerar link", e);
@@ -300,8 +333,14 @@ function InvitadosContent() {
   const handleGuardarNuevo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!evento) return;
-    setGuardando(true);
     setFormError(null);
+
+    if (!formPasesValido) {
+      setFormError("Los pases asignados deben ser un número mayor o igual a 1.");
+      return;
+    }
+
+    setGuardando(true);
 
     try {
       const res = await fetch("/api/invitados", {
@@ -311,18 +350,28 @@ function InvitadosContent() {
           evento_id: evento.id,
           nombre: formNombre,
           grupo: formGrupo,
-          pases_asignados: formPases,
+          pases_asignados: formPasesNumero,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al agregar invitado.");
 
+      // La API ya devuelve el registro persistido. Incorporarlo directamente evita
+      // depender de una segunda lectura que el navegador pueda resolver con datos viejos.
+      setInvitados((actuales) => [
+        data.invitado as Invitado,
+        ...actuales.filter((invitado) => invitado.id !== data.invitado.id),
+      ]);
       setModalAgregar(false);
       setFormNombre("");
       setFormGrupo("");
-      setFormPases(2);
-      await fetchInvitados();
+      setFormPases("2");
+      setToast({
+        type: "success",
+        title: "Invitado agregado",
+        message: `${data.invitado.nombre} se guardó correctamente.`,
+      });
     } catch (err: unknown) {
       if (err instanceof Error) setFormError(err.message);
       else setFormError("Error inesperado al guardar.");
@@ -336,7 +385,7 @@ function InvitadosContent() {
     setModalEditar(inv);
     setFormNombre(inv.nombre);
     setFormGrupo(inv.grupo || "");
-    setFormPases(inv.pases_asignados);
+    setFormPases(String(inv.pases_asignados));
     setFormError(null);
     setMenuAbiertoId(null);
   };
@@ -345,15 +394,21 @@ function InvitadosContent() {
   const handleGuardarEditar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalEditar) return;
-    setGuardando(true);
     setFormError(null);
+
+    if (!formPasesValido) {
+      setFormError("Los pases asignados deben ser un número mayor o igual a 1.");
+      return;
+    }
+
+    setGuardando(true);
 
     if (
       modalEditar.pases_confirmados !== null &&
-      formPases < modalEditar.pases_confirmados
+      formPasesNumero < modalEditar.pases_confirmados
     ) {
       const confirmar = confirm(
-        `Atención: El invitado ya tiene ${modalEditar.pases_confirmados} pases confirmados. Al reducir los pases a ${formPases}, su confirmación y desglose de niños se ajustarán automáticamente al nuevo límite. ¿Deseas continuar?`
+        `Atención: El invitado ya tiene ${modalEditar.pases_confirmados} pases confirmados. Al reducir los pases a ${formPasesNumero}, su confirmación y desglose de niños se ajustarán automáticamente al nuevo límite. ¿Deseas continuar?`,
       );
       if (!confirmar) {
         setGuardando(false);
@@ -368,19 +423,21 @@ function InvitadosContent() {
         body: JSON.stringify({
           nombre: formNombre,
           grupo: formGrupo,
-          pases_asignados: formPases,
+          pases_asignados: formPasesNumero,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al actualizar invitado.");
+      if (!res.ok)
+        throw new Error(data.error || "Error al actualizar invitado.");
 
       setModalEditar(null);
       await fetchInvitados();
-
-      if (data.aviso) {
-        alert(data.aviso);
-      }
+      setToast({
+        type: "success",
+        title: "Cambios guardados",
+        message: data.aviso || `${formNombre.trim()} se actualizó correctamente.`,
+      });
     } catch (err: unknown) {
       if (err instanceof Error) setFormError(err.message);
       else setFormError("Error inesperado al guardar.");
@@ -392,16 +449,25 @@ function InvitadosContent() {
   // Eliminar invitado
   const handleConfirmarEliminar = async () => {
     if (!modalEliminar) return;
+    const nombreEliminado = modalEliminar.nombre;
     try {
       const res = await fetch(`/api/invitados/${modalEliminar.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        setModalEliminar(null);
-        await fetchInvitados();
-      }
-    } catch (e) {
-      console.error("Error al eliminar", e);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo eliminar al invitado.");
+
+      setModalEliminar(null);
+      await fetchInvitados();
+      setToast({
+        type: "success",
+        title: "Invitado eliminado",
+        message: `${nombreEliminado} se eliminó correctamente.`,
+      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Ocurrió un error al eliminar.";
+      setToast({ type: "error", title: "No se pudo eliminar", message });
     }
   };
 
@@ -434,18 +500,20 @@ function InvitadosContent() {
         procesarFilasImportadas(data);
       } else {
         setArchivoError(
-          `Formato ".${extension}" no compatible. Por favor sube un archivo Excel (.xlsx, .xls) o CSV (.csv).`
+          `Formato ".${extension}" no compatible. Por favor sube un archivo Excel (.xlsx, .xls) o CSV (.csv).`,
         );
       }
     } catch (err: unknown) {
       console.error("Error al procesar archivo:", err);
       setArchivoError(
-        "No se pudo leer el archivo. Asegúrate de que no esté abierto en otro programa ni protegido con contraseña."
+        "No se pudo leer el archivo. Asegúrate de que no esté abierto en otro programa ni protegido con contraseña.",
       );
     }
   };
 
-  const handleArchivoSeleccionado = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleArchivoSeleccionado = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (file) procesarArchivo(file);
     e.target.value = "";
@@ -453,20 +521,24 @@ function InvitadosContent() {
 
   const procesarFilasImportadas = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) {
-      setArchivoError("El archivo parece estar vacío o no contiene filas con datos.");
+      setArchivoError(
+        "El archivo parece estar vacío o no contiene filas con datos.",
+      );
       return;
     }
 
     const procesadas = data.map((fila) => {
       const keys = Object.keys(fila);
       const nombreKey = keys.find((k) =>
-        /^(nombre|invitado|familia|name)/i.test(k.trim())
+        /^(nombre|invitado|familia|name)/i.test(k.trim()),
       );
       const pasesKey = keys.find((k) =>
-        /^(pases|pases_asignados|boletos|lugares|personas|tickets)/i.test(k.trim())
+        /^(pases|pases_asignados|boletos|lugares|personas|tickets)/i.test(
+          k.trim(),
+        ),
       );
       const grupoKey = keys.find((k) =>
-        /^(grupo|categoria|categoría|familia de|mesa|group)/i.test(k.trim())
+        /^(grupo|categoria|categoría|familia de|mesa|group)/i.test(k.trim()),
       );
 
       const nombre = String((nombreKey ? fila[nombreKey] : "") || "").trim();
@@ -474,11 +546,14 @@ function InvitadosContent() {
       const grupo = String((grupoKey ? fila[grupoKey] : "") || "").trim();
 
       const pasesNum = parseInt(String(pasesRaw ?? "1"), 10);
-      const valido = Boolean(nombre.length > 0 && !isNaN(pasesNum) && pasesNum >= 1);
+      const valido = Boolean(
+        nombre.length > 0 && !isNaN(pasesNum) && pasesNum >= 1,
+      );
 
       let error = undefined;
       if (!nombre) error = "Nombre vacío";
-      else if (isNaN(pasesNum) || pasesNum < 1) error = "Pases inválidos (mínimo 1)";
+      else if (isNaN(pasesNum) || pasesNum < 1)
+        error = "Pases inválidos (mínimo 1)";
 
       return {
         nombre,
@@ -504,9 +579,17 @@ function InvitadosContent() {
   const handleDescargarPlantilla = (formato: "xlsx" | "csv") => {
     const ejemplo = [
       { nombre: "Familia Gómez Pérez", pases: 4, grupo: "Familia de la Novia" },
-      { nombre: "Carlos Mendoza y Acompañante", pases: 2, grupo: "Amigos de Luis" },
+      {
+        nombre: "Carlos Mendoza y Acompañante",
+        pases: 2,
+        grupo: "Amigos de Luis",
+      },
       { nombre: "Dra. Sofía Alarcón", pases: 1, grupo: "Colegas" },
-      { nombre: "Familia Treviño Morales", pases: 3, grupo: "Familia del Novio" },
+      {
+        nombre: "Familia Treviño Morales",
+        pases: 3,
+        grupo: "Familia del Novio",
+      },
     ];
 
     if (formato === "xlsx") {
@@ -528,7 +611,8 @@ function InvitadosContent() {
 
   // Guardar importación masiva
   const handleGuardarImportacion = async () => {
-    if (!evento || !resumenImportacion || resumenImportacion.validos === 0) return;
+    if (!evento || !resumenImportacion || resumenImportacion.validos === 0)
+      return;
     setImportando(true);
 
     try {
@@ -585,8 +669,8 @@ function InvitadosContent() {
       return {
         "#": index + 1,
         "Invitado / Familia": inv.nombre,
-        "Grupo": inv.grupo || "General",
-        "Adultos": adultos,
+        Grupo: inv.grupo || "General",
+        Adultos: adultos,
         [columnaNinos]: ninos,
         "Total de Asistentes": conf,
         "Fecha de Confirmación": formatDateTimeMx(inv.ultima_respuesta_en),
@@ -596,8 +680,8 @@ function InvitadosContent() {
     filas.push({
       "#": "" as unknown as number,
       "Invitado / Familia": "TOTAL GENERAL",
-      "Grupo": "",
-      "Adultos": totalAdultos,
+      Grupo: "",
+      Adultos: totalAdultos,
       [columnaNinos]: totalNinos,
       "Total de Asistentes": totalAsistentes,
       "Fecha de Confirmación": "",
@@ -608,7 +692,7 @@ function InvitadosContent() {
     XLSX.utils.book_append_sheet(wb, ws, "Confirmados");
     XLSX.writeFile(
       wb,
-      `Lista_Confirmados_${evento.nombre.replace(/[^a-zA-Z0-9]/g, "_")}.xlsx`
+      `Lista_Confirmados_${evento.nombre.replace(/[^a-zA-Z0-9]/g, "_")}.xlsx`,
     );
   };
 
@@ -636,7 +720,11 @@ function InvitadosContent() {
       totalAsistentes += conf;
     });
 
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
 
     // Encabezado
     doc.setFont("helvetica", "bold");
@@ -682,7 +770,7 @@ function InvitadosContent() {
     doc.text(
       `${totalAsistentes} ${totalAsistentes === 1 ? "persona" : "personas"}`,
       121,
-      45
+      45,
     );
 
     doc.setFontSize(8.5);
@@ -718,7 +806,17 @@ function InvitadosContent() {
 
     autoTable(doc, {
       startY: startYTable,
-      head: [["#", "Invitado / Familia", "Grupo", "Adultos", headerNinos, "Total Asistentes", "Fecha Confirmación"]],
+      head: [
+        [
+          "#",
+          "Invitado / Familia",
+          "Grupo",
+          "Adultos",
+          headerNinos,
+          "Total Asistentes",
+          "Fecha Confirmación",
+        ],
+      ],
       body: bodyData,
       theme: "striped",
       headStyles: {
@@ -728,7 +826,17 @@ function InvitadosContent() {
         fontSize: 8,
       },
       styles: { fontSize: 8, cellPadding: 2.5 },
-      foot: [["", "TOTAL GENERAL", "", `${totalAdultos}`, `${totalNinos}`, `${totalAsistentes} personas`, ""]],
+      foot: [
+        [
+          "",
+          "TOTAL GENERAL",
+          "",
+          `${totalAdultos}`,
+          `${totalNinos}`,
+          `${totalAsistentes} personas`,
+          "",
+        ],
+      ],
       footStyles: {
         fillColor: [245, 237, 226],
         textColor: [43, 33, 27],
@@ -738,7 +846,9 @@ function InvitadosContent() {
     });
 
     // Nota al pie para el salón / banquete
-    const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 200;
+    const finalY =
+      (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
+        ?.finalY || 200;
     if (finalY < 275) {
       doc.setFontSize(8);
       doc.setFont("helvetica", "italic");
@@ -746,12 +856,12 @@ function InvitadosContent() {
       doc.text(
         `* Especificación para salón y servicio de banquete: Se consideran niños a ${criterioNino}.`,
         14,
-        finalY + 6
+        finalY + 6,
       );
     }
 
     doc.save(
-      `Lista_Confirmados_${evento.nombre.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`
+      `Lista_Confirmados_${evento.nombre.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`,
     );
   };
 
@@ -803,10 +913,62 @@ function InvitadosContent() {
     );
   };
 
-  const totalConfirmados = invitados.filter((i) => i.estado === "confirmado").length;
+  const totalConfirmados = invitados.filter(
+    (i) => i.estado === "confirmado",
+  ).length;
 
   return (
     <div className="space-y-6">
+      <div
+        className="pointer-events-none fixed inset-x-4 top-4 z-[100] flex justify-center sm:inset-x-auto sm:right-6 sm:justify-end"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <AnimatePresence mode="wait">
+          {toast && (
+            <motion.div
+              key={`${toast.type}-${toast.title}-${toast.message}`}
+              role={toast.type === "error" ? "alert" : "status"}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.97 }}
+              transition={{ duration: reduceMotion ? 0.12 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border bg-white p-4 shadow-[0_18px_50px_rgba(41,30,22,.18)] sm:w-[23rem] ${
+                toast.type === "success" ? "border-emerald-200" : "border-rose-200"
+              }`}
+            >
+              <div
+                className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                  toast.type === "success"
+                    ? "bg-emerald-50 text-emerald-600"
+                    : "bg-rose-50 text-rose-600"
+                }`}
+              >
+                {toast.type === "success" ? (
+                  <CheckCircle className="h-5 w-5" />
+                ) : (
+                  <AlertCircle className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-stone-900">{toast.title}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-stone-600">
+                  {toast.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setToast(null)}
+                aria-label="Cerrar notificación"
+                className="rounded-lg p-1 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Cabecera Principal con Descargas de Confirmados integradas */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-[#f5ede2]">
         <div>
@@ -859,7 +1021,7 @@ function InvitadosContent() {
             onClick={() => {
               setFormNombre("");
               setFormGrupo("");
-              setFormPases(2);
+              setFormPases("2");
               setFormError(null);
               setModalAgregar(true);
             }}
@@ -897,7 +1059,9 @@ function InvitadosContent() {
             <option value="confirmado">🟢 Confirmados (todos)</option>
             <option value="parcial">🟠 Parciales (confirmaron menos)</option>
             <option value="declinado">🔴 Declinados</option>
-            <option value="liberados">♻️ Pases liberados (declinados + parciales)</option>
+            <option value="liberados">
+              ♻️ Pases liberados (declinados + parciales)
+            </option>
           </select>
         </div>
       </div>
@@ -920,22 +1084,32 @@ function InvitadosContent() {
             <tbody className="divide-y divide-stone-100 text-stone-700">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-stone-400 text-xs">
+                  <td
+                    colSpan={7}
+                    className="py-12 text-center text-stone-400 text-xs"
+                  >
                     Cargando lista de invitados...
                   </td>
                 </tr>
               ) : invitadosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-stone-400 text-xs">
+                  <td
+                    colSpan={7}
+                    className="py-12 text-center text-stone-400 text-xs"
+                  >
                     No se encontraron invitados con los filtros seleccionados.
                   </td>
                 </tr>
               ) : (
                 invitadosFiltrados.map((inv) => {
-                  const yaRespondio = inv.estado === "confirmado" || inv.estado === "declinado";
+                  const yaRespondio =
+                    inv.estado === "confirmado" || inv.estado === "declinado";
 
                   return (
-                    <tr key={inv.id} className="hover:bg-[#fbf8f4]/60 transition-colors">
+                    <tr
+                      key={inv.id}
+                      className="hover:bg-[#fbf8f4]/60 transition-colors"
+                    >
                       {/* Nombre y Grupo (Sin token que ensucie) */}
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-stone-900 text-sm">
@@ -973,33 +1147,53 @@ function InvitadosContent() {
                       {/* Pases */}
                       <td className="py-3.5 px-4 text-center">
                         <span className="font-bold text-stone-900">
-                          {inv.pases_confirmados !== null ? inv.pases_confirmados : "-"}
+                          {inv.pases_confirmados !== null
+                            ? inv.pases_confirmados
+                            : "-"}
                         </span>
-                        <span className="text-stone-400"> / {inv.pases_asignados}</span>
-                        {inv.estado === "confirmado" && (inv.pases_confirmados || 0) > 0 && (
-                          <div className="text-[10px] text-stone-600 font-medium mt-0.5 whitespace-nowrap">
-                            {(inv.pases_confirmados || 0) - (inv.ninos_confirmados || 0)} ad.
-                            {(inv.ninos_confirmados || 0) > 0 ? (
-                              <span className="text-[#e05a1b] font-semibold">
-                                {" "}· {inv.ninos_confirmados}{" "}
-                                {inv.ninos_confirmados === 1 ? "niño" : "niños"}
-                              </span>
-                            ) : (
-                              <span className="text-stone-400"> · 0 niños</span>
-                            )}
-                          </div>
-                        )}
+                        <span className="text-stone-400">
+                          {" "}
+                          / {inv.pases_asignados}
+                        </span>
                         {inv.estado === "confirmado" &&
-                          (inv.pases_confirmados || 0) < inv.pases_asignados && (
+                          (inv.pases_confirmados || 0) > 0 && (
+                            <div className="text-[10px] text-stone-600 font-medium mt-0.5 whitespace-nowrap">
+                              {(inv.pases_confirmados || 0) -
+                                (inv.ninos_confirmados || 0)}{" "}
+                              ad.
+                              {(inv.ninos_confirmados || 0) > 0 ? (
+                                <span className="text-[#e05a1b] font-semibold">
+                                  {" "}
+                                  · {inv.ninos_confirmados}{" "}
+                                  {inv.ninos_confirmados === 1
+                                    ? "niño"
+                                    : "niños"}
+                                </span>
+                              ) : (
+                                <span className="text-stone-400">
+                                  {" "}
+                                  · 0 niños
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        {inv.estado === "confirmado" &&
+                          (inv.pases_confirmados || 0) <
+                            inv.pases_asignados && (
                             <span
                               title={`Liberó ${inv.pases_asignados - (inv.pases_confirmados || 0)} ${
-                                inv.pases_asignados - (inv.pases_confirmados || 0) === 1
+                                inv.pases_asignados -
+                                  (inv.pases_confirmados || 0) ===
+                                1
                                   ? "pase"
                                   : "pases"
                               }`}
                               className="block text-[10px] text-amber-700 font-semibold mt-0.5"
                             >
-                              +{inv.pases_asignados - (inv.pases_confirmados || 0)} libre
+                              +
+                              {inv.pases_asignados -
+                                (inv.pases_confirmados || 0)}{" "}
+                              libre
                             </span>
                           )}
                       </td>
@@ -1023,7 +1217,9 @@ function InvitadosContent() {
                             {copiadoId === inv.id ? (
                               <>
                                 <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-emerald-700 text-[11px]">¡Copiado!</span>
+                                <span className="text-emerald-700 text-[11px]">
+                                  ¡Copiado!
+                                </span>
                               </>
                             ) : (
                               <>
@@ -1053,7 +1249,9 @@ function InvitadosContent() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setMenuAbiertoId(menuAbiertoId === inv.id ? null : inv.id);
+                              setMenuAbiertoId(
+                                menuAbiertoId === inv.id ? null : inv.id,
+                              );
                             }}
                             className="p-1.5 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors"
                             title="Más opciones"
@@ -1128,527 +1326,628 @@ function InvitadosContent() {
       </div>
 
       {/* MODAL: AGREGAR INVITADO */}
-      {modalAgregar && (
-        <div
-          onClick={() => setModalAgregar(false)}
-          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200"
+      <AnimatePresence>
+        {modalAgregar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setModalAgregar(false)}
+            className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-xl font-bold text-stone-900">
-                + Agregar Nuevo Invitado
-              </h3>
-              <button
-                onClick={() => setModalAgregar(false)}
-                className="text-stone-400 hover:text-stone-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleGuardarNuevo} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Nombre del invitado o familia *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ej. Familia Gómez Pérez"
-                  value={formNombre}
-                  onChange={(e) => setFormNombre(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Grupo (opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="ej. Familia Novia, Amigos Universidad"
-                  value={formGrupo}
-                  onChange={(e) => setFormGrupo(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-                <p className="text-[11px] text-stone-400 mt-1">
-                  Útil para identificar homónimos y organizar mesas.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Pases Asignados * (mínimo 1)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={formPases}
-                  onChange={(e) => setFormPases(parseInt(e.target.value, 10) || 1)}
-                  className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-
-                {/* Aviso informativo de cupo (sin bloquear) */}
-                {evento?.capacidad_total &&
-                  totalPasesAsignados + formPases > evento.capacidad_total && (
-                    <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-semibold">Aviso de cupo:</span> Con este invitado superarás la capacidad del evento ({evento.capacidad_total} asientos) por{" "}
-                        <strong>
-                          {totalPasesAsignados + formPases - evento.capacidad_total}{" "}
-                          {totalPasesAsignados + formPases - evento.capacidad_total === 1
-                            ? "cupo"
-                            : "cupos"}
-                        </strong>
-                        . Puedes guardar si planeas sobreinvitar.
-                      </div>
-                    </div>
-                  )}
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalAgregar(false)}
-                  className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
-                >
-                  {guardando ? "Guardando..." : "Guardar Invitado"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: EDITAR INVITADO */}
-      {modalEditar && (
-        <div
-          onClick={() => setModalEditar(null)}
-          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-xl font-bold text-stone-900">
-                Editar Invitado
-              </h3>
-              <button
-                onClick={() => setModalEditar(null)}
-                className="text-stone-400 hover:text-stone-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleGuardarEditar} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Nombre del invitado o familia
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formNombre}
-                  onChange={(e) => setFormNombre(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Grupo (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={formGrupo}
-                  onChange={(e) => setFormGrupo(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Pases Asignados
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={formPases}
-                  onChange={(e) => setFormPases(parseInt(e.target.value, 10) || 1)}
-                  className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-                {modalEditar.pases_confirmados !== null && (
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    Confirmados actualmente: <strong>{modalEditar.pases_confirmados}</strong>.
-                  </p>
-                )}
-
-                {/* Aviso informativo de cupo (sin bloquear) */}
-                {evento?.capacidad_total &&
-                  totalPasesAsignados -
-                    (modalEditar.estado === "confirmado"
-                      ? modalEditar.pases_confirmados || 0
-                      : modalEditar.estado === "declinado"
-                      ? 0
-                      : modalEditar.pases_asignados) +
-                    formPases >
-                    evento.capacidad_total && (
-                    <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-semibold">Aviso de cupo:</span> Con esta modificación superarás la capacidad configurada ({evento.capacidad_total} asientos).
-                      </div>
-                    </div>
-                  )}
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalEditar(null)}
-                  className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50"
-                >
-                  {guardando ? "Actualizando..." : "Guardar Cambios"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: ELIMINAR INVITADO */}
-      {modalEliminar && (
-        <div
-          onClick={() => setModalEliminar(null)}
-          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-stone-200 relative animate-in fade-in duration-200"
-          >
-            <h3 className="font-serif text-lg font-bold text-stone-900 mb-2">
-              ¿Eliminar a {modalEliminar.nombre}?
-            </h3>
-            <p className="text-xs text-stone-600 mb-6 leading-relaxed">
-              Esta acción no se puede deshacer. Su enlace quedará inservible y mostrará el mensaje{" "}
-              <strong>&ldquo;Invitación no disponible&rdquo;</strong> si alguien intenta abrirlo.
-            </p>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setModalEliminar(null)}
-                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmarEliminar}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl transition-colors"
-              >
-                Sí, eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: IMPORTACIÓN MASIVA CSV/EXCEL */}
-      {modalImportar && (
-        <div
-          onClick={() => {
-            setModalImportar(false);
-            setFilasImportadas([]);
-            setResumenImportacion(null);
-            setNombreArchivo(null);
-            setArchivoError(null);
-          }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => e.preventDefault()}
-          className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-stone-200 relative max-h-[90vh] flex flex-col"
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-stone-100">
-              <div>
+            <motion.div
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 18, scale: 0.96 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
+            >
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif text-xl font-bold text-stone-900">
-                  Importar Invitados desde Archivo
+                  + Agregar Nuevo Invitado
                 </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  Admite archivos .xlsx (Excel) o .csv con columnas: <code>nombre</code>,{" "}
-                  <code>pases</code>, <code>grupo</code>
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setModalImportar(false);
-                  setFilasImportadas([]);
-                  setResumenImportacion(null);
-                  setNombreArchivo(null);
-                  setArchivoError(null);
-                }}
-                className="text-stone-400 hover:text-stone-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Zona de subida */}
-            {!resumenImportacion ? (
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDragging(true);
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDragging(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDragging(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDragging(false);
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) procesarArchivo(file);
-                }}
-                className={`py-8 px-6 text-center flex flex-col items-center justify-center border-2 border-dashed rounded-2xl transition-all duration-200 ${
-                  isDragging
-                    ? "border-[#e05a1b] bg-[#fff7ed] scale-[1.01]"
-                    : "border-stone-200 bg-[#fbf8f4]/50 hover:bg-[#fbf8f4] hover:border-stone-300"
-                }`}
-              >
-                <input
-                  id="subir-archivo-input"
-                  type="file"
-                  ref={fileInputRef}
-                  accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
-                  onChange={handleArchivoSeleccionado}
-                  className="sr-only"
-                />
-
-                <label
-                  htmlFor="subir-archivo-input"
-                  className="cursor-pointer flex flex-col items-center w-full"
-                >
-                  <div className="w-16 h-16 rounded-2xl bg-white border border-[#ebd9c4] flex items-center justify-center text-[#e05a1b] mb-4 shadow-xs">
-                    <FileUp className="w-8 h-8 text-[#e05a1b]" />
-                  </div>
-
-                  <h4 className="font-semibold text-stone-900 text-sm mb-1">
-                    {isDragging
-                      ? "¡Suelta tu archivo aquí!"
-                      : "Arrastra tu archivo aquí o haz clic para seleccionarlo"}
-                  </h4>
-
-                  <p className="text-xs text-stone-500 max-w-sm mb-4">
-                    Admite <strong>.xlsx (Excel)</strong> o <strong>.csv</strong>. Columnas reconocidas: <code>nombre</code>, <code>pases</code> y opcionalmente <code>grupo</code>.
-                  </p>
-
-                  <span className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] text-white text-xs font-semibold rounded-xl shadow-sm transition-all pointer-events-none">
-                    <Upload className="w-4 h-4 text-white" />
-                    <span>Seleccionar archivo Excel o CSV</span>
-                  </span>
-                </label>
-
-                {archivoError && (
-                  <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2 text-left">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                    <span>{archivoError}</span>
-                  </div>
-                )}
-
-                {/* Descargar plantillas de ayuda */}
-                <div className="mt-6 pt-5 border-t border-stone-200/60 w-full flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-stone-500">
-                  <span className="font-medium">¿Quieres una plantilla prediseñada?</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDescargarPlantilla("xlsx")}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#fbf8f4] text-stone-700 border border-stone-200 rounded-lg font-medium text-[11px] transition-colors shadow-xs"
-                    >
-                      <Download className="w-3 h-3 text-[#e05a1b]" />
-                      <span>Descargar Plantilla Excel (.xlsx)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDescargarPlantilla("csv")}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#fbf8f4] text-stone-700 border border-stone-200 rounded-lg font-medium text-[11px] transition-colors shadow-xs"
-                    >
-                      <Download className="w-3 h-3 text-stone-500" />
-                      <span>Descargar Plantilla CSV (.csv)</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="py-4 flex-1 overflow-y-auto space-y-4">
-                {/* Archivo cargado */}
-                {nombreArchivo && (
-                  <div className="flex items-center justify-between bg-[#fbf8f4] px-3.5 py-2 rounded-xl border border-[#ebd9c4] text-xs">
-                    <span className="text-stone-600">
-                      Archivo: <strong className="text-stone-900">{nombreArchivo}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResumenImportacion(null);
-                        setFilasImportadas([]);
-                        setNombreArchivo(null);
-                      }}
-                      className="text-[#e05a1b] hover:underline font-semibold text-[11px]"
-                    >
-                      Cambiar archivo
-                    </button>
-                  </div>
-                )}
-
-                {/* Resumen de validación */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-[#fbf8f4] p-3 rounded-xl border border-stone-200 text-center">
-                    <span className="text-[11px] text-stone-500 font-semibold uppercase">Total Filas</span>
-                    <p className="text-lg font-serif font-bold text-stone-800">
-                      {resumenImportacion.total}
-                    </p>
-                  </div>
-                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
-                    <span className="text-[11px] text-emerald-700 font-semibold uppercase">Válidos</span>
-                    <p className="text-lg font-serif font-bold text-emerald-800">
-                      {resumenImportacion.validos}
-                    </p>
-                  </div>
-                  <div className="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
-                    <span className="text-[11px] text-rose-700 font-semibold uppercase">Con Errores</span>
-                    <p className="text-lg font-serif font-bold text-rose-800">
-                      {resumenImportacion.invalidos}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Previsualización de filas */}
-                <div className="border border-stone-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#fbf8f4] border-b border-stone-200 text-stone-500 font-semibold">
-                      <tr>
-                        <th className="py-2 px-3">Estado</th>
-                        <th className="py-2 px-3">Nombre</th>
-                        <th className="py-2 px-3">Pases</th>
-                        <th className="py-2 px-3">Grupo</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {filasImportadas.map((fila, idx) => (
-                        <tr
-                          key={idx}
-                          className={fila.valido ? "bg-white" : "bg-rose-50/50 text-rose-800"}
-                        >
-                          <td className="py-2 px-3">
-                            {fila.valido ? (
-                              <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <span
-                                className="text-[11px] font-semibold text-rose-600 flex items-center gap-1"
-                                title={fila.error}
-                              >
-                                <AlertCircle className="w-3.5 h-3.5" />
-                                {fila.error}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 font-medium">{fila.nombre || "(Vacío)"}</td>
-                          <td className="py-2 px-3">{fila.pases_asignados}</td>
-                          <td className="py-2 px-3 text-stone-500">{fila.grupo || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {resumenImportacion && (
-              <div className="pt-4 border-t border-stone-100 flex items-center justify-between">
                 <button
-                  type="button"
-                  onClick={() => {
-                    setResumenImportacion(null);
-                    setFilasImportadas([]);
-                    setNombreArchivo(null);
-                  }}
-                  className="text-xs text-stone-500 hover:text-stone-800"
+                  onClick={() => setModalAgregar(false)}
+                  className="text-stone-400 hover:text-stone-600"
                 >
-                  ← Subir otro archivo
+                  <X className="w-5 h-5" />
                 </button>
+              </div>
 
-                <div className="flex items-center gap-2">
+              {formError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4">
+                  {formError}
+                </div>
+              )}
+
+              <form onSubmit={handleGuardarNuevo} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Nombre del invitado o familia *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ej. Familia Gómez Pérez"
+                    value={formNombre}
+                    onChange={(e) => setFormNombre(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Grupo (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="ej. Familia Novia, Amigos Universidad"
+                    value={formGrupo}
+                    onChange={(e) => setFormGrupo(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                  <p className="text-[11px] text-stone-400 mt-1">
+                    Útil para identificar homónimos y organizar mesas.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Pases Asignados * (mínimo 1)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    required
+                    value={formPases}
+                    onChange={(e) => handleCambiarPases(e.target.value)}
+                    aria-invalid={!formPasesValido}
+                    className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                  {!formPasesValido && (
+                    <p className="mt-1 text-[11px] font-medium text-rose-600">
+                      Ingresa al menos 1 pase.
+                    </p>
+                  )}
+
+                  {/* Aviso informativo de cupo (sin bloquear) */}
+                  {evento?.capacidad_total &&
+                    formPasesValido &&
+                    totalPasesAsignados + formPasesNumero >
+                      evento.capacidad_total && (
+                      <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">Aviso de cupo:</span>{" "}
+                          Con este invitado superarás la capacidad del evento (
+                          {evento.capacidad_total} asientos) por{" "}
+                          <strong>
+                            {totalPasesAsignados +
+                              formPasesNumero -
+                              evento.capacidad_total}{" "}
+                            {totalPasesAsignados +
+                              formPasesNumero -
+                              evento.capacidad_total ===
+                            1
+                              ? "cupo"
+                              : "cupos"}
+                          </strong>
+                          . Puedes guardar si planeas sobreinvitar.
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
                   <button
-                    onClick={() => {
-                      setModalImportar(false);
-                      setFilasImportadas([]);
-                      setResumenImportacion(null);
-                      setNombreArchivo(null);
-                    }}
-                    className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900"
+                    type="button"
+                    onClick={() => setModalAgregar(false)}
+                    className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl"
                   >
                     Cancelar
                   </button>
                   <button
-                    disabled={resumenImportacion.validos === 0 || importando}
-                    onClick={handleGuardarImportacion}
-                    className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50"
+                    type="submit"
+                    disabled={guardando || !formPasesValido}
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
                   >
-                    {importando
-                      ? "Importando..."
-                      : `Guardar ${resumenImportacion.validos} Invitados`}
+                    {guardando ? "Guardando..." : "Guardar Invitado"}
                   </button>
                 </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: EDITAR INVITADO */}
+      <AnimatePresence>
+        {modalEditar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setModalEditar(null)}
+            className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 18, scale: 0.96 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-xl font-bold text-stone-900">
+                  Editar Invitado
+                </h3>
+                <button
+                  onClick={() => setModalEditar(null)}
+                  className="text-stone-400 hover:text-stone-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+
+              {formError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4">
+                  {formError}
+                </div>
+              )}
+
+              <form onSubmit={handleGuardarEditar} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Nombre del invitado o familia
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formNombre}
+                    onChange={(e) => setFormNombre(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Grupo (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formGrupo}
+                    onChange={(e) => setFormGrupo(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Pases Asignados
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    required
+                    value={formPases}
+                    onChange={(e) => handleCambiarPases(e.target.value)}
+                    aria-invalid={!formPasesValido}
+                    className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                  {!formPasesValido && (
+                    <p className="mt-1 text-[11px] font-medium text-rose-600">
+                      Ingresa al menos 1 pase.
+                    </p>
+                  )}
+                  {modalEditar.pases_confirmados !== null && (
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      Confirmados actualmente:{" "}
+                      <strong>{modalEditar.pases_confirmados}</strong>.
+                    </p>
+                  )}
+
+                  {/* Aviso informativo de cupo (sin bloquear) */}
+                  {evento?.capacidad_total &&
+                    formPasesValido &&
+                    totalPasesAsignados -
+                      (modalEditar.estado === "confirmado"
+                        ? modalEditar.pases_confirmados || 0
+                        : modalEditar.estado === "declinado"
+                          ? 0
+                          : modalEditar.pases_asignados) +
+                      formPasesNumero >
+                      evento.capacidad_total && (
+                      <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">Aviso de cupo:</span>{" "}
+                          Con esta modificación superarás la capacidad
+                          configurada ({evento.capacidad_total} asientos).
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setModalEditar(null)}
+                    className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-xl"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={guardando || !formPasesValido}
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    {guardando ? "Actualizando..." : "Guardar Cambios"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: ELIMINAR INVITADO */}
+      <AnimatePresence>
+        {modalEliminar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setModalEliminar(null)}
+            className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 14, scale: 0.96 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
+            >
+              <h3 className="font-serif text-lg font-bold text-stone-900 mb-2">
+                ¿Eliminar a {modalEliminar.nombre}?
+              </h3>
+              <p className="text-xs text-stone-600 mb-6 leading-relaxed">
+                Esta acción no se puede deshacer. Su enlace quedará inservible y
+                mostrará el mensaje{" "}
+                <strong>&ldquo;Invitación no disponible&rdquo;</strong> si
+                alguien intenta abrirlo.
+              </p>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setModalEliminar(null)}
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmarEliminar}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl transition-colors"
+                >
+                  Sí, eliminar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: IMPORTACIÓN MASIVA CSV/EXCEL */}
+      <AnimatePresence>
+        {modalImportar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => {
+              setModalImportar(false);
+              setFilasImportadas([]);
+              setResumenImportacion(null);
+              setNombreArchivo(null);
+              setArchivoError(null);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => e.preventDefault()}
+            className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 20, scale: 0.97 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-stone-200 relative max-h-[90vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-stone-100">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-stone-900">
+                    Importar Invitados desde Archivo
+                  </h3>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Admite archivos .xlsx (Excel) o .csv con columnas:{" "}
+                    <code>nombre</code>, <code>pases</code>, <code>grupo</code>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setModalImportar(false);
+                    setFilasImportadas([]);
+                    setResumenImportacion(null);
+                    setNombreArchivo(null);
+                    setArchivoError(null);
+                  }}
+                  className="text-stone-400 hover:text-stone-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Zona de subida */}
+              {!resumenImportacion ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) procesarArchivo(file);
+                  }}
+                  className={`py-8 px-6 text-center flex flex-col items-center justify-center border-2 border-dashed rounded-2xl transition-all duration-200 ${
+                    isDragging
+                      ? "border-[#e05a1b] bg-[#fff7ed] scale-[1.01]"
+                      : "border-stone-200 bg-[#fbf8f4]/50 hover:bg-[#fbf8f4] hover:border-stone-300"
+                  }`}
+                >
+                  <input
+                    id="subir-archivo-input"
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                    onChange={handleArchivoSeleccionado}
+                    className="sr-only"
+                  />
+
+                  <label
+                    htmlFor="subir-archivo-input"
+                    className="cursor-pointer flex flex-col items-center w-full"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-white border border-[#ebd9c4] flex items-center justify-center text-[#e05a1b] mb-4 shadow-xs">
+                      <FileUp className="w-8 h-8 text-[#e05a1b]" />
+                    </div>
+
+                    <h4 className="font-semibold text-stone-900 text-sm mb-1">
+                      {isDragging
+                        ? "¡Suelta tu archivo aquí!"
+                        : "Arrastra tu archivo aquí o haz clic para seleccionarlo"}
+                    </h4>
+
+                    <p className="text-xs text-stone-500 max-w-sm mb-4">
+                      Admite <strong>.xlsx (Excel)</strong> o{" "}
+                      <strong>.csv</strong>. Columnas reconocidas:{" "}
+                      <code>nombre</code>, <code>pases</code> y opcionalmente{" "}
+                      <code>grupo</code>.
+                    </p>
+
+                    <span className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] text-white text-xs font-semibold rounded-xl shadow-sm transition-all pointer-events-none">
+                      <Upload className="w-4 h-4 text-white" />
+                      <span>Seleccionar archivo Excel o CSV</span>
+                    </span>
+                  </label>
+
+                  {archivoError && (
+                    <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2 text-left">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{archivoError}</span>
+                    </div>
+                  )}
+
+                  {/* Descargar plantillas de ayuda */}
+                  <div className="mt-6 pt-5 border-t border-stone-200/60 w-full flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-stone-500">
+                    <span className="font-medium">
+                      ¿Quieres una plantilla prediseñada?
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDescargarPlantilla("xlsx")}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#fbf8f4] text-stone-700 border border-stone-200 rounded-lg font-medium text-[11px] transition-colors shadow-xs"
+                      >
+                        <Download className="w-3 h-3 text-[#e05a1b]" />
+                        <span>Descargar Plantilla Excel (.xlsx)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDescargarPlantilla("csv")}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#fbf8f4] text-stone-700 border border-stone-200 rounded-lg font-medium text-[11px] transition-colors shadow-xs"
+                      >
+                        <Download className="w-3 h-3 text-stone-500" />
+                        <span>Descargar Plantilla CSV (.csv)</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-4 flex-1 overflow-y-auto space-y-4">
+                  {/* Archivo cargado */}
+                  {nombreArchivo && (
+                    <div className="flex items-center justify-between bg-[#fbf8f4] px-3.5 py-2 rounded-xl border border-[#ebd9c4] text-xs">
+                      <span className="text-stone-600">
+                        Archivo:{" "}
+                        <strong className="text-stone-900">
+                          {nombreArchivo}
+                        </strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResumenImportacion(null);
+                          setFilasImportadas([]);
+                          setNombreArchivo(null);
+                        }}
+                        className="text-[#e05a1b] hover:underline font-semibold text-[11px]"
+                      >
+                        Cambiar archivo
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Resumen de validación */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-[#fbf8f4] p-3 rounded-xl border border-stone-200 text-center">
+                      <span className="text-[11px] text-stone-500 font-semibold uppercase">
+                        Total Filas
+                      </span>
+                      <p className="text-lg font-serif font-bold text-stone-800">
+                        {resumenImportacion.total}
+                      </p>
+                    </div>
+                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
+                      <span className="text-[11px] text-emerald-700 font-semibold uppercase">
+                        Válidos
+                      </span>
+                      <p className="text-lg font-serif font-bold text-emerald-800">
+                        {resumenImportacion.validos}
+                      </p>
+                    </div>
+                    <div className="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
+                      <span className="text-[11px] text-rose-700 font-semibold uppercase">
+                        Con Errores
+                      </span>
+                      <p className="text-lg font-serif font-bold text-rose-800">
+                        {resumenImportacion.invalidos}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Previsualización de filas */}
+                  <div className="border border-stone-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#fbf8f4] border-b border-stone-200 text-stone-500 font-semibold">
+                        <tr>
+                          <th className="py-2 px-3">Estado</th>
+                          <th className="py-2 px-3">Nombre</th>
+                          <th className="py-2 px-3">Pases</th>
+                          <th className="py-2 px-3">Grupo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {filasImportadas.map((fila, idx) => (
+                          <tr
+                            key={idx}
+                            className={
+                              fila.valido
+                                ? "bg-white"
+                                : "bg-rose-50/50 text-rose-800"
+                            }
+                          >
+                            <td className="py-2 px-3">
+                              {fila.valido ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <span
+                                  className="text-[11px] font-semibold text-rose-600 flex items-center gap-1"
+                                  title={fila.error}
+                                >
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  {fila.error}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 font-medium">
+                              {fila.nombre || "(Vacío)"}
+                            </td>
+                            <td className="py-2 px-3">
+                              {fila.pases_asignados}
+                            </td>
+                            <td className="py-2 px-3 text-stone-500">
+                              {fila.grupo || "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {resumenImportacion && (
+                <div className="pt-4 border-t border-stone-100 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumenImportacion(null);
+                      setFilasImportadas([]);
+                      setNombreArchivo(null);
+                    }}
+                    className="text-xs text-stone-500 hover:text-stone-800"
+                  >
+                    ← Subir otro archivo
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setModalImportar(false);
+                        setFilasImportadas([]);
+                        setResumenImportacion(null);
+                        setNombreArchivo(null);
+                      }}
+                      className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      disabled={resumenImportacion.validos === 0 || importando}
+                      onClick={handleGuardarImportacion}
+                      className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50"
+                    >
+                      {importando
+                        ? "Importando..."
+                        : `Guardar ${resumenImportacion.validos} Invitados`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -38,7 +38,8 @@ export default async function DashboardPage() {
           No tienes eventos registrados
         </h2>
         <p className="text-xs text-stone-600 mb-6">
-          Comunícate con la administradora de Monarque para asignar tu evento de invitaciones digitales.
+          Comunícate con la administradora de Monarque para asignar tu evento de
+          invitaciones digitales.
         </p>
       </div>
     );
@@ -82,9 +83,15 @@ export default async function DashboardPage() {
   const cuposComprometidos = total_confirmados + total_pendientes;
   const cuposDisponibles = capacidad - cuposComprometidos;
 
-  const pctConfirmados = capacidad > 0 ? Math.min(100, (total_confirmados / capacidad) * 100) : 0;
+  const pctConfirmados =
+    capacidad > 0 ? Math.min(100, (total_confirmados / capacidad) * 100) : 0;
   const pctPendientes =
-    capacidad > 0 ? Math.min(Math.max(0, 100 - pctConfirmados), (total_pendientes / capacidad) * 100) : 0;
+    capacidad > 0
+      ? Math.min(
+          Math.max(0, 100 - pctConfirmados),
+          (total_pendientes / capacidad) * 100,
+        )
+      : 0;
 
   const now = new Date();
   const fechaLimite = new Date(evento.fecha_limite_rsvp);
@@ -95,7 +102,11 @@ export default async function DashboardPage() {
   // Invitados con respuesta reciente para darle vida al panel
   const ultimasRespuestas = invitados
     .filter((i) => i.ultima_respuesta_en)
-    .sort((a, b) => (b.ultima_respuesta_en?.getTime() || 0) - (a.ultima_respuesta_en?.getTime() || 0))
+    .sort(
+      (a, b) =>
+        (b.ultima_respuesta_en?.getTime() || 0) -
+        (a.ultima_respuesta_en?.getTime() || 0),
+    )
     .slice(0, 6);
 
   return (
@@ -110,7 +121,9 @@ export default async function DashboardPage() {
               Control de Pases e Invitaciones
             </span>
             <span className="text-stone-300">•</span>
-            <span className="text-xs text-stone-500 font-medium">Monarque Elite</span>
+            <span className="text-xs text-stone-500 font-medium">
+              Monarque Elite
+            </span>
           </div>
 
           <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#2b211b] tracking-tight">
@@ -118,17 +131,23 @@ export default async function DashboardPage() {
           </h1>
 
           <p className="text-stone-600 text-sm mt-1 font-medium">
-            Anfitriones: <span className="text-stone-800 font-semibold">{evento.anfitriones}</span>
+            Anfitriones:{" "}
+            <span className="text-stone-800 font-semibold">
+              {evento.anfitriones}
+            </span>
           </p>
 
           <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-stone-600">
             <div className="flex items-center gap-2 bg-[#fbf8f4] px-3.5 py-2 rounded-xl border border-[#ebd9c4]">
               <Calendar className="w-3.5 h-3.5 text-[#e05a1b]" />
-              <span>Fecha del evento: <strong>{formatDateLongMx(evento.fecha_evento)}</strong></span>
+              <span>
+                Fecha del evento:{" "}
+                <strong>{formatDateLongMx(evento.fecha_evento)}</strong>
+              </span>
             </div>
             <div className="flex items-center gap-2 bg-[#fbf8f4] px-3.5 py-2 rounded-xl border border-[#ebd9c4]">
               <MapPin className="w-3.5 h-3.5 text-[#e05a1b]" />
-              <span className="truncate max-w-sm">{evento.lugar}</span>
+              <span className="max-w-sm">{evento.lugar}</span>
             </div>
           </div>
         </div>
@@ -138,12 +157,17 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2">
             <AlertCircle
               className={`w-4 h-4 shrink-0 ${
-                rsvpVencido ? "text-rose-500" : diffDays <= 5 ? "text-[#e05a1b]" : "text-[#c59b4c]"
+                rsvpVencido
+                  ? "text-rose-500"
+                  : diffDays <= 5
+                    ? "text-[#e05a1b]"
+                    : "text-[#c59b4c]"
               }`}
             />
             <span className="text-stone-700">
               Fecha límite de confirmación:{" "}
-              <strong>{formatDateMx(evento.fecha_limite_rsvp)}</strong> (hasta las 23:59 hrs)
+              <strong>{formatDateMx(evento.fecha_limite_rsvp)}</strong> (hasta
+              las 23:59 hrs)
             </span>
           </div>
 
@@ -154,7 +178,8 @@ export default async function DashboardPage() {
               </span>
             ) : (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c]">
-                Plazo abierto: quedan {diffDays} {diffDays === 1 ? "día" : "días"}
+                Plazo abierto: quedan {diffDays}{" "}
+                {diffDays === 1 ? "día" : "días"}
               </span>
             )}
           </div>
@@ -176,18 +201,23 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <p className="text-xs text-stone-500 mt-0.5">
-                {total_confirmados} confirmados • {total_pendientes} en espera de responder
+                {total_confirmados} confirmados • {total_pendientes} en espera
+                de responder
               </p>
             </div>
 
             <div>
               {cuposDisponibles >= 0 ? (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
-                  Te quedan {cuposDisponibles} {cuposDisponibles === 1 ? "cupo disponible" : "cupos disponibles"}
+                  Te quedan {cuposDisponibles}{" "}
+                  {cuposDisponibles === 1
+                    ? "cupo disponible"
+                    : "cupos disponibles"}
                 </span>
               ) : (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-                  Has sobrepasado la capacidad por {Math.abs(cuposDisponibles)} {Math.abs(cuposDisponibles) === 1 ? "asiento" : "asientos"}
+                  Has sobrepasado la capacidad por {Math.abs(cuposDisponibles)}{" "}
+                  {Math.abs(cuposDisponibles) === 1 ? "asiento" : "asientos"}
                 </span>
               )}
             </div>
@@ -220,19 +250,22 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
               <span>
-                <strong>{total_confirmados}</strong> confirmados ({Math.round(pctConfirmados)}%)
+                <strong>{total_confirmados}</strong> confirmados (
+                {Math.round(pctConfirmados)}%)
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#e05a1b] inline-block" />
               <span>
-                <strong>{total_pendientes}</strong> en espera ({Math.round(pctPendientes)}%)
+                <strong>{total_pendientes}</strong> en espera (
+                {Math.round(pctPendientes)}%)
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#dec0a2] inline-block" />
               <span>
-                <strong>{Math.max(0, cuposDisponibles)}</strong> libres para invitar
+                <strong>{Math.max(0, cuposDisponibles)}</strong> libres para
+                invitar
               </span>
             </div>
           </div>
@@ -247,7 +280,8 @@ export default async function DashboardPage() {
               Estado de Pases y Asistencia
             </h2>
             <p className="text-[11px] text-stone-400 mt-0.5">
-              Haz clic en cualquier tarjeta para ver la lista filtrada de invitados
+              Haz clic en cualquier tarjeta para ver la lista filtrada de
+              invitados
             </p>
           </div>
           <span className="text-xs text-stone-500 font-medium">
@@ -272,7 +306,9 @@ export default async function DashboardPage() {
               <p className="text-3xl sm:text-4xl font-serif font-bold text-[#2b211b]">
                 {total_asignados}
               </p>
-              <p className="text-xs text-stone-500 mt-1">Pases totales repartidos</p>
+              <p className="text-xs text-stone-500 mt-1">
+                Pases totales repartidos
+              </p>
             </div>
             <div className="mt-3 pt-2.5 border-t border-[#f5ede2] flex items-center justify-between text-[11px] font-semibold text-[#e05a1b]">
               <span>Ver todos</span>
@@ -302,14 +338,18 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-emerald-100/90 text-emerald-900 border border-emerald-200 font-medium shadow-xs">
                   <span>👤</span>
                   <span>
-                    <strong className="font-bold text-sm text-emerald-950">{total_adultos}</strong>{" "}
+                    <strong className="font-bold text-sm text-emerald-950">
+                      {total_adultos}
+                    </strong>{" "}
                     {total_adultos === 1 ? "adulto" : "adultos"}
                   </span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-amber-100/90 text-amber-900 border border-amber-200 font-medium shadow-xs">
                   <span>🧒</span>
                   <span>
-                    <strong className="font-bold text-sm text-amber-950">{total_ninos}</strong>{" "}
+                    <strong className="font-bold text-sm text-amber-950">
+                      {total_ninos}
+                    </strong>{" "}
                     {total_ninos === 1 ? "niño" : "niños"}
                   </span>
                 </span>
@@ -321,12 +361,16 @@ export default async function DashboardPage() {
                   <div
                     title={`${total_adultos} adultos`}
                     className="bg-emerald-600 h-full transition-all"
-                    style={{ width: `${(total_adultos / total_confirmados) * 100}%` }}
+                    style={{
+                      width: `${(total_adultos / total_confirmados) * 100}%`,
+                    }}
                   />
                   <div
                     title={`${total_ninos} niños`}
                     className="bg-amber-500 h-full transition-all"
-                    style={{ width: `${(total_ninos / total_confirmados) * 100}%` }}
+                    style={{
+                      width: `${(total_ninos / total_confirmados) * 100}%`,
+                    }}
                   />
                 </div>
               )}
@@ -415,23 +459,38 @@ export default async function DashboardPage() {
 
         {ultimasRespuestas.length === 0 ? (
           <div className="text-center py-12 text-stone-400 text-xs">
-            Aún no hay respuestas registradas. Comparte los links por WhatsApp para comenzar a recibir confirmaciones.
+            Aún no hay respuestas registradas. Comparte los links por WhatsApp
+            para comenzar a recibir confirmaciones.
           </div>
         ) : (
           <div className="divide-y divide-stone-100">
             {ultimasRespuestas.map((inv) => (
-              <div key={inv.id} className="py-3.5 flex items-center justify-between gap-4">
+              <div
+                key={inv.id}
+                className="py-3.5 flex items-center justify-between gap-4"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-[#fbf8f4] border border-[#dec0a2] flex items-center justify-center font-serif font-bold text-[#2b211b] text-sm shrink-0">
                     {inv.nombre.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-stone-900">{inv.nombre}</p>
+                    <p className="text-sm font-semibold text-stone-900">
+                      {inv.nombre}
+                    </p>
                     <p className="text-xs text-stone-500">
                       {inv.grupo || "General"}
-                      {inv.estado === "confirmado" && (inv.ninos_confirmados || 0) > 0 ? (
-                        <> • <span className="font-semibold text-amber-700">{inv.ninos_confirmados} {inv.ninos_confirmados === 1 ? "niño" : "niños"}</span></>
-                      ) : null} • Respondido: {formatDateTimeMx(inv.ultima_respuesta_en)}
+                      {inv.estado === "confirmado" &&
+                      (inv.ninos_confirmados || 0) > 0 ? (
+                        <>
+                          {" "}
+                          •{" "}
+                          <span className="font-semibold text-amber-700">
+                            {inv.ninos_confirmados}{" "}
+                            {inv.ninos_confirmados === 1 ? "niño" : "niños"}
+                          </span>
+                        </>
+                      ) : null}{" "}
+                      • Respondido: {formatDateTimeMx(inv.ultima_respuesta_en)}
                     </p>
                   </div>
                 </div>

@@ -73,8 +73,8 @@ export async function PUT(
     }
 
     if (pases_asignados !== undefined) {
-      const nuevoAsignados = parseInt(String(pases_asignados), 10);
-      if (isNaN(nuevoAsignados) || nuevoAsignados < 1) {
+      const nuevoAsignados = Number(pases_asignados);
+      if (!Number.isInteger(nuevoAsignados) || nuevoAsignados < 1) {
         return NextResponse.json(
           { error: "Los pases asignados deben ser mínimo 1." },
           { status: 400 }
