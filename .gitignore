@@ -1,6 +1,7 @@
 # dependencies
 /node_modules
 /generated/prisma/
+/generated/prisma-client/
 /.pnp
 .pnp.js
 

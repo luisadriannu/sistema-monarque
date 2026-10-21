@@ -12,6 +12,7 @@
     "prisma:push": "prisma db push",
     "db:export-sqlite": "node scripts/export-sqlite-data.js",
     "db:import-postgres": "node scripts/import-postgres-data.js",
+    "db:sync-invitation": "node scripts/sync-invitation-data.js",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {

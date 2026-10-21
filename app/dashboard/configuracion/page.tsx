@@ -14,6 +14,7 @@ import {
   endOfDayMexicoDate,
   formatDateMx,
 } from "@/lib/utils";
+import DashboardLoader from "@/components/DashboardLoader";
 
 interface EventoConfig {
   id: string;
@@ -119,9 +120,11 @@ export default function ConfiguracionPage() {
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-stone-400 text-xs">
-        Cargando configuración del evento...
-      </div>
+      <DashboardLoader
+        title="Cargando configuración"
+        message="Estamos preparando los ajustes de tu evento…"
+        label="Cargando configuración del evento"
+      />
     );
   }
 
