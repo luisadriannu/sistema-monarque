@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import WeddingOliveVintage from "@/app/templates/WeddingOliveVintage";
 import carlosYYazmin from "@/app/data/carlosYYazmin";
 import type { EventData } from "@/app/types/EventData";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ id?: string; token?: string }>;
+  searchParams: Promise<{ id?: string; token?: string; preview?: string }>;
 }
 
 type StoredInvitationData = Omit<Partial<EventData>, "event" | "location" | "media"> & {
@@ -28,18 +29,39 @@ function isStoredInvitationData(value: unknown): value is StoredInvitationData {
 
 export default async function InvitationPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const { id, token } = await searchParams;
+  const { id, token, preview } = await searchParams;
   const effectiveToken = (id || token || "").trim();
+  const isPreview = preview === "1";
 
-  if (!effectiveToken) return <InvitacionNoDisponible />;
+  if (!effectiveToken && !isPreview) return <InvitacionNoDisponible />;
 
   const evento = await prisma.evento.findUnique({ where: { slug } });
   if (!evento) return <InvitacionNoDisponible />;
 
-  const invitado = await prisma.invitado.findFirst({
-    where: { token: effectiveToken, evento_id: evento.id },
-  });
-  if (!invitado) return <InvitacionNoDisponible />;
+  let invitado;
+
+  if (isPreview) {
+    const user = await getCurrentUser();
+    const canPreview =
+      user && (user.rol === "admin" || evento.usuario_id === user.id);
+
+    if (!canPreview) return <InvitacionNoDisponible />;
+
+    invitado = {
+      nombre: "Invitado de muestra",
+      pases_asignados: 2,
+      pases_confirmados: null,
+      ninos_confirmados: 0,
+      estado: "pendiente",
+      ultima_respuesta_en: null,
+    };
+  } else {
+    invitado = await prisma.invitado.findFirst({
+      where: { token: effectiveToken, evento_id: evento.id },
+    });
+
+    if (!invitado) return <InvitacionNoDisponible />;
+  }
 
   const expirado = new Date() > new Date(evento.fecha_limite_rsvp);
 
@@ -95,6 +117,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       invitado={invitadoData}
       evento={eventoData}
       token={effectiveToken}
+      previewMode={isPreview}
     />
   );
 }

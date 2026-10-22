@@ -336,7 +336,9 @@ function InvitadosContent() {
     setFormError(null);
 
     if (!formPasesValido) {
-      setFormError("Los pases asignados deben ser un número mayor o igual a 1.");
+      setFormError(
+        "Los pases asignados deben ser un número mayor o igual a 1.",
+      );
       return;
     }
 
@@ -397,7 +399,9 @@ function InvitadosContent() {
     setFormError(null);
 
     if (!formPasesValido) {
-      setFormError("Los pases asignados deben ser un número mayor o igual a 1.");
+      setFormError(
+        "Los pases asignados deben ser un número mayor o igual a 1.",
+      );
       return;
     }
 
@@ -436,7 +440,8 @@ function InvitadosContent() {
       setToast({
         type: "success",
         title: "Cambios guardados",
-        message: data.aviso || `${formNombre.trim()} se actualizó correctamente.`,
+        message:
+          data.aviso || `${formNombre.trim()} se actualizó correctamente.`,
       });
     } catch (err: unknown) {
       if (err instanceof Error) setFormError(err.message);
@@ -455,7 +460,8 @@ function InvitadosContent() {
         method: "DELETE",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo eliminar al invitado.");
+      if (!res.ok)
+        throw new Error(data.error || "No se pudo eliminar al invitado.");
 
       setModalEliminar(null);
       await fetchInvitados();
@@ -946,12 +952,25 @@ function InvitadosContent() {
             <motion.div
               key={`${toast.type}-${toast.title}-${toast.message}`}
               role={toast.type === "error" ? "alert" : "status"}
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -18, scale: 0.96 }}
+              initial={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: -18, scale: 0.96 }
+              }
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.97 }}
-              transition={{ duration: reduceMotion ? 0.12 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+              exit={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: -10, scale: 0.97 }
+              }
+              transition={{
+                duration: reduceMotion ? 0.12 : 0.25,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border bg-white p-4 shadow-[0_18px_50px_rgba(41,30,22,.18)] sm:w-[23rem] ${
-                toast.type === "success" ? "border-emerald-200" : "border-rose-200"
+                toast.type === "success"
+                  ? "border-emerald-200"
+                  : "border-rose-200"
               }`}
             >
               <div
@@ -968,7 +987,9 @@ function InvitadosContent() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-stone-900">{toast.title}</p>
+                <p className="text-sm font-bold text-stone-900">
+                  {toast.title}
+                </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-stone-600">
                   {toast.message}
                 </p>

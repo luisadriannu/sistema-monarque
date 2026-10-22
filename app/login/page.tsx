@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Lock, Mail, ArrowRight, ShieldCheck, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [email, setEmail] = useState("ana@monarque.com");
   const [password, setPassword] = useState("boda2025");
@@ -32,8 +30,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Error al iniciar sesión.");
       }
 
-      router.push("/dashboard");
-      router.refresh();
+      window.location.replace("/dashboard");
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

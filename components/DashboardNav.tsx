@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Users,
   LayoutDashboard,
@@ -29,7 +29,6 @@ interface DashboardNavProps {
 
 export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -71,8 +70,7 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
         throw new Error("No se pudo cerrar la sesión. Inténtalo nuevamente.");
       }
 
-      router.replace("/login");
-      router.refresh();
+      window.location.replace("/login");
     } catch (error) {
       console.error("Error al salir", error);
       setLogoutError(
@@ -196,14 +194,14 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
                 Página pública
               </p>
               <a
-                href={`/${eventSlug}`}
+                href={`/${eventSlug}?preview=1`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center justify-between px-3 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs font-medium text-stone-700 hover:border-[#e05a1b] hover:text-[#e05a1b] transition-all group"
               >
                 <div className="flex items-center gap-2 truncate">
                   <Eye className="w-3.5 h-3.5 text-[#e05a1b]" />
-                  <span className="truncate text-[11px]">/{eventSlug}</span>
+                  <span className="truncate text-[11px]">Vista previa</span>
                 </div>
                 <ExternalLink className="w-3.5 h-3.5 text-stone-400 group-hover:text-[#e05a1b] shrink-0" />
               </a>

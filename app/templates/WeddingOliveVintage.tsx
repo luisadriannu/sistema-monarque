@@ -17,6 +17,7 @@ import {
   Music2,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 import { Cormorant_Garamond, Libre_Baskerville } from "next/font/google";
 import CountDown from "@/app/components/CountDown";
@@ -258,6 +259,7 @@ interface Props {
   invitado: InvitadoData;
   evento: EventoData;
   token: string;
+  previewMode?: boolean;
 }
 
 export default function WeddingOliveVintage({
@@ -265,6 +267,7 @@ export default function WeddingOliveVintage({
   invitado: initialInvitado,
   evento,
   token,
+  previewMode = false,
 }: Props) {
   const reduceMotion = useReducedMotion();
   const nameParts = data.event.name.split(" & ");
@@ -287,6 +290,7 @@ export default function WeddingOliveVintage({
   }, [opened]);
 
   useEffect(() => {
+    if (previewMode) return;
     if (invitado.estado === "pendiente") {
       fetch("/api/rsvp", {
         method: "PATCH",
@@ -300,7 +304,7 @@ export default function WeddingOliveVintage({
         })
         .catch(() => {});
     }
-  }, [token, invitado.estado]);
+  }, [token, invitado.estado, previewMode]);
 
   const [pasesSeleccionados, setPasesSeleccionados] = useState<number>(() =>
     initialInvitado.pases_confirmados !== null
@@ -326,7 +330,7 @@ export default function WeddingOliveVintage({
   };
 
   const handleSubmit = async () => {
-    if (evento.expirado) return;
+    if (evento.expirado || previewMode) return;
     setEnviando(true);
     setErrorEnvio(null);
     setMensajeExito(null);
@@ -883,6 +887,12 @@ export default function WeddingOliveVintage({
             Tu invitación
           </SectionHeading>
 
+          {previewMode && (
+            <div className="mx-auto mt-6 w-fit border border-[#A78340]/35 bg-[#F3E9D5] px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[#80652F]">
+              Vista previa · Las respuestas están deshabilitadas
+            </div>
+          )}
+
           <div className="mt-12 border-4 border-double border-[#A78340]/45 bg-[#F3E9D5] p-8 space-y-6">
             {/* Saludo */}
             <div className="text-center">
@@ -949,7 +959,7 @@ export default function WeddingOliveVintage({
                           if (ninosSeleccionados > n) setNinosSeleccionados(n);
                         }
                       }}
-                      disabled={pasesSeleccionados <= 0}
+                      disabled={previewMode || pasesSeleccionados <= 0}
                       className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
                     >
                       −
@@ -968,7 +978,7 @@ export default function WeddingOliveVintage({
                         if (pasesSeleccionados < maxPases)
                           setPasesSeleccionados(pasesSeleccionados + 1);
                       }}
-                      disabled={pasesSeleccionados >= maxPases}
+                      disabled={previewMode || pasesSeleccionados >= maxPases}
                       className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
                     >
                       +
@@ -1007,7 +1017,7 @@ export default function WeddingOliveVintage({
                           if (ninosSeleccionados > 0)
                             setNinosSeleccionados(ninosSeleccionados - 1);
                         }}
-                        disabled={ninosSeleccionados <= 0}
+                        disabled={previewMode || ninosSeleccionados <= 0}
                         className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
                       >
                         −
@@ -1026,7 +1036,9 @@ export default function WeddingOliveVintage({
                           if (ninosSeleccionados < pasesSeleccionados)
                             setNinosSeleccionados(ninosSeleccionados + 1);
                         }}
-                        disabled={ninosSeleccionados >= pasesSeleccionados}
+                        disabled={
+                          previewMode || ninosSeleccionados >= pasesSeleccionados
+                        }
                         className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
                       >
                         +
@@ -1052,11 +1064,16 @@ export default function WeddingOliveVintage({
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={enviando}
+                  disabled={enviando || previewMode}
                   className={`w-full py-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${pasesSeleccionados === 0 ? "bg-[#6B3A3A] text-[#F5E9D0] hover:bg-[#5A2E2E]" : "bg-[#37402F] text-[#E0C687] hover:bg-[#464B38]"}`}
                   style={{ fontFamily: "var(--font-cy-utility)" }}
                 >
-                  {enviando ? (
+                  {previewMode ? (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      <span>Vista previa del formulario</span>
+                    </>
+                  ) : enviando ? (
                     <span className="inline-block w-4 h-4 border-2 border-[#E0C687]/30 border-t-[#E0C687] rounded-full animate-spin" />
                   ) : pasesSeleccionados === 0 ? (
                     <>
