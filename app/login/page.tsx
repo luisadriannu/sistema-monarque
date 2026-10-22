@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Lock, Mail, ArrowRight, ShieldCheck, LoaderCircle } from "lucide-react";
+import { Lock, Mail, ArrowRight, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 export default function LoginPage() {
   const reduceMotion = useReducedMotion();
-  const [email, setEmail] = useState("ana@monarque.com");
-  const [password, setPassword] = useState("boda2025");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,21 +153,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo info helper */}
-        <div className="mt-8 pt-6 border-t border-stone-100 text-xs text-stone-500 bg-[#faf8f5] p-3.5 rounded-xl border border-[#ebd9c4]/50">
-          <div className="flex items-center gap-1.5 font-medium text-stone-700 mb-1.5">
-            <ShieldCheck className="w-4 h-4 text-[#e05a1b]" />
-            <span>Acceso rápido de prueba:</span>
-          </div>
-          <div className="space-y-1 text-stone-600">
-            <p>
-              • <strong>Clienta:</strong> <span className="font-mono text-[11px]">ana@monarque.com</span> / <span className="font-mono text-[11px]">boda2025</span>
-            </p>
-            <p>
-              • <strong>Admin:</strong> <span className="font-mono text-[11px]">admin@monarque.com</span> / <span className="font-mono text-[11px]">admin2025</span>
-            </p>
-          </div>
-        </div>
       </motion.div>
 
       <AnimatePresence>
