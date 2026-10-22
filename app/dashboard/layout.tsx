@@ -14,11 +14,15 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Obtener el evento del usuario para mostrar en el nav y contexto
-  const evento = await prisma.evento.findFirst({
-    where: user.rol === "admin" ? {} : { usuario_id: user.id },
-    orderBy: { creado_en: "desc" },
-  });
+  // El menú del administrador no depende de ningún evento. Esto evita que se
+  // seleccione accidentalmente el evento más reciente de otra clienta.
+  const evento =
+    user.rol === "admin"
+      ? null
+      : await prisma.evento.findFirst({
+          where: { usuario_id: user.id },
+          orderBy: { creado_en: "desc" },
+        });
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col lg:flex-row">

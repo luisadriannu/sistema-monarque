@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import {
@@ -19,9 +20,10 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.rol === "admin") redirect("/dashboard/usuarios");
 
   const evento = await prisma.evento.findFirst({
-    where: user.rol === "admin" ? {} : { usuario_id: user.id },
+    where: { usuario_id: user.id },
     include: {
       invitados: {
         orderBy: { actualizado_en: "desc" },

@@ -14,6 +14,7 @@ import {
   Eye,
   AlertTriangle,
   LoaderCircle,
+  UserCog,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -35,24 +36,34 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
-  // 3 secciones principales claras: Resumen, Invitados, Configuración
-  const navItems = [
-    {
-      label: "Resumen",
-      href: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      label: "Invitados",
-      href: "/dashboard/invitados",
-      icon: Users,
-    },
-    {
-      label: "Configuración",
-      href: "/dashboard/configuracion",
-      icon: Settings,
-    },
-  ];
+  // Las clientas solo ven las herramientas de su evento. La administración
+  // de cuentas se muestra exclusivamente a usuarios con rol admin.
+  const navItems =
+    user.rol === "admin"
+      ? [
+          {
+            label: "Clientes",
+            href: "/dashboard/usuarios",
+            icon: UserCog,
+          },
+        ]
+      : [
+          {
+            label: "Resumen",
+            href: "/dashboard",
+            icon: LayoutDashboard,
+          },
+          {
+            label: "Invitados",
+            href: "/dashboard/invitados",
+            icon: Users,
+          },
+          {
+            label: "Configuración",
+            href: "/dashboard/configuracion",
+            icon: Settings,
+          },
+        ];
 
   const openLogoutModal = () => {
     setMobileMenuOpen(false);
@@ -188,7 +199,7 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
           </nav>
 
           {/* Enlace rápido a ver invitación */}
-          {eventSlug && (
+          {user.rol !== "admin" && eventSlug && (
             <div className="mt-8 pt-6 border-t border-[#f5ede2]">
               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
                 Página pública

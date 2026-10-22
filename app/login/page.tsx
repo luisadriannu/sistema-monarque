@@ -30,7 +30,9 @@ export default function LoginPage() {
         throw new Error(data.error || "Error al iniciar sesión.");
       }
 
-      window.location.replace("/dashboard");
+      window.location.replace(
+        data.user?.rol === "admin" ? "/dashboard/usuarios" : "/dashboard",
+      );
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
