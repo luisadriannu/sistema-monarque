@@ -726,66 +726,67 @@ function InvitadosContent() {
       format: "a4",
     });
 
-    // Encabezado
+    // Encabezado más grande y notorio
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setTextColor(43, 33, 27);
-    doc.text("MONARQUE • LISTA DE CONFIRMADOS", 14, 18);
+    doc.text("MONARQUE • LISTA DE CONFIRMADOS", 14, 19);
 
-    doc.setFontSize(9.5);
+    doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(120, 120, 120);
-    doc.text("Lista oficial de asistentes confirmados", 14, 24);
+    doc.setTextColor(110, 110, 110);
+    doc.text("Lista oficial de asistentes confirmados", 14, 26);
 
     doc.setDrawColor(224, 90, 27);
-    doc.setLineWidth(0.5);
-    doc.line(14, 28, 196, 28);
+    doc.setLineWidth(0.6);
+    doc.line(14, 30, 196, 30);
 
-    // Datos del Evento (ancho máx 98 mm para evitar colisión con la tarjeta derecha)
-    doc.setFontSize(9);
+    // Datos del Evento en tamaño 10.5pt (más legible y espaciado)
+    doc.setFontSize(10.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(43, 33, 27);
-    doc.text(`Evento: ${evento.nombre}`, 14, 35);
-    doc.text(`Anfitriones: ${evento.anfitriones}`, 14, 41);
-    doc.text(`Fecha: ${formatDateLongMx(evento.fecha_evento)}`, 14, 47);
+    doc.text(`Evento: ${evento.nombre}`, 14, 38);
+    doc.text(`Anfitriones: ${evento.anfitriones}`, 14, 45);
+    doc.text(`Fecha: ${formatDateLongMx(evento.fecha_evento)}`, 14, 52);
 
     // Lugar multilínea para que no se corte ni colisione con la caja derecha
     const lugarTexto = `Lugar: ${evento.lugar}`;
-    const lugarLineas = doc.splitTextToSize(lugarTexto, 98);
-    doc.text(lugarLineas, 14, 53);
+    const lugarLineas = doc.splitTextToSize(lugarTexto, 96);
+    doc.text(lugarLineas, 14, 59);
 
-    // Caja de Resumen Destacada (Lado derecho, x=116, y=31, w=80, h=31)
+    // Caja de Resumen Destacada más amplia y visible (Lado derecho, x=114, y=34, w=82, h=36)
     doc.setFillColor(251, 248, 244);
     doc.setDrawColor(235, 217, 196);
-    doc.roundedRect(116, 31, 80, 31, 2.5, 2.5, "FD");
+    doc.setLineWidth(0.4);
+    doc.roundedRect(114, 34, 82, 36, 3, 3, "FD");
 
-    doc.setFontSize(7.5);
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(224, 90, 27);
-    doc.text("TOTAL ASISTENTES CONFIRMADOS", 121, 37);
+    doc.text("TOTAL ASISTENTES CONFIRMADOS", 120, 41);
 
-    doc.setFontSize(14);
+    doc.setFontSize(17);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(43, 33, 27);
     doc.text(
       `${totalAsistentes} ${totalAsistentes === 1 ? "persona" : "personas"}`,
-      121,
-      45,
+      120,
+      50,
     );
 
-    doc.setFontSize(8.5);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(50, 50, 50);
+    doc.setTextColor(50, 40, 35);
     const labelAdultos = `${totalAdultos} ${totalAdultos === 1 ? "adulto" : "adultos"}`;
     const labelNinos = `${totalNinos} ${totalNinos === 1 ? "niño" : "niños"}`;
-    doc.text(`${labelAdultos}  ·  ${labelNinos}`, 121, 51.5);
+    doc.text(`${labelAdultos}  ·  ${labelNinos}`, 120, 58);
 
-    doc.setFontSize(7.5);
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(150, 90, 50);
-    doc.text(`* Criterio niños: ${criterioNino}`, 121, 57.5);
+    doc.setTextColor(150, 85, 35);
+    doc.text(`* Criterio niños: ${criterioNino}`, 120, 64.5);
 
-    const startYTable = Math.max(65, 53 + lugarLineas.length * 4.5 + 4);
+    const startYTable = Math.max(74, 59 + lugarLineas.length * 5 + 6);
 
     const bodyData = confirmados.map((inv, idx) => {
       const conf = inv.pases_confirmados || 0;
@@ -806,6 +807,7 @@ function InvitadosContent() {
 
     autoTable(doc, {
       startY: startYTable,
+      margin: { left: 14, right: 14 },
       head: [
         [
           "#",
@@ -823,9 +825,23 @@ function InvitadosContent() {
         fillColor: [43, 33, 27],
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        fontSize: 8,
+        fontSize: 9.5,
+        cellPadding: 3.5,
       },
-      styles: { fontSize: 8, cellPadding: 2.5 },
+      styles: {
+        fontSize: 9.5,
+        cellPadding: 3.5,
+        textColor: [45, 35, 30],
+      },
+      columnStyles: {
+        0: { halign: "center", cellWidth: 10 },
+        1: { cellWidth: 46 },
+        2: { cellWidth: 32 },
+        3: { halign: "center", cellWidth: 18 },
+        4: { halign: "center", cellWidth: 28 },
+        5: { halign: "center", cellWidth: 24 },
+        6: { halign: "left", cellWidth: 24 },
+      },
       foot: [
         [
           "",
@@ -841,7 +857,8 @@ function InvitadosContent() {
         fillColor: [245, 237, 226],
         textColor: [43, 33, 27],
         fontStyle: "bold",
-        fontSize: 8.5,
+        fontSize: 10,
+        cellPadding: 3.5,
       },
     });
 
@@ -850,13 +867,13 @@ function InvitadosContent() {
       (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
         ?.finalY || 200;
     if (finalY < 275) {
-      doc.setFontSize(8);
+      doc.setFontSize(9.5);
       doc.setFont("helvetica", "italic");
-      doc.setTextColor(110, 110, 110);
+      doc.setTextColor(90, 80, 75);
       doc.text(
         `* Especificación para salón y servicio de banquete: Se consideran niños a ${criterioNino}.`,
         14,
-        finalY + 6,
+        finalY + 8,
       );
     }
 
