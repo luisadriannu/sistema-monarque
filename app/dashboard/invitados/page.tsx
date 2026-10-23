@@ -27,6 +27,7 @@ import {
   LockKeyhole,
   ChevronLeft,
   ChevronRight,
+  LoaderCircle,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -73,13 +74,21 @@ function InvitadosContent() {
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
   const estadoParam = searchParams.get("estado");
+  const eventoIdParam = searchParams.get("evento_id");
+  const permisoScope = eventoIdParam || "evento-propio";
 
   const [evento, setEvento] = useState<Evento | null>(null);
   const [invitados, setInvitados] = useState<Invitado[]>([]);
   const [loading, setLoading] = useState(true);
-  const [soloLectura, setSoloLectura] = useState(false);
+  // Los permisos empiezan cerrados para evitar mostrar acciones de escritura
+  // antes de que el servidor confirme el estado real del evento.
+  const [soloLectura, setSoloLectura] = useState(true);
+  const [permisoScopeResuelto, setPermisoScopeResuelto] = useState<
+    string | null
+  >(null);
   const [vistaAdmin, setVistaAdmin] = useState(false);
-  const eventoIdParam = searchParams.get("evento_id");
+  const permisosResueltos = permisoScopeResuelto === permisoScope;
+  const puedeModificar = permisosResueltos && !soloLectura;
 
   // Filtros (conectados con la URL al hacer clic desde el dashboard)
   const [search, setSearch] = useState("");
@@ -116,6 +125,7 @@ function InvitadosContent() {
   const [modalEditar, setModalEditar] = useState<Invitado | null>(null);
   const [modalImportar, setModalImportar] = useState(false);
   const [modalEliminar, setModalEliminar] = useState<Invitado | null>(null);
+  const [eliminando, setEliminando] = useState(false);
 
   // Menú de opciones abierto por fila (id de invitado)
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
@@ -189,6 +199,7 @@ function InvitadosContent() {
         setInvitados(data.invitados || []);
         setSoloLectura(Boolean(data.solo_lectura));
         setVistaAdmin(Boolean(data.vista_admin));
+        setPermisoScopeResuelto(permisoScope);
         setPagination(
           data.pagination || {
             page: 1,
@@ -208,11 +219,34 @@ function InvitadosContent() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, eventoIdParam, filtroEstado, page, pageSize]);
+  }, [debouncedSearch, eventoIdParam, filtroEstado, page, pageSize, permisoScope]);
 
   useEffect(() => {
     fetchInvitados();
   }, [fetchInvitados]);
+
+  // Si cambia el evento consultado, ocultamos inmediatamente cualquier acción
+  // mutable hasta validar los permisos del nuevo evento.
+  useEffect(() => {
+    setPermisoScopeResuelto(null);
+    setSoloLectura(true);
+    setModalAgregar(false);
+    setModalEditar(null);
+    setModalImportar(false);
+    setModalEliminar(null);
+    setMenuAbiertoId(null);
+  }, [eventoIdParam]);
+
+  // Cierra cualquier modal que se hubiera abierto si el servidor informa que
+  // el evento ya se encuentra en modo de solo lectura.
+  useEffect(() => {
+    if (!permisosResueltos || !soloLectura) return;
+    setModalAgregar(false);
+    setModalEditar(null);
+    setModalImportar(false);
+    setModalEliminar(null);
+    setMenuAbiertoId(null);
+  }, [permisosResueltos, soloLectura]);
 
   // Cerrar modales con tecla Escape y cerrar menú de opciones al hacer clic afuera
   useEffect(() => {
@@ -221,7 +255,7 @@ function InvitadosContent() {
         setModalAgregar(false);
         setModalEditar(null);
         setModalImportar(false);
-        setModalEliminar(null);
+        if (!eliminando) setModalEliminar(null);
         setMenuAbiertoId(null);
       }
     };
@@ -233,7 +267,7 @@ function InvitadosContent() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("click", handleClickAfuera);
     };
-  }, []);
+  }, [eliminando]);
 
   // Generar link completo
   const getInvitationUrl = (token: string) => {
@@ -328,7 +362,10 @@ function InvitadosContent() {
   // Guardar nuevo invitado
   const handleGuardarNuevo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!evento) return;
+    if (!evento || !puedeModificar) {
+      setModalAgregar(false);
+      return;
+    }
     setFormError(null);
 
     if (!formPasesValido) {
@@ -376,6 +413,7 @@ function InvitadosContent() {
 
   // Abrir modal editar
   const handleAbrirEditar = (inv: Invitado) => {
+    if (!puedeModificar) return;
     setModalEditar(inv);
     setFormNombre(inv.nombre);
     setFormGrupo(inv.grupo || "");
@@ -387,7 +425,10 @@ function InvitadosContent() {
   // Guardar edición
   const handleGuardarEditar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalEditar) return;
+    if (!modalEditar || !puedeModificar) {
+      setModalEditar(null);
+      return;
+    }
     setFormError(null);
 
     if (!formPasesValido) {
@@ -445,8 +486,12 @@ function InvitadosContent() {
 
   // Eliminar invitado
   const handleConfirmarEliminar = async () => {
-    if (!modalEliminar) return;
+    if (!modalEliminar || eliminando || !puedeModificar) {
+      setModalEliminar(null);
+      return;
+    }
     const nombreEliminado = modalEliminar.nombre;
+    setEliminando(true);
     try {
       const res = await fetch(`/api/invitados/${modalEliminar.id}`, {
         method: "DELETE",
@@ -455,8 +500,8 @@ function InvitadosContent() {
       if (!res.ok)
         throw new Error(data.error || "No se pudo eliminar al invitado.");
 
-      setModalEliminar(null);
       await fetchInvitados();
+      setModalEliminar(null);
       setToast({
         type: "success",
         title: "Invitado eliminado",
@@ -466,6 +511,8 @@ function InvitadosContent() {
       const message =
         err instanceof Error ? err.message : "Ocurrió un error al eliminar.";
       setToast({ type: "error", title: "No se pudo eliminar", message });
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -609,6 +656,10 @@ function InvitadosContent() {
 
   // Guardar importación masiva
   const handleGuardarImportacion = async () => {
+    if (!puedeModificar) {
+      setModalImportar(false);
+      return;
+    }
     if (!evento || !resumenImportacion || resumenImportacion.validos === 0)
       return;
     setImportando(true);
@@ -1074,7 +1125,7 @@ function InvitadosContent() {
             </button>
           </div>
 
-          {!soloLectura && (
+          {puedeModificar && (
             <>
               {/* Importar y Agregar */}
               <button
@@ -1107,7 +1158,7 @@ function InvitadosContent() {
         </div>
       </div>
 
-      {soloLectura && (
+      {permisosResueltos && soloLectura && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
           <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div>
@@ -1313,7 +1364,7 @@ function InvitadosContent() {
 
                       {/* Acciones principales visibles: Copiar y WhatsApp (solo si pendiente/visto) */}
                       <td className="py-3.5 px-4 text-right">
-                        {soloLectura ? (
+                        {!puedeModificar ? (
                           <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
                             Solo lectura
                           </span>
@@ -1390,7 +1441,7 @@ function InvitadosContent() {
                                 </a>
                               )}
 
-                              {!soloLectura && (
+                              {puedeModificar && (
                                 <>
                                   {/* Editar */}
                                   <button
@@ -1480,7 +1531,7 @@ function InvitadosContent() {
 
       {/* MODAL: AGREGAR INVITADO */}
       <AnimatePresence>
-        {modalAgregar && (
+        {puedeModificar && modalAgregar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1620,7 +1671,7 @@ function InvitadosContent() {
 
       {/* MODAL: EDITAR INVITADO */}
       <AnimatePresence>
-        {modalEditar && (
+        {puedeModificar && modalEditar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1755,13 +1806,15 @@ function InvitadosContent() {
 
       {/* MODAL: ELIMINAR INVITADO */}
       <AnimatePresence>
-        {modalEliminar && (
+        {puedeModificar && modalEliminar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            onClick={() => setModalEliminar(null)}
+            onClick={() => {
+              if (!eliminando) setModalEliminar(null);
+            }}
             className="fixed inset-0 bg-stone-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
           >
             <motion.div
@@ -1787,15 +1840,24 @@ function InvitadosContent() {
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => setModalEliminar(null)}
-                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900"
+                  disabled={eliminando}
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleConfirmarEliminar}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl transition-colors"
+                  disabled={eliminando}
+                  className="inline-flex min-w-28 items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:cursor-not-allowed disabled:bg-rose-400"
                 >
-                  Sí, eliminar
+                  {eliminando ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Eliminando…
+                    </>
+                  ) : (
+                    "Sí, eliminar"
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -1805,7 +1867,7 @@ function InvitadosContent() {
 
       {/* MODAL: IMPORTACIÓN MASIVA CSV/EXCEL */}
       <AnimatePresence>
-        {modalImportar && (
+        {puedeModificar && modalImportar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

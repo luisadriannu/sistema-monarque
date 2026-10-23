@@ -3,6 +3,13 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma-client";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { endOfDayMexicoDate, toDateInputValue } from "@/lib/utils";
+import {
+  eventTypeThemes,
+  genericInvitationTheme,
+  normalizeEventType,
+  type EventType,
+} from "@/lib/event-theme";
 
 const noStoreHeaders = { "Cache-Control": "no-store" };
 
@@ -16,43 +23,20 @@ function normalizeSlug(value: unknown) {
     .replace(/^-+|-+$/g, "");
 }
 
-const invitationThemes = {
-  romantic: {
-    primary: "#743C53",
-    secondary: "#EBD8D9",
-    accent: "#C68972",
-    background: "#FAF3F1",
-  },
-  botanical: {
-    primary: "#405847",
-    secondary: "#DDE3D4",
-    accent: "#AA8255",
-    background: "#F3F2E9",
-  },
-  midnight: {
-    primary: "#24324A",
-    secondary: "#D9DEE8",
-    accent: "#B39255",
-    background: "#EEEFF2",
-  },
-} as const;
-
-type InvitationTheme = keyof typeof invitationThemes;
-
 function invitationConfig(data: {
   anfitriones: string;
   fechaEvento: Date;
   lugar: string;
-  theme: InvitationTheme;
-  phrase: string;
-  dressCode: string;
+  eventType: EventType;
 }) {
+  const systemTheme = eventTypeThemes[data.eventType];
+
   return {
-    tipo: "boda",
+    tipo: data.eventType,
     plan: "elite",
     seo: {
       title: `Invitación de ${data.anfitriones}`,
-      description: `Acompáñanos a celebrar la boda de ${data.anfitriones}.`,
+      description: `Acompáñanos a celebrar este momento especial con ${data.anfitriones}.`,
     },
     event: {
       name: data.anfitriones.replace(/\s+y\s+/i, " & "),
@@ -63,14 +47,12 @@ function invitationConfig(data: {
         hour12: true,
         timeZone: "America/Mexico_City",
       }).format(data.fechaEvento),
-      phrase:
-        data.phrase ||
-        "Con mucha ilusión queremos compartir contigo este día tan especial.",
-      dressCode: data.dressCode,
+      phrase: "Nos encantará compartir contigo este momento especial.",
+      dressCode: "",
       itinerary: [],
     },
     location: {
-      event: "Ceremonia y recepción",
+      event: "Lugar del evento",
       reception: data.lugar,
     },
     contact: { phone: "" },
@@ -78,9 +60,13 @@ function invitationConfig(data: {
       groomParents: { father: "", mother: "" },
       brideParents: { father: "", mother: "" },
     },
+    system: {
+      eventType: data.eventType,
+      colors: systemTheme,
+    },
     design: {
-      variant: data.theme,
-      colors: invitationThemes[data.theme],
+      variant: "generic",
+      colors: genericInvitationTheme,
     },
   };
 }
@@ -149,18 +135,8 @@ export async function POST(request: Request) {
     const slug = normalizeSlug(evento.slug);
     const lugar = String(evento.lugar || "").trim();
     const fechaEvento = new Date(evento.fecha_evento);
-    const fechaLimite = new Date(evento.fecha_limite_rsvp);
-    const requestedTheme = String(evento.tema || "romantic");
-    const theme: InvitationTheme =
-      requestedTheme in invitationThemes
-        ? (requestedTheme as InvitationTheme)
-        : "romantic";
-    const phrase = String(evento.frase || "").trim();
-    const dressCode = String(evento.vestimenta || "").trim();
-    const capacidad =
-      evento.capacidad_total === "" || evento.capacidad_total == null
-        ? null
-        : Number(evento.capacidad_total);
+    const fechaLimite = endOfDayMexicoDate(toDateInputValue(fechaEvento));
+    const eventType = normalizeEventType(evento.tipo_evento);
 
     if (!nombre || !email || !email.includes("@")) {
       return NextResponse.json(
@@ -180,21 +156,9 @@ export async function POST(request: Request) {
         { status: 400, headers: noStoreHeaders },
       );
     }
-    if (Number.isNaN(fechaEvento.getTime()) || Number.isNaN(fechaLimite.getTime())) {
+    if (Number.isNaN(fechaEvento.getTime())) {
       return NextResponse.json(
-        { error: "Las fechas del evento no son válidas." },
-        { status: 400, headers: noStoreHeaders },
-      );
-    }
-    if (fechaLimite > fechaEvento) {
-      return NextResponse.json(
-        { error: "La fecha límite de confirmación debe ser anterior al evento." },
-        { status: 400, headers: noStoreHeaders },
-      );
-    }
-    if (capacidad !== null && (!Number.isInteger(capacidad) || capacidad < 1)) {
-      return NextResponse.json(
-        { error: "La capacidad debe ser un número entero mayor que cero." },
+        { error: "La fecha del evento no es válida." },
         { status: 400, headers: noStoreHeaders },
       );
     }
@@ -213,15 +177,13 @@ export async function POST(request: Request) {
           slug,
           fecha_evento: fechaEvento,
           lugar,
-          capacidad_total: capacidad,
+          capacidad_total: null,
           fecha_limite_rsvp: fechaLimite,
           configuracion_invitacion: invitationConfig({
             anfitriones,
             fechaEvento,
             lugar,
-            theme,
-            phrase,
-            dressCode,
+            eventType,
           }),
         },
         select: { id: true, nombre: true, slug: true },

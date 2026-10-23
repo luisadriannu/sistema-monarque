@@ -110,18 +110,18 @@ export default async function InvitationPage({ params, searchParams }: PageProps
           partyHour: storedInvitation.event?.partyHour,
           phrase:
             storedInvitation.event?.phrase ||
-            "Con mucha ilusión queremos compartir contigo este día tan especial.",
+            "Nos encantará compartir contigo este momento especial.",
           dressCode: storedInvitation.event?.dressCode,
           itinerary: storedInvitation.event?.itinerary || [],
         },
         media: { coverImage: "", gallery: [] },
         location: {
-          event: storedInvitation.location?.event || "Ceremonia y recepción",
+          event: storedInvitation.location?.event || "Lugar del evento",
           reception: evento.lugar,
         },
         contact: storedInvitation.contact,
         family: storedInvitation.family,
-        design: storedInvitation.design || { variant: "romantic" },
+        design: { variant: "generic" },
       };
 
   const invitadoData = {

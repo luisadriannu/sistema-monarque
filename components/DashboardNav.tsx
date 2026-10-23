@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import EventTypeIcon from "@/components/EventTypeIcon";
+import type { EventType } from "@/lib/event-theme";
 
 interface DashboardNavProps {
   user: {
@@ -27,9 +29,16 @@ interface DashboardNavProps {
     rol: string;
   };
   eventSlug?: string;
+  eventTypeLabel?: string;
+  eventType?: EventType;
 }
 
-export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
+export default function DashboardNav({
+  user,
+  eventSlug,
+  eventTypeLabel,
+  eventType,
+}: DashboardNavProps) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -164,8 +173,13 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
               <h1 className="font-serif text-lg font-bold tracking-wide text-[#2b211b] leading-tight">
                 MONARQUE
               </h1>
-              <span className="inline-block px-2 py-0.5 mt-0.5 rounded-full text-[10px] font-semibold bg-[#ffedd5] text-[#c2410c]">
-                Plan Elite
+              <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-[#ffedd5] px-2 py-0.5 text-[10px] font-semibold text-[#c2410c]">
+                {user.rol !== "admin" && eventType && (
+                  <EventTypeIcon type={eventType} className="h-3 w-3" />
+                )}
+                {user.rol === "admin"
+                  ? "Administración"
+                  : eventTypeLabel || "Mi evento"}
               </span>
             </div>
           </div>
@@ -265,10 +279,19 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
         <div className="p-4 border-t border-[#f5ede2] bg-[#fbf8f4]/60">
           <div className="flex items-center justify-between">
             <div className="truncate pr-2">
-              <p className="text-xs font-semibold text-stone-900 truncate">
-                {user.nombre}
+              <p className="flex items-center gap-2 text-xs font-semibold text-stone-900">
+                {user.rol !== "admin" && eventType && (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ffedd5] text-[#c2410c]">
+                    <EventTypeIcon type={eventType} className="h-4 w-4" />
+                  </span>
+                )}
+                <span className="truncate">{user.nombre}</span>
               </p>
-              <p className="text-[11px] text-stone-500 truncate">
+              <p
+                className={`truncate text-[11px] text-stone-500 ${
+                  user.rol !== "admin" && eventType ? "pl-9" : ""
+                }`}
+              >
                 {user.email}
               </p>
             </div>

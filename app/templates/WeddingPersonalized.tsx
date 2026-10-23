@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   CalendarDays,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { EventData } from "@/app/types/EventData";
 import { formatDateLongMx, formatDateMx } from "@/lib/utils";
+import { genericInvitationTheme } from "@/lib/event-theme";
 
 interface InvitadoData {
   nombre: string;
@@ -42,56 +43,10 @@ interface Props {
   previewMode?: boolean;
 }
 
-const themes = {
-  romantic: {
-    background: "#FAF3F1",
-    surface: "#FFFDFC",
-    primary: "#743C53",
-    secondary: "#EBD8D9",
-    accent: "#C68972",
-    ink: "#392B31",
-    muted: "#806F75",
-    ornament: "✦",
-  },
-  botanical: {
-    background: "#F3F2E9",
-    surface: "#FCFBF6",
-    primary: "#405847",
-    secondary: "#DDE3D4",
-    accent: "#AA8255",
-    ink: "#29352D",
-    muted: "#69746C",
-    ornament: "❦",
-  },
-  midnight: {
-    background: "#EEEFF2",
-    surface: "#FAFAFB",
-    primary: "#24324A",
-    secondary: "#D9DEE8",
-    accent: "#B39255",
-    ink: "#192131",
-    muted: "#657086",
-    ornament: "✧",
-  },
+const genericTheme = {
+  ...genericInvitationTheme,
+  ornament: "✦",
 } as const;
-
-type ThemeName = keyof typeof themes;
-
-function getTheme(data: EventData) {
-  const requested = data.design?.variant as ThemeName | undefined;
-  const isSupportedTheme = Boolean(requested && themes[requested]);
-  const base = isSupportedTheme && requested ? themes[requested] : themes.romantic;
-  // Configuraciones antiguas pueden traer la paleta de la boda original. Solo
-  // aceptamos colores personalizados cuando pertenecen a una variante nueva.
-  const colors = isSupportedTheme ? data.design?.colors : undefined;
-  return {
-    ...base,
-    primary: colors?.primary || base.primary,
-    secondary: colors?.secondary || base.secondary,
-    accent: colors?.accent || base.accent,
-    background: colors?.background || base.background,
-  };
-}
 
 function EventCountdown({ date }: { date: string }) {
   const [remaining, setRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
@@ -138,10 +93,12 @@ export default function WeddingPersonalized({
   previewMode = false,
 }: Props) {
   const reduceMotion = useReducedMotion();
-  const theme = useMemo(() => getTheme(data), [data]);
+  const theme = genericTheme;
   const names = data.event.name.split(/\s+(?:&|y)\s+/i);
+  const hasPair = names.length > 1 && Boolean(names[1]?.trim());
   const firstName = (names[0] || evento.anfitriones).trim().split(/\s+/)[0];
   const secondName = (names[1] || "").trim().split(/\s+/)[0];
+  const singleTitle = (data.event.name || evento.anfitriones).trim();
   const [opened, setOpened] = useState(false);
   const [invitado, setInvitado] = useState(initialInvitado);
   const [pases, setPases] = useState(
@@ -247,9 +204,15 @@ export default function WeddingPersonalized({
                 Tenemos el honor de invitarte
               </p>
               <h1 className="mt-8 font-serif text-5xl leading-[.9] sm:text-7xl">
-                {firstName}
-                <span className="my-3 block text-3xl italic text-[var(--accent)]">&</span>
-                {secondName}
+                {hasPair ? (
+                  <>
+                    {firstName}
+                    <span className="my-3 block text-3xl italic text-[var(--accent)]">&</span>
+                    {secondName}
+                  </>
+                ) : (
+                  singleTitle
+                )}
               </h1>
               <p className="mx-auto mt-8 w-fit border-y border-white/20 px-7 py-3 text-xs uppercase tracking-[.28em] text-white/80">
                 {formatDateMx(evento.fecha_evento)}
@@ -271,10 +234,18 @@ export default function WeddingPersonalized({
               <motion.div {...reveal} className="relative mx-auto max-w-3xl">
                 <p className="text-3xl text-[var(--accent)]">{theme.ornament}</p>
                 <p className="mt-5 text-[10px] font-bold uppercase tracking-[.35em] text-[var(--muted)]">
-                  Nuestra celebración
+                  Una fecha para recordar
                 </p>
                 <h1 className="mt-6 font-serif text-6xl leading-none text-[var(--primary)] sm:text-8xl">
-                  {firstName} <span className="italic text-[var(--accent)]">&</span> {secondName}
+                  {hasPair ? (
+                    <>
+                      {firstName}{" "}
+                      <span className="italic text-[var(--accent)]">&</span>{" "}
+                      {secondName}
+                    </>
+                  ) : (
+                    singleTitle
+                  )}
                 </h1>
                 <p className="mx-auto mt-8 max-w-xl font-serif text-xl italic leading-relaxed text-[var(--muted)] sm:text-2xl">
                   “{data.event.phrase}”
@@ -289,7 +260,7 @@ export default function WeddingPersonalized({
               <motion.div {...reveal} className="mx-auto max-w-4xl">
                 <div className="text-center">
                   <p className="text-[10px] font-bold uppercase tracking-[.3em] text-[var(--accent)]">Reserva la fecha</p>
-                  <h2 className="mt-3 font-serif text-4xl text-[var(--primary)] sm:text-5xl">El gran día</h2>
+                  <h2 className="mt-3 font-serif text-4xl text-[var(--primary)] sm:text-5xl">La celebración</h2>
                 </div>
                 <div className="mt-12 grid gap-4 md:grid-cols-3">
                   <Detail icon={CalendarDays} title="Fecha" value={formatDateLongMx(evento.fecha_evento)} />
@@ -393,7 +364,17 @@ export default function WeddingPersonalized({
             </section>
 
             <footer className="bg-[var(--background)] px-5 py-12 text-center">
-              <p className="font-serif text-3xl text-[var(--primary)]">{firstName} <span className="italic text-[var(--accent)]">&</span> {secondName}</p>
+              <p className="font-serif text-3xl text-[var(--primary)]">
+                {hasPair ? (
+                  <>
+                    {firstName}{" "}
+                    <span className="italic text-[var(--accent)]">&</span>{" "}
+                    {secondName}
+                  </>
+                ) : (
+                  singleTitle
+                )}
+              </p>
               <p className="mt-3 text-[9px] font-bold uppercase tracking-[.28em] text-[var(--muted)]">Monarque · Invitaciones Web</p>
             </footer>
           </motion.main>

@@ -49,3 +49,100 @@ body {
 .monarque-accent-gradient {
   background: linear-gradient(135deg, #e05a1b 0%, #f97316 100%);
 }
+
+/* Identidad visual del panel según el tipo de evento. Las variables se
+   resuelven en el layout del dashboard y no afectan la invitación pública. */
+.dashboard-theme {
+  --dashboard-accent: #e05a1b;
+  --dashboard-accent-strong: #c2410c;
+  --dashboard-soft: #fff0e4;
+  --dashboard-soft-border: #fed7aa;
+  --dashboard-ink: #2b211b;
+  background-color: color-mix(
+    in srgb,
+    var(--dashboard-soft) 28%,
+    #faf8f5
+  ) !important;
+}
+
+.dashboard-theme [class~="text-[#e05a1b]"],
+.dashboard-theme [class~="text-[#d65318]"],
+.dashboard-theme [class~="text-[#c2410c]"],
+.dashboard-theme [class~="text-[#a04d24]"],
+.dashboard-theme [class~="text-[#9a653f]"],
+.dashboard-theme [class~="text-[#86583d]"],
+.dashboard-theme [class~="text-[#6e422b]"] {
+  color: var(--dashboard-accent) !important;
+}
+
+.dashboard-theme [class~="text-[#2b211b]"] {
+  color: var(--dashboard-ink) !important;
+}
+
+.dashboard-theme [class~="bg-[#e05a1b]"] {
+  background-color: var(--dashboard-accent) !important;
+}
+
+.dashboard-theme [class~="bg-[#2b211b]"] {
+  background-color: var(--dashboard-ink) !important;
+}
+
+.dashboard-theme [class~="bg-[#ffedd5]"],
+.dashboard-theme [class~="bg-[#fff0e4]"],
+.dashboard-theme [class~="bg-[#fff4e9]"],
+.dashboard-theme [class~="bg-[#fff7ed]"],
+.dashboard-theme [class~="bg-[#fbf3eb]"],
+.dashboard-theme [class~="bg-[#f6efe7]"] {
+  background-color: var(--dashboard-soft) !important;
+}
+
+.dashboard-theme [class~="border-[#fed7aa]"],
+.dashboard-theme [class~="border-[#f0ddc9]"],
+.dashboard-theme [class~="border-[#ead7c4]"],
+.dashboard-theme [class~="border-[#eadbca]"],
+.dashboard-theme [class~="border-[#ebd9c4]"],
+.dashboard-theme [class~="border-[#e7d8c8]"],
+.dashboard-theme [class~="border-[#dfcbb5]"],
+.dashboard-theme [class~="border-[#dec0a2]"] {
+  border-color: var(--dashboard-soft-border) !important;
+}
+
+.dashboard-theme [class~="hover:bg-[#c94d14]"]:hover,
+.dashboard-theme [class~="hover:bg-[#49392f]"]:hover {
+  background-color: var(--dashboard-accent-strong) !important;
+}
+
+.dashboard-theme [class~="hover:bg-[#ffedd5]"]:hover,
+.dashboard-theme [class~="hover:bg-[#fbf8f4]"]:hover {
+  background-color: var(--dashboard-soft) !important;
+}
+
+.dashboard-theme [class~="hover:text-[#e05a1b]"]:hover,
+.dashboard-theme [class~="hover:text-[#c2410c]"]:hover,
+.dashboard-theme [class~="hover:text-[#b8420f]"]:hover,
+.dashboard-theme .group:hover [class~="group-hover:text-[#e05a1b]"] {
+  color: var(--dashboard-accent) !important;
+}
+
+.dashboard-theme [class~="hover:border-[#e05a1b]"]:hover,
+.dashboard-theme [class~="focus:border-[#e05a1b]"]:focus {
+  border-color: var(--dashboard-accent) !important;
+}
+
+.dashboard-theme [class~="focus:ring-[#e05a1b]"]:focus {
+  --tw-ring-color: var(--dashboard-accent) !important;
+}
+
+.dashboard-theme [class~="from-[#e05a1b]"],
+.dashboard-theme [class~="from-[#d9480f]"] {
+  --tw-gradient-from: var(--dashboard-accent) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: color-mix(in srgb, var(--dashboard-accent) 0%, transparent)
+    var(--tw-gradient-to-position) !important;
+}
+
+.dashboard-theme [class~="to-[#ea580c]"],
+.dashboard-theme [class~="to-[#e05a1b]"],
+.dashboard-theme [class~="to-[#d9480f]"],
+.dashboard-theme [class~="to-[#f59e0b]"] {
+  --tw-gradient-to: var(--dashboard-accent-strong) var(--tw-gradient-to-position) !important;
+}

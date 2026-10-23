@@ -3,6 +3,11 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma-client";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  eventTypeThemes,
+  getEventTypeFromConfig,
+  normalizeEventType,
+} from "@/lib/event-theme";
 
 const noStoreHeaders = { "Cache-Control": "no-store" };
 
@@ -19,29 +24,6 @@ function normalizeSlug(value: unknown) {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
-
-const invitationThemes = {
-  romantic: {
-    primary: "#743C53",
-    secondary: "#EBD8D9",
-    accent: "#C68972",
-    background: "#FAF3F1",
-  },
-  botanical: {
-    primary: "#405847",
-    secondary: "#DDE3D4",
-    accent: "#AA8255",
-    background: "#F3F2E9",
-  },
-  midnight: {
-    primary: "#24324A",
-    secondary: "#D9DEE8",
-    accent: "#B39255",
-    background: "#EEEFF2",
-  },
-} as const;
-
-type InvitationTheme = keyof typeof invitationThemes;
 
 export async function PUT(
   request: Request,
@@ -107,18 +89,6 @@ export async function PUT(
     const slug = normalizeSlug(evento.slug);
     const lugar = String(evento.lugar || "").trim();
     const fechaEvento = new Date(evento.fecha_evento);
-    const fechaLimite = new Date(evento.fecha_limite_rsvp);
-    const requestedTheme = String(evento.tema || "romantic");
-    const theme: InvitationTheme =
-      requestedTheme in invitationThemes
-        ? (requestedTheme as InvitationTheme)
-        : "romantic";
-    const phrase = String(evento.frase || "").trim();
-    const dressCode = String(evento.vestimenta || "").trim();
-    const capacidad =
-      evento.capacidad_total === "" || evento.capacidad_total == null
-        ? null
-        : Number(evento.capacidad_total);
 
     if (!nombreEvento || !anfitriones || !slug || !lugar) {
       return NextResponse.json(
@@ -126,21 +96,9 @@ export async function PUT(
         { status: 400, headers: noStoreHeaders },
       );
     }
-    if (Number.isNaN(fechaEvento.getTime()) || Number.isNaN(fechaLimite.getTime())) {
+    if (Number.isNaN(fechaEvento.getTime())) {
       return NextResponse.json(
-        { error: "Las fechas del evento no son válidas." },
-        { status: 400, headers: noStoreHeaders },
-      );
-    }
-    if (fechaLimite > fechaEvento) {
-      return NextResponse.json(
-        { error: "La fecha límite debe ser anterior al evento." },
-        { status: 400, headers: noStoreHeaders },
-      );
-    }
-    if (capacidad !== null && (!Number.isInteger(capacidad) || capacidad < 1)) {
-      return NextResponse.json(
-        { error: "La capacidad debe ser un entero mayor que cero." },
+        { error: "La fecha del evento no es válida." },
         { status: 400, headers: noStoreHeaders },
       );
     }
@@ -149,28 +107,33 @@ export async function PUT(
     const storedConfig = isRecord(existingEvent.configuracion_invitacion)
       ? existingEvent.configuracion_invitacion
       : {};
+    const eventType = normalizeEventType(
+      evento.tipo_evento,
+      getEventTypeFromConfig(storedConfig),
+    );
     const storedEvent = isRecord(storedConfig.event) ? storedConfig.event : {};
     const storedLocation = isRecord(storedConfig.location)
       ? storedConfig.location
       : {};
+    const storedSystem = isRecord(storedConfig.system)
+      ? storedConfig.system
+      : {};
     const updatedConfig = {
       ...storedConfig,
+      tipo: eventType,
       event: {
         ...storedEvent,
         name: anfitriones.replace(/\s+y\s+/i, " & "),
         date: fechaEvento.toISOString(),
-        phrase:
-          phrase ||
-          "Con mucha ilusión queremos compartir contigo este día tan especial.",
-        dressCode,
       },
       location: {
         ...storedLocation,
         reception: lugar,
       },
-      design: {
-        variant: theme,
-        colors: invitationThemes[theme],
+      system: {
+        ...storedSystem,
+        eventType,
+        colors: eventTypeThemes[eventType],
       },
     } as Prisma.InputJsonValue;
 
@@ -191,8 +154,6 @@ export async function PUT(
           slug,
           lugar,
           fecha_evento: fechaEvento,
-          fecha_limite_rsvp: fechaLimite,
-          capacidad_total: capacidad,
           configuracion_invitacion: updatedConfig,
         },
       }),

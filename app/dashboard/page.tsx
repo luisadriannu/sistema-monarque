@@ -14,6 +14,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { formatDateLongMx, formatDateMx, formatDateTimeMx } from "@/lib/utils";
+import EventTypeIcon from "@/components/EventTypeIcon";
+import { eventTypeThemes, getEventTypeFromConfig } from "@/lib/event-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,8 @@ export default async function DashboardPage() {
     );
   }
 
+  const eventType = getEventTypeFromConfig(evento.configuracion_invitacion);
+  const eventTheme = eventTypeThemes[eventType];
   const invitados = evento.invitados;
 
   // Cálculo de los 4 números clave:
@@ -128,9 +132,25 @@ export default async function DashboardPage() {
             </span>
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#2b211b] tracking-tight">
-            {evento.nombre}
-          </h1>
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm sm:h-14 sm:w-14"
+              style={{
+                backgroundColor: eventTheme.soft,
+                borderColor: eventTheme.softBorder,
+                color: eventTheme.accentStrong,
+              }}
+            >
+              <EventTypeIcon
+                type={eventType}
+                className="h-6 w-6 sm:h-7 sm:w-7"
+                strokeWidth={1.7}
+              />
+            </div>
+            <h1 className="font-serif text-3xl font-bold tracking-tight text-[#2b211b] sm:text-4xl">
+              {evento.nombre}
+            </h1>
+          </div>
 
           <p className="text-stone-600 text-sm mt-1 font-medium">
             Anfitriones:{" "}

@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation";
+import type { CSSProperties } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import DashboardNav from "@/components/DashboardNav";
+import {
+  eventTypeThemes,
+  getEventTypeFromConfig,
+  monarqueDashboardTheme,
+} from "@/lib/event-theme";
 
 export default async function DashboardLayout({
   children,
@@ -24,9 +30,31 @@ export default async function DashboardLayout({
           orderBy: { creado_en: "desc" },
         });
 
+  const eventType = evento
+    ? getEventTypeFromConfig(evento.configuracion_invitacion)
+    : null;
+  const dashboardTheme = eventType
+    ? eventTypeThemes[eventType]
+    : monarqueDashboardTheme;
+  const themeVariables = {
+    "--dashboard-accent": dashboardTheme.accent,
+    "--dashboard-accent-strong": dashboardTheme.accentStrong,
+    "--dashboard-soft": dashboardTheme.soft,
+    "--dashboard-soft-border": dashboardTheme.softBorder,
+    "--dashboard-ink": dashboardTheme.ink,
+  } as CSSProperties;
+
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col lg:flex-row">
-      <DashboardNav user={user} eventSlug={evento?.slug} />
+    <div
+      className="dashboard-theme min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col lg:flex-row"
+      style={themeVariables}
+    >
+      <DashboardNav
+        user={user}
+        eventSlug={evento?.slug}
+        eventTypeLabel={eventType ? eventTypeThemes[eventType].label : undefined}
+        eventType={eventType || undefined}
+      />
       <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">
           {children}

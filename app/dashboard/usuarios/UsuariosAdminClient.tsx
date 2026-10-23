@@ -10,21 +10,27 @@ import {
   KeyRound,
   Mail,
   MapPin,
+  Palette,
   Plus,
   ShieldCheck,
-  Sparkles,
   UserRound,
   Users,
   X,
 } from "lucide-react";
 import DashboardLoader from "@/components/DashboardLoader";
+import EventTypeIcon from "@/components/EventTypeIcon";
 import {
-  endOfDayMexicoDate,
   formatDateMx,
   isEventFinished,
-  toDateInputValue,
   toDateTimeInputValue,
 } from "@/lib/utils";
+import {
+  eventTypeThemes,
+  getEventTypeFromConfig,
+  type EventType,
+} from "@/lib/event-theme";
+
+const eventTypeOptions = Object.keys(eventTypeThemes) as EventType[];
 
 interface EventoCliente {
   id: string;
@@ -36,8 +42,8 @@ interface EventoCliente {
   capacidad_total: number | null;
   fecha_limite_rsvp: string;
   configuracion_invitacion?: {
-    event?: { phrase?: string; dressCode?: string };
-    design?: { variant?: string };
+    tipo?: string;
+    system?: { eventType?: string };
   } | null;
   _count: { invitados: number };
 }
@@ -61,11 +67,7 @@ interface FormState {
   slug: string;
   fechaEvento: string;
   lugar: string;
-  capacidadTotal: string;
-  fechaLimiteRsvp: string;
-  tema: string;
-  frase: string;
-  vestimenta: string;
+  tipoEvento: EventType;
 }
 
 const emptyForm: FormState = {
@@ -78,11 +80,7 @@ const emptyForm: FormState = {
   slug: "",
   fechaEvento: "",
   lugar: "",
-  capacidadTotal: "",
-  fechaLimiteRsvp: "",
-  tema: "romantic",
-  frase: "Con mucha ilusión queremos compartir contigo este día tan especial.",
-  vestimenta: "",
+  tipoEvento: "boda",
 };
 
 function slugify(value: string) {
@@ -114,7 +112,8 @@ export default function UsuariosAdminClient() {
       setError(null);
       const response = await fetch("/api/usuarios", { cache: "no-store" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudieron cargar las cuentas.");
+      if (!response.ok)
+        throw new Error(data.error || "No se pudieron cargar las cuentas.");
       setUsuarios(data.usuarios || []);
     } catch (loadError) {
       setError(
@@ -153,13 +152,6 @@ export default function UsuariosAdminClient() {
       setError("Esta cuenta no tiene un evento asociado.");
       return;
     }
-    const savedTheme = evento.configuracion_invitacion?.design?.variant;
-    const supportedTheme = ["romantic", "botanical", "midnight"].includes(
-      savedTheme || "",
-    )
-      ? savedTheme!
-      : "romantic";
-
     setEditingId(usuario.id);
     setForm({
       nombre: usuario.nombre,
@@ -171,15 +163,7 @@ export default function UsuariosAdminClient() {
       slug: evento.slug,
       fechaEvento: toDateTimeInputValue(evento.fecha_evento),
       lugar: evento.lugar,
-      capacidadTotal:
-        evento.capacidad_total === null ? "" : String(evento.capacidad_total),
-      fechaLimiteRsvp: toDateInputValue(evento.fecha_limite_rsvp),
-      tema: supportedTheme,
-      frase:
-        evento.configuracion_invitacion?.event?.phrase ||
-        "Con mucha ilusión queremos compartir contigo este día tan especial.",
-      vestimenta:
-        evento.configuracion_invitacion?.event?.dressCode || "",
+      tipoEvento: getEventTypeFromConfig(evento.configuracion_invitacion),
     });
     setError(null);
     setModalOpen(true);
@@ -211,13 +195,7 @@ export default function UsuariosAdminClient() {
           slug: form.slug,
           fecha_evento: eventDateToIso(form.fechaEvento),
           lugar: form.lugar,
-          capacidad_total: form.capacidadTotal,
-          fecha_limite_rsvp: endOfDayMexicoDate(
-            form.fechaLimiteRsvp,
-          ).toISOString(),
-          tema: form.tema,
-          frase: form.frase,
-          vestimenta: form.vestimenta,
+          tipo_evento: form.tipoEvento,
         },
       };
       const response = await fetch(
@@ -229,7 +207,8 @@ export default function UsuariosAdminClient() {
         },
       );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudo guardar la cuenta.");
+      if (!response.ok)
+        throw new Error(data.error || "No se pudo guardar la cuenta.");
 
       setModalOpen(false);
       setSuccess(
@@ -272,7 +251,8 @@ export default function UsuariosAdminClient() {
             Clientes
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-stone-500">
-            Crea las cuentas de las anfitrionas y administra el evento asociado a cada una.
+            Crea las cuentas de las anfitrionas y administra el evento asociado
+            a cada una.
           </p>
         </div>
         <button
@@ -311,6 +291,10 @@ export default function UsuariosAdminClient() {
         ) : (
           usuarios.map((usuario) => {
             const evento = usuario.eventos[0];
+            const eventType = evento
+              ? getEventTypeFromConfig(evento.configuracion_invitacion)
+              : "boda";
+            const eventTheme = eventTypeThemes[eventType];
             const eventoFinalizado = evento
               ? isEventFinished(evento.fecha_evento)
               : false;
@@ -321,8 +305,15 @@ export default function UsuariosAdminClient() {
               >
                 <div className="flex items-start justify-between gap-4 border-b border-[#f3e9de] p-5">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fff0e4] text-[#d65318]">
-                      <UserRound className="h-5 w-5" />
+                    <div
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
+                      style={{
+                        backgroundColor: eventTheme.soft,
+                        borderColor: eventTheme.softBorder,
+                        color: eventTheme.accentStrong,
+                      }}
+                    >
+                      <EventTypeIcon type={eventType} className="h-5 w-5" />
                     </div>
                     <div className="min-w-0">
                       <h2 className="truncate font-serif text-lg font-bold text-[#2b211b]">
@@ -347,8 +338,24 @@ export default function UsuariosAdminClient() {
                 {evento ? (
                   <div className="space-y-3 p-5 text-sm text-stone-600">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold text-[#2b211b]">{evento.nombre}</span>
+                      <span className="font-semibold text-[#2b211b]">
+                        {evento.nombre}
+                      </span>
                       <div className="flex flex-wrap justify-end gap-1.5">
+                        <span
+                          className="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
+                          style={{
+                            backgroundColor: eventTheme.soft,
+                            borderColor: eventTheme.softBorder,
+                            color: eventTheme.accentStrong,
+                          }}
+                        >
+                          <EventTypeIcon
+                            type={eventType}
+                            className="mr-1 inline-block h-3 w-3 align-[-2px]"
+                          />
+                          {eventTheme.label}
+                        </span>
                         {eventoFinalizado && (
                           <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600">
                             Finalizado
@@ -387,7 +394,9 @@ export default function UsuariosAdminClient() {
                     </div>
                   </div>
                 ) : (
-                  <p className="p-5 text-sm text-rose-600">Sin evento asociado.</p>
+                  <p className="p-5 text-sm text-rose-600">
+                    Sin evento asociado.
+                  </p>
                 )}
               </article>
             );
@@ -433,7 +442,10 @@ export default function UsuariosAdminClient() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="max-h-[calc(100dvh-8rem)] overflow-y-auto p-6">
+              <form
+                onSubmit={handleSubmit}
+                className="max-h-[calc(100dvh-8rem)] overflow-y-auto p-6"
+              >
                 <fieldset disabled={saving} className="space-y-7">
                   <div>
                     <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#a04d24]">
@@ -442,19 +454,46 @@ export default function UsuariosAdminClient() {
                     </h3>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <Field label="Nombre" required>
-                        <input value={form.nombre} onChange={(e) => updateField("nombre", e.target.value)} required className={inputClass} />
+                        <input
+                          value={form.nombre}
+                          onChange={(e) =>
+                            updateField("nombre", e.target.value)
+                          }
+                          required
+                          className={inputClass}
+                        />
                       </Field>
                       <Field label="Correo electrónico" required>
-                        <input type="email" value={form.email} onChange={(e) => updateField("email", e.target.value)} required className={inputClass} />
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => updateField("email", e.target.value)}
+                          required
+                          className={inputClass}
+                        />
                       </Field>
                       <Field
-                        label={editingId ? "Nueva contraseña (opcional)" : "Contraseña temporal"}
+                        label={
+                          editingId
+                            ? "Nueva contraseña (opcional)"
+                            : "Contraseña temporal"
+                        }
                         hint="Mínimo 8 caracteres"
                         required={!editingId}
                       >
                         <div className="relative">
                           <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-                          <input type="password" minLength={8} value={form.password} onChange={(e) => updateField("password", e.target.value)} required={!editingId} autoComplete="new-password" className={`${inputClass} pl-10`} />
+                          <input
+                            type="password"
+                            minLength={8}
+                            value={form.password}
+                            onChange={(e) =>
+                              updateField("password", e.target.value)
+                            }
+                            required={!editingId}
+                            autoComplete="new-password"
+                            className={`${inputClass} pl-10`}
+                          />
                         </div>
                       </Field>
                     </div>
@@ -467,55 +506,127 @@ export default function UsuariosAdminClient() {
                     </h3>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <Field label="Nombre del evento" required>
-                        <input value={form.eventoNombre} onChange={(e) => updateField("eventoNombre", e.target.value)} placeholder="Boda Laura & Miguel" required className={inputClass} />
+                        <input
+                          value={form.eventoNombre}
+                          onChange={(e) =>
+                            updateField("eventoNombre", e.target.value)
+                          }
+                          placeholder="Boda Laura & Miguel"
+                          required
+                          className={inputClass}
+                        />
                       </Field>
                       <Field label="Anfitriones" required>
-                        <input value={form.anfitriones} onChange={(e) => updateField("anfitriones", e.target.value)} placeholder="Laura y Miguel" required className={inputClass} />
+                        <input
+                          value={form.anfitriones}
+                          onChange={(e) =>
+                            updateField("anfitriones", e.target.value)
+                          }
+                          placeholder="Laura y Miguel"
+                          required
+                          className={inputClass}
+                        />
                       </Field>
-                      <Field label="Enlace público" hint={`/${form.slug || "nombre-del-evento"}`} required>
-                        <input value={form.slug} onChange={(e) => updateField("slug", slugify(e.target.value))} required pattern="[a-z0-9-]+" className={inputClass} />
+                      <Field
+                        label="Enlace público"
+                        hint={`/${form.slug || "nombre-del-evento"}`}
+                        required
+                      >
+                        <input
+                          value={form.slug}
+                          onChange={(e) =>
+                            updateField("slug", slugify(e.target.value))
+                          }
+                          required
+                          pattern="[a-z0-9-]+"
+                          className={inputClass}
+                        />
                       </Field>
                       <Field label="Fecha y hora" required>
-                        <input type="datetime-local" value={form.fechaEvento} onChange={(e) => updateField("fechaEvento", e.target.value)} required className={inputClass} />
+                        <input
+                          type="datetime-local"
+                          value={form.fechaEvento}
+                          onChange={(e) =>
+                            updateField("fechaEvento", e.target.value)
+                          }
+                          required
+                          className={inputClass}
+                        />
                       </Field>
                       <Field label="Lugar" required>
-                        <input value={form.lugar} onChange={(e) => updateField("lugar", e.target.value)} required className={inputClass} />
-                      </Field>
-                      <Field label="Capacidad" hint="Opcional">
-                        <input type="number" min="1" step="1" inputMode="numeric" value={form.capacidadTotal} onChange={(e) => updateField("capacidadTotal", e.target.value)} className={inputClass} />
-                      </Field>
-                      <Field label="Fecha límite RSVP" required>
-                        <input type="date" value={form.fechaLimiteRsvp} onChange={(e) => updateField("fechaLimiteRsvp", e.target.value)} required className={inputClass} />
+                        <input
+                          value={form.lugar}
+                          onChange={(e) => updateField("lugar", e.target.value)}
+                          required
+                          className={inputClass}
+                        />
                       </Field>
                     </div>
                   </div>
 
                   <div className="border-t border-[#f0e4d8] pt-6">
                     <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#a04d24]">
-                      <Sparkles className="h-4 w-4" />
-                      Personalización de la invitación
+                      <Palette className="h-4 w-4" />
+                      Personalización del sistema
                     </h3>
                     <p className="mb-4 text-xs leading-relaxed text-stone-500">
-                      Esta apariencia y estos textos pertenecen únicamente a esta clienta.
-                      Las nuevas invitaciones no reutilizan fotografías de otras bodas.
+                      El tipo de evento define los colores del panel de esta
+                      clienta. La invitación pública usa una plantilla genérica
+                      independiente que después puedes reemplazar manualmente.
                     </p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field label="Estilo visual" required>
-                        <select value={form.tema} onChange={(e) => updateField("tema", e.target.value)} className={inputClass}>
-                          <option value="romantic">Romántico · Rosa antiguo</option>
-                          <option value="botanical">Botánico · Verde natural</option>
-                          <option value="midnight">Noche elegante · Azul y oro</option>
-                        </select>
-                      </Field>
-                      <Field label="Código de vestimenta" hint="Opcional">
-                        <input value={form.vestimenta} onChange={(e) => updateField("vestimenta", e.target.value)} placeholder="Formal, tonos neutros…" className={inputClass} />
-                      </Field>
-                      <div className="sm:col-span-2">
-                        <Field label="Frase principal" required>
-                          <textarea value={form.frase} onChange={(e) => updateField("frase", e.target.value)} rows={3} required className={`${inputClass} resize-y`} />
-                        </Field>
+                    <div className="grid gap-4">
+                      <div>
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-600">
+                          Tipo de evento
+                          <span className="ml-1 text-[#e05a1b]">*</span>
+                        </p>
+                        <div
+                          role="radiogroup"
+                          aria-label="Tipo de evento"
+                          className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+                        >
+                          {eventTypeOptions.map((type) => {
+                            const option = eventTypeThemes[type];
+                            const selected = form.tipoEvento === type;
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                onClick={() => updateField("tipoEvento", type)}
+                                className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-4 text-center transition-all ${
+                                  selected
+                                    ? "shadow-md ring-2 ring-offset-1"
+                                    : "bg-white text-stone-500 hover:-translate-y-0.5 hover:shadow-sm"
+                                }`}
+                                style={{
+                                  backgroundColor: selected
+                                    ? option.soft
+                                    : undefined,
+                                  borderColor: selected
+                                    ? option.accent
+                                    : option.softBorder,
+                                  color: selected
+                                    ? option.accentStrong
+                                    : undefined,
+                                  "--tw-ring-color": option.accent,
+                                } as React.CSSProperties}
+                              >
+                                <EventTypeIcon
+                                  type={type}
+                                  className="h-7 w-7"
+                                  strokeWidth={1.7}
+                                />
+                                <span className="text-[11px] font-bold">
+                                  {option.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <ThemePreview theme={form.tema} />
+                      <SystemThemePreview eventType={form.tipoEvento} />
                     </div>
                   </div>
                 </fieldset>
@@ -527,10 +638,19 @@ export default function UsuariosAdminClient() {
                 )}
 
                 <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#f0e4d8] pt-5 sm:flex-row sm:justify-end">
-                  <button type="button" disabled={saving} onClick={() => setModalOpen(false)} className="rounded-xl px-5 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 disabled:opacity-50">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => setModalOpen(false)}
+                    className="rounded-xl px-5 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 disabled:opacity-50"
+                  >
                     Cancelar
                   </button>
-                  <button type="submit" disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e05a1b] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-[#c94d14] disabled:opacity-60">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e05a1b] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-[#c94d14] disabled:opacity-60"
+                  >
                     {saving ? (
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                     ) : (
@@ -569,39 +689,84 @@ function Field({
           {label}
           {required && <span className="ml-1 text-[#e05a1b]">*</span>}
         </span>
-        {hint && <span className="normal-case tracking-normal text-stone-400">{hint}</span>}
+        {hint && (
+          <span className="normal-case tracking-normal text-stone-400">
+            {hint}
+          </span>
+        )}
       </span>
       {children}
     </label>
   );
 }
 
-function ThemePreview({ theme }: { theme: string }) {
-  const palette =
-    theme === "botanical"
-      ? { background: "#F3F2E9", primary: "#405847", accent: "#AA8255" }
-      : theme === "midnight"
-        ? { background: "#EEEFF2", primary: "#24324A", accent: "#B39255" }
-        : { background: "#FAF3F1", primary: "#743C53", accent: "#C68972" };
-
+function SystemThemePreview({ eventType }: { eventType: EventType }) {
+  const palette = eventTypeThemes[eventType];
   return (
-    <div className="sm:col-span-2">
-      <div
-        className="flex items-center justify-between rounded-2xl border border-stone-200 px-5 py-4"
-        style={{ backgroundColor: palette.background }}
-      >
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-[.22em]" style={{ color: palette.accent }}>
-            Vista del estilo
-          </p>
-          <p className="mt-1 font-serif text-2xl" style={{ color: palette.primary }}>
-            Nuestros nombres
-          </p>
+    <div
+      className="overflow-hidden rounded-2xl border shadow-sm"
+      style={{ borderColor: palette.softBorder }}
+    >
+      <div className="flex min-h-40 bg-white">
+        <div
+          className="hidden w-32 shrink-0 p-4 sm:block"
+          style={{ backgroundColor: palette.ink }}
+        >
+          <div className="h-2 w-14 rounded-full bg-white/80" />
+          <div className="mt-6 space-y-2">
+            <div
+              className="h-7 rounded-lg"
+              style={{ backgroundColor: palette.accent }}
+            />
+            <div className="h-7 rounded-lg bg-white/10" />
+            <div className="h-7 rounded-lg bg-white/10" />
+          </div>
         </div>
-        <div className="flex gap-2">
-          {[palette.primary, palette.accent, palette.background].map((color) => (
-            <span key={color} className="h-8 w-8 rounded-full border border-white shadow-sm" style={{ backgroundColor: color }} />
-          ))}
+        <div className="flex-1 p-5" style={{ backgroundColor: palette.soft }}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p
+                className="text-[9px] font-bold uppercase tracking-[.2em]"
+                style={{ color: palette.accentStrong }}
+              >
+                Vista del panel
+              </p>
+              <p
+                className="mt-1 flex items-center gap-2 font-serif text-xl"
+                style={{ color: palette.ink }}
+              >
+                <EventTypeIcon type={eventType} className="h-5 w-5" />
+                Evento · {palette.label}
+              </p>
+            </div>
+            <div className="flex gap-1.5">
+              {[palette.accent, palette.accentStrong, palette.softBorder].map(
+                (color) => (
+                  <span
+                    key={color}
+                    className="h-6 w-6 rounded-full border-2 border-white shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                ),
+              )}
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {["Resumen", "Invitados", "Confirmados"].map((label, index) => (
+              <div key={label} className="rounded-xl bg-white p-3 shadow-sm">
+                <div
+                  className="h-1.5 rounded-full"
+                  style={{
+                    backgroundColor:
+                      index === 0 ? palette.accent : palette.softBorder,
+                  }}
+                />
+                <p className="mt-2 truncate text-[8px] font-bold uppercase text-stone-400">
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
