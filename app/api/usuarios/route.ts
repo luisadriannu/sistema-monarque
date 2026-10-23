@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@/generated/prisma-client";
+import { Prisma } from "@/generated/prisma-client-v2";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { endOfDayMexicoDate, toDateInputValue } from "@/lib/utils";
@@ -71,22 +71,22 @@ function invitationConfig(data: {
   };
 }
 
-async function requireAdmin() {
+async function requireOrganizer() {
   const user = await getCurrentUser();
-  return user?.rol === "admin" ? user : null;
+  return user?.rol === "organizador" && user.organizacion_id ? user : null;
 }
 
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) {
+  const organizer = await requireOrganizer();
+  if (!organizer) {
     return NextResponse.json(
-      { error: "Acceso exclusivo para administradores." },
+      { error: "Acceso exclusivo para organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
   }
 
   const usuarios = await prisma.usuario.findMany({
-    where: { rol: "clienta" },
+    where: { rol: "clienta", organizacion_id: organizer.organizacion_id },
     select: {
       id: true,
       nombre: true,
@@ -116,10 +116,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdmin();
-  if (!admin) {
+  const organizer = await requireOrganizer();
+  if (!organizer) {
     return NextResponse.json(
-      { error: "Acceso exclusivo para administradores." },
+      { error: "Acceso exclusivo para organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
   }
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(password, 12);
     const created = await prisma.$transaction(async (tx) => {
       const usuario = await tx.usuario.create({
-        data: { nombre, email, passwordHash, rol: "clienta" },
+        data: { nombre, email, passwordHash, rol: "clienta", organizacion_id: organizer.organizacion_id },
         select: { id: true, nombre: true, email: true, rol: true },
       });
       const nuevoEvento = await tx.evento.create({

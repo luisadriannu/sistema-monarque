@@ -6,6 +6,8 @@ import WeddingPersonalized from "@/app/templates/WeddingPersonalized";
 import carlosYYazmin from "@/app/data/carlosYYazmin";
 import type { EventData } from "@/app/types/EventData";
 import { getCurrentUser } from "@/lib/auth";
+import QRCode from "qrcode";
+import InvitationQrPass from "@/components/InvitationQrPass";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -36,7 +38,10 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   if (!effectiveToken && !isPreview) return <InvitacionNoDisponible />;
 
-  const evento = await prisma.evento.findUnique({ where: { slug } });
+  const evento = await prisma.evento.findUnique({
+    where: { slug },
+    include: { usuario: { select: { organizacion: { select: { id: true, qr_checkin_habilitado: true } } } } },
+  });
   if (!evento) return <InvitacionNoDisponible />;
 
   let invitado;
@@ -44,7 +49,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   if (isPreview) {
     const user = await getCurrentUser();
     const canPreview =
-      user && (user.rol === "admin" || evento.usuario_id === user.id);
+      user && (user.rol === "admin" || evento.usuario_id === user.id || (user.rol === "organizador" && user.organizacion_id === evento.usuario.organizacion?.id));
 
     if (!canPreview) return <InvitacionNoDisponible />;
 
@@ -55,6 +60,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       ninos_confirmados: 0,
       estado: "pendiente",
       ultima_respuesta_en: null,
+      codigo_entrada: "vista-previa",
     };
   } else {
     invitado = await prisma.invitado.findFirst({
@@ -151,11 +157,20 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     previewMode: isPreview,
   };
 
-  return isCarlosYazminInvitation ? (
-    <WeddingOliveVintage {...invitationProps} />
-  ) : (
-    <WeddingPersonalized {...invitationProps} />
-  );
+  const qrEnabled = Boolean(evento.usuario.organizacion?.qr_checkin_habilitado);
+  const qrImage = qrEnabled
+    ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, {
+        width: 480,
+        margin: 1,
+        color: { dark: "#183126", light: "#fffaf0" },
+      })
+    : null;
+
+  return <>{isCarlosYazminInvitation ? (
+      <WeddingOliveVintage {...invitationProps} />
+    ) : (
+      <WeddingPersonalized {...invitationProps} />
+    )}{qrImage && !isPreview && <InvitationQrPass image={qrImage} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />}</>;
 }
 
 function InvitacionNoDisponible() {

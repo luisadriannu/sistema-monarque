@@ -68,6 +68,10 @@ export async function getCurrentUser() {
         email: true,
         nombre: true,
         rol: true,
+        organizacion_id: true,
+        organizacion: {
+          select: { id: true, nombre: true, qr_checkin_habilitado: true },
+        },
         creado_en: true,
       },
     });

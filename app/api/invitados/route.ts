@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateInvitationToken } from "@/lib/tokens";
 import { isEventFinished } from "@/lib/utils";
-import type { Prisma } from "@/generated/prisma-client";
+import type { Prisma } from "@/generated/prisma-client-v2";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +36,13 @@ export async function GET(request: Request) {
   if (eventoIdParam) {
     evento = await prisma.evento.findUnique({
       where: { id: eventoIdParam },
+      include: { usuario: { select: { organizacion_id: true } } },
     });
   } else {
     evento = await prisma.evento.findFirst({
       where: user.rol === "admin" ? {} : { usuario_id: user.id },
       orderBy: { creado_en: "desc" },
+      include: { usuario: { select: { organizacion_id: true } } },
     });
   }
 
@@ -64,7 +66,8 @@ export async function GET(request: Request) {
   }
 
   // Verificar pertenencia (RF-02)
-  if (user.rol !== "admin" && evento.usuario_id !== user.id) {
+  const organizerOwnsEvent = user.rol === "organizador" && user.organizacion_id && evento.usuario.organizacion_id === user.organizacion_id;
+  if (user.rol !== "admin" && evento.usuario_id !== user.id && !organizerOwnsEvent) {
     return NextResponse.json(
       { error: "No tienes permiso para ver los invitados de este evento." },
       { status: 403, headers: noStoreHeaders }
@@ -198,6 +201,7 @@ export async function POST(request: Request) {
 
     const evento = await prisma.evento.findUnique({
       where: { id: evento_id },
+      include: { usuario: { select: { organizacion_id: true } } },
     });
 
     if (!evento) {
@@ -205,7 +209,8 @@ export async function POST(request: Request) {
     }
 
     // RF-02: Verificación de propiedad
-    if (user.rol !== "admin" && evento.usuario_id !== user.id) {
+    const organizerOwnsEvent = user.rol === "organizador" && user.organizacion_id && evento.usuario.organizacion_id === user.organizacion_id;
+    if (user.rol !== "admin" && evento.usuario_id !== user.id && !organizerOwnsEvent) {
       return NextResponse.json(
         { error: "No tienes permiso para agregar invitados en este evento." },
         { status: 403 }

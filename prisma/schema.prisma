@@ -1,13 +1,12 @@
 // Prisma schema for Monarque - Plan Elite
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma-client"
+  output   = "../generated/prisma-client-v2"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Usuario {
@@ -15,9 +14,23 @@ model Usuario {
   email        String    @unique
   passwordHash String
   nombre       String
-  rol          String    @default("clienta") // "clienta" | "admin"
+  rol          String    @default("clienta") // "clienta" | "organizador" | "admin"
+  organizacion_id String?
+  organizacion Organizacion? @relation(fields: [organizacion_id], references: [id], onDelete: Cascade)
   creado_en    DateTime  @default(now())
   eventos      Evento[]
+  entradas_escaneadas RegistroEntrada[] @relation("EntradasEscaneadas")
+
+  @@index([organizacion_id])
+}
+
+model Organizacion {
+  id                    String    @id @default(uuid())
+  nombre                String
+  qr_checkin_habilitado Boolean   @default(false)
+  creado_en             DateTime  @default(now())
+  actualizado_en        DateTime  @updatedAt
+  usuarios              Usuario[]
 }
 
 model Evento {
@@ -38,6 +51,7 @@ model Evento {
   creado_en              DateTime   @default(now())
   actualizado_en         DateTime   @updatedAt
   invitados              Invitado[]
+  registros_entrada      RegistroEntrada[]
 
   @@index([usuario_id])
 }
@@ -53,11 +67,32 @@ model Invitado {
   ninos_confirmados   Int       @default(0)
   estado              String    @default("pendiente") // "pendiente" | "visto" | "confirmado" | "declinado"
   token               String    @unique
+  codigo_entrada      String    @unique @default(uuid())
+  pases_ingresados    Int       @default(0)
+  ultima_entrada_en   DateTime?
   enviado_en          DateTime?
   ultima_respuesta_en DateTime?
   creado_en           DateTime  @default(now())
   actualizado_en      DateTime  @updatedAt
+  registros_entrada   RegistroEntrada[]
 
   @@index([evento_id])
   @@index([token])
+  @@index([codigo_entrada])
+}
+
+model RegistroEntrada {
+  id                  String    @id @default(uuid())
+  invitado_id         String
+  invitado            Invitado  @relation(fields: [invitado_id], references: [id], onDelete: Cascade)
+  evento_id           String
+  evento              Evento    @relation(fields: [evento_id], references: [id], onDelete: Cascade)
+  escaneado_por_id    String?
+  escaneado_por       Usuario?  @relation("EntradasEscaneadas", fields: [escaneado_por_id], references: [id], onDelete: SetNull)
+  cantidad            Int
+  creado_en           DateTime  @default(now())
+
+  @@index([evento_id, creado_en])
+  @@index([invitado_id])
+  @@index([escaneado_por_id])
 }

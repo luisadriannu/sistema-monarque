@@ -23,7 +23,7 @@ export default async function DashboardLayout({
   // El menú del administrador no depende de ningún evento. Esto evita que se
   // seleccione accidentalmente el evento más reciente de otra clienta.
   const evento =
-    user.rol === "admin"
+    user.rol !== "clienta"
       ? null
       : await prisma.evento.findFirst({
           where: { usuario_id: user.id },
@@ -54,6 +54,7 @@ export default async function DashboardLayout({
         eventSlug={evento?.slug}
         eventTypeLabel={eventType ? eventTypeThemes[eventType].label : undefined}
         eventType={eventType || undefined}
+        qrCheckinEnabled={Boolean(user.organizacion?.qr_checkin_habilitado)}
       />
       <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">

@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
-  if (user.rol === "admin") redirect("/dashboard/usuarios");
+  if (user.rol === "admin" || user.rol === "organizador") redirect("/dashboard/usuarios");
 
   const evento = await prisma.evento.findFirst({
     where: { usuario_id: user.id },

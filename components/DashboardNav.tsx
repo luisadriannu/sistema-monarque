@@ -17,6 +17,7 @@ import {
   Headset,
   UserCog,
   MessageCircle,
+  ScanLine,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -32,6 +33,7 @@ interface DashboardNavProps {
   eventSlug?: string;
   eventTypeLabel?: string;
   eventType?: EventType;
+  qrCheckinEnabled?: boolean;
 }
 
 export default function DashboardNav({
@@ -39,6 +41,7 @@ export default function DashboardNav({
   eventSlug,
   eventTypeLabel,
   eventType,
+  qrCheckinEnabled = false,
 }: DashboardNavProps) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
@@ -53,11 +56,16 @@ export default function DashboardNav({
     user.rol === "admin"
       ? [
           {
-            label: "Clientes",
+            label: "Organizadores",
             href: "/dashboard/usuarios",
             icon: UserCog,
           },
         ]
+      : user.rol === "organizador"
+        ? [
+            { label: "Clientes", href: "/dashboard/usuarios", icon: UserCog },
+            ...(qrCheckinEnabled ? [{ label: "Escanear entrada", href: "/dashboard/escanear", icon: ScanLine }] : []),
+          ]
       : [
           {
             label: "Resumen",
@@ -175,12 +183,10 @@ export default function DashboardNav({
                 MONARQUE
               </h1>
               <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-[#ffedd5] px-2 py-0.5 text-[10px] font-semibold text-[#c2410c]">
-                {user.rol !== "admin" && eventType && (
+                {user.rol === "clienta" && eventType && (
                   <EventTypeIcon type={eventType} className="h-3 w-3" />
                 )}
-                {user.rol === "admin"
-                  ? "Administración"
-                  : eventTypeLabel || "Mi evento"}
+                {user.rol === "admin" ? "Administración" : user.rol === "organizador" ? "Organizador" : eventTypeLabel || "Mi evento"}
               </span>
             </div>
           </div>
@@ -227,7 +233,7 @@ export default function DashboardNav({
           </nav>
 
           {/* Enlace rápido a ver invitación */}
-          {user.rol !== "admin" && eventSlug && (
+          {user.rol === "clienta" && eventSlug && (
             <div className="mt-8 pt-6 border-t border-[#f5ede2]">
               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
                 Página pública
@@ -248,7 +254,7 @@ export default function DashboardNav({
           )}
 
           {/* Soporte directo para clientes */}
-          {user.rol !== "admin" && (
+          {user.rol === "clienta" && (
             <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
@@ -281,7 +287,7 @@ export default function DashboardNav({
           <div className="flex items-center justify-between">
             <div className="truncate pr-2">
               <p className="flex items-center gap-2 text-xs font-semibold text-stone-900">
-                {user.rol !== "admin" && eventType && (
+                {user.rol === "clienta" && eventType && (
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ffedd5] text-[#c2410c]">
                     <EventTypeIcon type={eventType} className="h-4 w-4" />
                   </span>
@@ -290,7 +296,7 @@ export default function DashboardNav({
               </p>
               <p
                 className={`truncate text-[11px] text-stone-500 ${
-                  user.rol !== "admin" && eventType ? "pl-9" : ""
+                  user.rol === "clienta" && eventType ? "pl-9" : ""
                 }`}
               >
                 {user.email}

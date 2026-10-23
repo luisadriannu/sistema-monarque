@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@/generated/prisma-client";
+import { Prisma } from "@/generated/prisma-client-v2";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -29,10 +29,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const admin = await getCurrentUser();
-  if (!admin || admin.rol !== "admin") {
+  const organizer = await getCurrentUser();
+  if (!organizer || organizer.rol !== "organizador" || !organizer.organizacion_id) {
     return NextResponse.json(
-      { error: "Acceso exclusivo para administradores." },
+      { error: "Acceso exclusivo para organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
   }
@@ -45,13 +45,14 @@ export async function PUT(
       where: { id },
       select: {
         rol: true,
+        organizacion_id: true,
         eventos: {
           select: { id: true, configuracion_invitacion: true },
         },
       },
     });
 
-    if (!existing || existing.rol !== "clienta") {
+    if (!existing || existing.rol !== "clienta" || existing.organizacion_id !== organizer.organizacion_id) {
       return NextResponse.json(
         { error: "La cuenta de la clienta no existe." },
         { status: 404, headers: noStoreHeaders },
@@ -185,10 +186,10 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const admin = await getCurrentUser();
-  if (!admin || admin.rol !== "admin") {
+  const organizer = await getCurrentUser();
+  if (!organizer || organizer.rol !== "organizador" || !organizer.organizacion_id) {
     return NextResponse.json(
-      { error: "Acceso exclusivo para administradores." },
+      { error: "Acceso exclusivo para organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
   }
@@ -198,10 +199,10 @@ export async function DELETE(
   try {
     const cliente = await prisma.usuario.findUnique({
       where: { id },
-      select: { id: true, nombre: true, rol: true },
+      select: { id: true, nombre: true, rol: true, organizacion_id: true },
     });
 
-    if (!cliente || cliente.rol !== "clienta") {
+    if (!cliente || cliente.rol !== "clienta" || cliente.organizacion_id !== organizer.organizacion_id) {
       return NextResponse.json(
         { error: "La cuenta de la clienta no existe." },
         { status: 404, headers: noStoreHeaders },

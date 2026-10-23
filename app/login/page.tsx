@@ -58,7 +58,7 @@ export default function LoginPage() {
       }
 
       window.location.replace(
-        data.user?.rol === "admin" ? "/dashboard/usuarios" : "/dashboard",
+        data.user?.rol === "admin" || data.user?.rol === "organizador" ? "/dashboard/usuarios" : "/dashboard",
       );
     } catch (err: unknown) {
       if (err instanceof Error) {

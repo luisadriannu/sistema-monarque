@@ -16,14 +16,15 @@ export async function PUT(
   const { id } = await params;
   const invitado = await prisma.invitado.findUnique({
     where: { id },
-    include: { evento: true },
+    include: { evento: { include: { usuario: { select: { organizacion_id: true } } } } },
   });
 
   if (!invitado) {
     return NextResponse.json({ error: "Invitado no encontrado." }, { status: 404 });
   }
 
-  if (user.rol !== "admin" && invitado.evento.usuario_id !== user.id) {
+  const organizerOwnsEvent = user.rol === "organizador" && user.organizacion_id === invitado.evento.usuario.organizacion_id;
+  if (user.rol !== "admin" && invitado.evento.usuario_id !== user.id && !organizerOwnsEvent) {
     return NextResponse.json(
       { error: "No tienes permiso para modificar este invitado." },
       { status: 403 }
@@ -150,14 +151,15 @@ export async function DELETE(
   const { id } = await params;
   const invitado = await prisma.invitado.findUnique({
     where: { id },
-    include: { evento: true },
+    include: { evento: { include: { usuario: { select: { organizacion_id: true } } } } },
   });
 
   if (!invitado) {
     return NextResponse.json({ error: "Invitado no encontrado." }, { status: 404 });
   }
 
-  if (user.rol !== "admin" && invitado.evento.usuario_id !== user.id) {
+  const organizerOwnsEvent = user.rol === "organizador" && user.organizacion_id === invitado.evento.usuario.organizacion_id;
+  if (user.rol !== "admin" && invitado.evento.usuario_id !== user.id && !organizerOwnsEvent) {
     return NextResponse.json(
       { error: "No tienes permiso para eliminar este invitado." },
       { status: 403 }

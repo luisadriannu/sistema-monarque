@@ -9,7 +9,7 @@ export default async function ConfiguracionLayout({
   const user = await getCurrentUser();
 
   if (!user) redirect("/login");
-  if (user.rol === "admin") redirect("/dashboard/usuarios");
+  if (user.rol !== "clienta") redirect("/dashboard/usuarios");
 
   return children;
 }
