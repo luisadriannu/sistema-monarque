@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { isEventFinished, toDateInputValue } from "@/lib/utils";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -63,6 +64,35 @@ export async function PUT(request: Request) {
       return NextResponse.json(
         { error: "No tienes permiso para modificar este evento." },
         { status: 403 }
+      );
+    }
+
+    if (user.rol !== "admin" && isEventFinished(existing.fecha_evento)) {
+      return NextResponse.json(
+        {
+          error:
+            "El evento ya finalizó. La configuración se encuentra disponible únicamente para consulta.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const targetEventDate = fecha_evento
+      ? new Date(fecha_evento)
+      : existing.fecha_evento;
+    const targetDeadline = fecha_limite_rsvp
+      ? new Date(fecha_limite_rsvp)
+      : existing.fecha_limite_rsvp;
+
+    if (
+      toDateInputValue(targetDeadline) > toDateInputValue(targetEventDate)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La fecha límite de confirmación no puede ser posterior al día del evento.",
+        },
+        { status: 400 },
       );
     }
 

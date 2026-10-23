@@ -21,6 +21,7 @@ import DashboardLoader from "@/components/DashboardLoader";
 import {
   endOfDayMexicoDate,
   formatDateMx,
+  isEventFinished,
   toDateInputValue,
   toDateTimeInputValue,
 } from "@/lib/utils";
@@ -310,6 +311,9 @@ export default function UsuariosAdminClient() {
         ) : (
           usuarios.map((usuario) => {
             const evento = usuario.eventos[0];
+            const eventoFinalizado = evento
+              ? isEventFinished(evento.fecha_evento)
+              : false;
             return (
               <article
                 key={usuario.id}
@@ -344,9 +348,16 @@ export default function UsuariosAdminClient() {
                   <div className="space-y-3 p-5 text-sm text-stone-600">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-semibold text-[#2b211b]">{evento.nombre}</span>
-                      <span className="rounded-full bg-[#f6efe7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9a653f]">
-                        {evento._count.invitados} invitados
-                      </span>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {eventoFinalizado && (
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600">
+                            Finalizado
+                          </span>
+                        )}
+                        <span className="rounded-full bg-[#f6efe7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9a653f]">
+                          {evento._count.invitados} invitados
+                        </span>
+                      </div>
                     </div>
                     <p className="flex items-start gap-2">
                       <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#d65318]" />
@@ -356,15 +367,24 @@ export default function UsuariosAdminClient() {
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#d65318]" />
                       {evento.lugar}
                     </p>
-                    <a
-                      href={`/${evento.slug}?preview=1`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#d65318] hover:underline"
-                    >
-                      Vista previa
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <a
+                        href={`/dashboard/invitados?evento_id=${evento.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#2b211b] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#49392f]"
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                        Ver invitados
+                      </a>
+                      <a
+                        href={`/${evento.slug}?preview=1`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#d65318] hover:underline"
+                      >
+                        Vista previa
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <p className="p-5 text-sm text-rose-600">Sin evento asociado.</p>

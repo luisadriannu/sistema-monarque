@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Search,
@@ -24,6 +24,9 @@ import {
   Send,
   Eye,
   FileText,
+  LockKeyhole,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -74,17 +77,39 @@ function InvitadosContent() {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [invitados, setInvitados] = useState<Invitado[]>([]);
   const [loading, setLoading] = useState(true);
+  const [soloLectura, setSoloLectura] = useState(false);
+  const [vistaAdmin, setVistaAdmin] = useState(false);
+  const eventoIdParam = searchParams.get("evento_id");
 
   // Filtros (conectados con la URL al hacer clic desde el dashboard)
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filtroEstado, setFiltroEstado] = useState(estadoParam || "todos");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 25,
+    total: 0,
+    total_pages: 1,
+  });
+  const [totalPasesAsignados, setTotalPasesAsignados] = useState(0);
 
   useEffect(() => {
     const estado = searchParams.get("estado");
     if (estado) {
       setFiltroEstado(estado);
+      setPage(1);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   // Modales
   const [modalAgregar, setModalAgregar] = useState(false);
@@ -144,79 +169,50 @@ function InvitadosContent() {
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
 
   // Cargar lista de invitados
-  const fetchInvitados = async () => {
+  const fetchInvitados = useCallback(async (targetPage = page) => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/invitados", { cache: "no-store" });
+      const query = new URLSearchParams({
+        page: String(targetPage),
+        page_size: String(pageSize),
+        estado: filtroEstado,
+      });
+      if (eventoIdParam) query.set("evento_id", eventoIdParam);
+      if (debouncedSearch) query.set("search", debouncedSearch);
+
+      const res = await fetch(`/api/invitados?${query.toString()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (res.ok) {
         setEvento(data.evento);
         setInvitados(data.invitados || []);
+        setSoloLectura(Boolean(data.solo_lectura));
+        setVistaAdmin(Boolean(data.vista_admin));
+        setPagination(
+          data.pagination || {
+            page: 1,
+            page_size: pageSize,
+            total: 0,
+            total_pages: 1,
+          },
+        );
+        setPage(data.pagination?.page || 1);
+        setTotalPasesAsignados(
+          (data.kpis?.total_confirmados || 0) +
+            (data.kpis?.total_pendientes || 0),
+        );
       }
     } catch (e) {
       console.error("Error al cargar invitados", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, eventoIdParam, filtroEstado, page, pageSize]);
 
   useEffect(() => {
     fetchInvitados();
-  }, []);
-
-  // Filtrado instantáneo en memoria (0ms, 60fps) sin peticiones innecesarias
-  const invitadosFiltrados = useMemo(() => {
-    const term = search.toLowerCase().trim();
-    return invitados.filter((inv) => {
-      const matchSearch =
-        !term ||
-        inv.nombre.toLowerCase().includes(term) ||
-        (inv.grupo && inv.grupo.toLowerCase().includes(term));
-
-      let matchEstado = true;
-      if (filtroEstado === "todos") {
-        matchEstado = true;
-      } else if (filtroEstado === "pendiente") {
-        // Muestra todos los que aún no responden (pendientes o vistos)
-        matchEstado = inv.estado === "pendiente" || inv.estado === "visto";
-      } else if (filtroEstado === "visto") {
-        matchEstado = inv.estado === "visto";
-      } else if (filtroEstado === "confirmado") {
-        // Todos los confirmados (incluye parciales)
-        matchEstado = inv.estado === "confirmado";
-      } else if (filtroEstado === "parcial") {
-        // Solo los que confirmaron menos de los asignados
-        matchEstado =
-          inv.estado === "confirmado" &&
-          (inv.pases_confirmados || 0) > 0 &&
-          (inv.pases_confirmados || 0) < inv.pases_asignados;
-      } else if (filtroEstado === "declinado") {
-        matchEstado = inv.estado === "declinado";
-      } else if (filtroEstado === "liberados") {
-        // Declinados o que confirmaron menos pases de los asignados
-        matchEstado =
-          inv.estado === "declinado" ||
-          (inv.estado === "confirmado" &&
-            (inv.pases_confirmados || 0) < inv.pases_asignados);
-      } else {
-        matchEstado = inv.estado === filtroEstado;
-      }
-
-      return matchSearch && matchEstado;
-    });
-  }, [invitados, search, filtroEstado]);
-
-  // Total de pases comprometidos (confirmados + pendientes; declinados liberan lugar)
-  const totalPasesAsignados = useMemo(() => {
-    return invitados.reduce((sum, inv) => {
-      if (inv.estado === "confirmado") {
-        return sum + (inv.pases_confirmados || 0);
-      } else if (inv.estado === "declinado") {
-        return sum; // Declinado no ocupa cupo
-      } else {
-        return sum + inv.pases_asignados;
-      }
-    }, 0);
-  }, [invitados]);
+  }, [fetchInvitados]);
 
   // Cerrar modales con tecla Escape y cerrar menú de opciones al hacer clic afuera
   useEffect(() => {
@@ -359,12 +355,8 @@ function InvitadosContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al agregar invitado.");
 
-      // La API ya devuelve el registro persistido. Incorporarlo directamente evita
-      // depender de una segunda lectura que el navegador pueda resolver con datos viejos.
-      setInvitados((actuales) => [
-        data.invitado as Invitado,
-        ...actuales.filter((invitado) => invitado.id !== data.invitado.id),
-      ]);
+      setPage(1);
+      await fetchInvitados(1);
       setModalAgregar(false);
       setFormNombre("");
       setFormGrupo("");
@@ -637,7 +629,8 @@ function InvitadosContent() {
         setModalImportar(false);
         setFilasImportadas([]);
         setResumenImportacion(null);
-        await fetchInvitados();
+        setPage(1);
+        await fetchInvitados(1);
         alert(`¡Se importaron ${validas.length} invitados correctamente!`);
       }
     } catch (e) {
@@ -647,10 +640,40 @@ function InvitadosContent() {
     }
   };
 
+  const fetchConfirmadosParaExportar = async (): Promise<Invitado[]> => {
+    if (!evento) return [];
+    const query = new URLSearchParams({
+      evento_id: evento.id,
+      estado: "confirmado",
+      all: "true",
+    });
+    const response = await fetch(`/api/invitados?${query.toString()}`, {
+      cache: "no-store",
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo preparar la exportación.");
+    }
+    return data.invitados || [];
+  };
+
   // EXPORTAR: Lista de confirmados a Excel (.xlsx) (RF-31, RF-32)
-  const handleExportarExcelConfirmados = () => {
+  const handleExportarExcelConfirmados = async () => {
     if (!evento) return;
-    const confirmados = invitados.filter((i) => i.estado === "confirmado");
+    let confirmados: Invitado[] = [];
+    try {
+      confirmados = await fetchConfirmadosParaExportar();
+    } catch (exportError) {
+      setToast({
+        type: "error",
+        title: "No se pudo exportar",
+        message:
+          exportError instanceof Error
+            ? exportError.message
+            : "No se pudo preparar la lista de confirmados.",
+      });
+      return;
+    }
     if (confirmados.length === 0) {
       alert("Aún no tienes invitados confirmados para exportar.");
       return;
@@ -703,9 +726,22 @@ function InvitadosContent() {
   };
 
   // EXPORTAR: Lista de confirmados a PDF (RF-31, RF-32)
-  const handleExportarPDFConfirmados = () => {
+  const handleExportarPDFConfirmados = async () => {
     if (!evento) return;
-    const confirmados = invitados.filter((i) => i.estado === "confirmado");
+    let confirmados: Invitado[] = [];
+    try {
+      confirmados = await fetchConfirmadosParaExportar();
+    } catch (exportError) {
+      setToast({
+        type: "error",
+        title: "No se pudo exportar",
+        message:
+          exportError instanceof Error
+            ? exportError.message
+            : "No se pudo preparar la lista de confirmados.",
+      });
+      return;
+    }
     if (confirmados.length === 0) {
       alert("Aún no tienes invitados confirmados para exportar.");
       return;
@@ -936,10 +972,6 @@ function InvitadosContent() {
     );
   };
 
-  const totalConfirmados = invitados.filter(
-    (i) => i.estado === "confirmado",
-  ).length;
-
   return (
     <div className="space-y-6">
       <div
@@ -1042,34 +1074,54 @@ function InvitadosContent() {
             </button>
           </div>
 
-          {/* Importar y Agregar */}
-          <button
-            onClick={() => {
-              setArchivoError(null);
-              setNombreArchivo(null);
-              setModalImportar(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#ebd9c4] hover:bg-[#fbf8f4] text-stone-800 text-xs font-semibold rounded-xl transition-all shadow-xs"
-          >
-            <Upload className="w-3.5 h-3.5 text-[#e05a1b]" />
-            <span>Importar Excel / CSV</span>
-          </button>
+          {!soloLectura && (
+            <>
+              {/* Importar y Agregar */}
+              <button
+                onClick={() => {
+                  setArchivoError(null);
+                  setNombreArchivo(null);
+                  setModalImportar(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#ebd9c4] hover:bg-[#fbf8f4] text-stone-800 text-xs font-semibold rounded-xl transition-all shadow-xs"
+              >
+                <Upload className="w-3.5 h-3.5 text-[#e05a1b]" />
+                <span>Importar Excel / CSV</span>
+              </button>
 
-          <button
-            onClick={() => {
-              setFormNombre("");
-              setFormGrupo("");
-              setFormPases("2");
-              setFormError(null);
-              setModalAgregar(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-orange-500/20"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>+ Agregar Invitado</span>
-          </button>
+              <button
+                onClick={() => {
+                  setFormNombre("");
+                  setFormGrupo("");
+                  setFormPases("2");
+                  setFormError(null);
+                  setModalAgregar(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-orange-500/20"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Agregar Invitado</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {soloLectura && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+          <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-bold">
+              {vistaAdmin ? "Consulta administrativa" : "Evento finalizado · Solo lectura"}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-800/80">
+              {vistaAdmin
+                ? "Puedes consultar y exportar la información de los invitados, sin modificar sus registros."
+                : "Puedes consultar y exportar la información, pero ya no es posible agregar, editar, eliminar o compartir invitaciones."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Barra de Búsqueda y Filtros */}
       <div className="bg-white p-4 rounded-2xl border border-[#ebd9c4] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -1084,11 +1136,14 @@ function InvitadosContent() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Filter className="w-4 h-4 text-stone-400 shrink-0" />
           <select
             value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
+            onChange={(e) => {
+              setFiltroEstado(e.target.value);
+              setPage(1);
+            }}
             className="w-full sm:w-auto px-3 py-2 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs text-stone-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
           >
             <option value="todos">Todos los estados</option>
@@ -1100,6 +1155,19 @@ function InvitadosContent() {
             <option value="liberados">
               ♻️ Pases liberados (declinados + parciales)
             </option>
+          </select>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            aria-label="Invitados por página"
+            className="px-3 py-2 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs text-stone-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+          >
+            <option value={25}>25 por página</option>
+            <option value={50}>50 por página</option>
+            <option value={100}>100 por página</option>
           </select>
         </div>
       </div>
@@ -1129,7 +1197,7 @@ function InvitadosContent() {
                     Cargando lista de invitados...
                   </td>
                 </tr>
-              ) : invitadosFiltrados.length === 0 ? (
+              ) : invitados.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
@@ -1139,7 +1207,7 @@ function InvitadosContent() {
                   </td>
                 </tr>
               ) : (
-                invitadosFiltrados.map((inv) => {
+                invitados.map((inv) => {
                   const yaRespondio =
                     inv.estado === "confirmado" || inv.estado === "declinado";
 
@@ -1245,7 +1313,12 @@ function InvitadosContent() {
 
                       {/* Acciones principales visibles: Copiar y WhatsApp (solo si pendiente/visto) */}
                       <td className="py-3.5 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
+                        {soloLectura ? (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                            Solo lectura
+                          </span>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5">
                           {/* Copiar Mensaje */}
                           <button
                             onClick={() => handleCopiarMensaje(inv)}
@@ -1278,7 +1351,8 @@ function InvitadosContent() {
                               <span>WhatsApp</span>
                             </button>
                           )}
-                        </div>
+                          </div>
+                        )}
                       </td>
 
                       {/* Menú desplegable ⋯ con opciones secundarias */}
@@ -1316,40 +1390,44 @@ function InvitadosContent() {
                                 </a>
                               )}
 
-                              {/* Editar */}
-                              <button
-                                onClick={() => handleAbrirEditar(inv)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-stone-700 hover:bg-[#fbf8f4]"
-                              >
-                                <Edit2 className="w-3.5 h-3.5 text-stone-500" />
-                                <span>Editar datos</span>
-                              </button>
+                              {!soloLectura && (
+                                <>
+                                  {/* Editar */}
+                                  <button
+                                    onClick={() => handleAbrirEditar(inv)}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-stone-700 hover:bg-[#fbf8f4]"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5 text-stone-500" />
+                                    <span>Editar datos</span>
+                                  </button>
 
-                              {/* Regenerar link */}
-                              <button
-                                onClick={() => {
-                                  setMenuAbiertoId(null);
-                                  handleRegenerarLink(inv);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
-                              >
-                                <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Regenerar link</span>
-                              </button>
+                                  {/* Regenerar link */}
+                                  <button
+                                    onClick={() => {
+                                      setMenuAbiertoId(null);
+                                      handleRegenerarLink(inv);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Regenerar link</span>
+                                  </button>
 
-                              <div className="h-[1px] bg-stone-100 my-1" />
+                                  <div className="h-[1px] bg-stone-100 my-1" />
 
-                              {/* Eliminar */}
-                              <button
-                                onClick={() => {
-                                  setMenuAbiertoId(null);
-                                  setModalEliminar(inv);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-rose-700 hover:bg-rose-50"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                                <span>Eliminar</span>
-                              </button>
+                                  {/* Eliminar */}
+                                  <button
+                                    onClick={() => {
+                                      setMenuAbiertoId(null);
+                                      setModalEliminar(inv);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-rose-700 hover:bg-rose-50"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                    <span>Eliminar</span>
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1360,6 +1438,43 @@ function InvitadosContent() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-[#ebd9c4] bg-[#fbf8f4]/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-center text-[11px] text-stone-500 sm:text-left">
+            {pagination.total === 0
+              ? "Sin resultados"
+              : `Mostrando ${(pagination.page - 1) * pagination.page_size + 1}–${Math.min(
+                  pagination.page * pagination.page_size,
+                  pagination.total,
+                )} de ${pagination.total} invitados`}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={loading || pagination.page <= 1}
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#e1cdb8] bg-white px-3 text-xs font-semibold text-stone-700 transition-colors hover:border-[#e05a1b] hover:text-[#e05a1b] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </button>
+            <span className="min-w-20 text-center text-[11px] font-semibold text-stone-600">
+              Página {pagination.page} de {pagination.total_pages}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setPage((current) =>
+                  Math.min(pagination.total_pages, current + 1),
+                )
+              }
+              disabled={loading || pagination.page >= pagination.total_pages}
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#e1cdb8] bg-white px-3 text-xs font-semibold text-stone-700 transition-colors hover:border-[#e05a1b] hover:text-[#e05a1b] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

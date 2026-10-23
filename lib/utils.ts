@@ -7,6 +7,33 @@ export function cn(...inputs: ClassValue[]) {
 
 const TIMEZONE = "America/Mexico_City";
 
+function dateKeyInMexico(date: Date | string): string {
+  const value = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(value.getTime())) return "";
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: TIMEZONE,
+  }).formatToParts(value);
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  return `${year}-${month}-${day}`;
+}
+
+/** Indica si ya terminó el día completo del evento en horario de México. */
+export function isEventFinished(
+  eventDate: Date | string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!eventDate) return false;
+  const eventKey = dateKeyInMexico(eventDate);
+  const todayKey = dateKeyInMexico(now);
+  return Boolean(eventKey && todayKey && todayKey > eventKey);
+}
+
 /**
  * Formatea fechas a formato dd/mm/aaaa en zona horaria de México (America/Mexico_City)
  */

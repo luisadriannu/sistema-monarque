@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   LoaderCircle,
   UserCog,
+  MessageCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -132,7 +133,11 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="p-2 text-stone-600 hover:text-stone-900"
         >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {mobileMenuOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <Menu className="w-6 h-6" />
+          )}
         </button>
       </div>
 
@@ -142,7 +147,7 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-6">
+        <div className="overflow-y-auto p-6">
           {/* Logo Monarque con mariposa y tipografía */}
           <div className="flex items-center gap-3 mb-8 pb-5 border-b border-[#f5ede2]">
             <div className="w-12 h-12 rounded-full overflow-hidden border border-[#ebd9c4] shadow-xs shrink-0 bg-white">
@@ -185,14 +190,22 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
                     <motion.span
                       layoutId="dashboard-active-nav"
                       className="absolute inset-0 rounded-xl bg-[#2b211b] shadow-sm"
-                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 420,
+                        damping: 34,
+                      }}
                     />
                   )}
                   <div className="relative z-10 flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-[#e05a1b]" : "text-stone-400"}`} />
+                    <Icon
+                      className={`w-4 h-4 ${isActive ? "text-[#e05a1b]" : "text-stone-400"}`}
+                    />
                     <span>{item.label}</span>
                   </div>
-                  {isActive && <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-[#e05a1b]" />}
+                  {isActive && (
+                    <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-[#e05a1b]" />
+                  )}
                 </Link>
               );
             })}
@@ -218,14 +231,46 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
               </a>
             </div>
           )}
+
+          {/* Soporte directo para clientes */}
+          {user.rol !== "admin" && (
+            <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                  <MessageCircle className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-serif text-sm font-bold leading-tight text-[#2b211b]">
+                    ¿Necesitas ayuda?
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+                    Escríbenos y te ayudaremos con tu evento.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="https://wa.me/522206283499?text=Hola%20Monarque%2C%20necesito%20ayuda%20con%20mi%20invitaci%C3%B3n."
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Escribir por WhatsApp
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Footer de usuario */}
         <div className="p-4 border-t border-[#f5ede2] bg-[#fbf8f4]/60">
           <div className="flex items-center justify-between">
             <div className="truncate pr-2">
-              <p className="text-xs font-semibold text-stone-900 truncate">{user.nombre}</p>
-              <p className="text-[11px] text-stone-500 truncate">{user.email}</p>
+              <p className="text-xs font-semibold text-stone-900 truncate">
+                {user.nombre}
+              </p>
+              <p className="text-[11px] text-stone-500 truncate">
+                {user.email}
+              </p>
             </div>
             <button
               onClick={openLogoutModal}
@@ -242,13 +287,13 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
       {/* Backdrop for mobile */}
       <AnimatePresence>
         {mobileMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setMobileMenuOpen(false)}
-          className="fixed inset-0 bg-stone-900/40 z-40 lg:hidden backdrop-blur-xs"
-        />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-stone-900/40 z-40 lg:hidden backdrop-blur-xs"
+          />
         )}
       </AnimatePresence>
 
@@ -274,8 +319,15 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
                 reduceMotion ? false : { opacity: 0, y: 18, scale: 0.96 }
               }
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.97 }}
-              transition={{ duration: reduceMotion ? 0.1 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+              exit={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: 10, scale: 0.97 }
+              }
+              transition={{
+                duration: reduceMotion ? 0.1 : 0.24,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               onClick={(event) => event.stopPropagation()}
               className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-[#eadbca] bg-white p-6 text-center shadow-[0_28px_80px_rgba(43,33,27,.3)]"
             >
@@ -299,8 +351,16 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
                   <div className="mx-auto mt-6 h-1 w-36 overflow-hidden rounded-full bg-stone-100">
                     <motion.span
                       className="block h-full rounded-full bg-gradient-to-r from-[#e05a1b] to-[#f59e0b]"
-                      animate={reduceMotion ? { width: "70%" } : { x: ["-100%", "250%"] }}
-                      transition={{ duration: 1.15, repeat: Infinity, ease: "easeInOut" }}
+                      animate={
+                        reduceMotion
+                          ? { width: "70%" }
+                          : { x: ["-100%", "250%"] }
+                      }
+                      transition={{
+                        duration: 1.15,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                       style={{ width: "42%" }}
                     />
                   </div>
@@ -329,11 +389,15 @@ export default function DashboardNav({ user, eventSlug }: DashboardNavProps) {
                     id="logout-modal-description"
                     className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-stone-500"
                   >
-                    Tendrás que ingresar nuevamente tus credenciales para volver al panel.
+                    Tendrás que ingresar nuevamente tus credenciales para volver
+                    al panel.
                   </p>
 
                   {logoutError && (
-                    <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-left text-xs text-rose-700">
+                    <div
+                      role="alert"
+                      className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-left text-xs text-rose-700"
+                    >
                       {logoutError}
                     </div>
                   )}

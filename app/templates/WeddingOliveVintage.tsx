@@ -346,6 +346,20 @@ export default function WeddingOliveVintage({
   const nameParts = data.event.name.split(" & ");
   const groom = nameParts[0] ?? data.event.name;
   const bride = nameParts[1] ?? "";
+  const invitationDate = new Date(evento.fecha_evento);
+  const invitationDateParts = new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Mexico_City",
+  }).formatToParts(invitationDate);
+  const datePart = (type: Intl.DateTimeFormatPartTypes) =>
+    invitationDateParts.find((part) => part.type === type)?.value ?? "";
+  const eventWeekday = datePart("weekday");
+  const eventDay = datePart("day");
+  const eventMonth = datePart("month");
+  const eventYear = datePart("year");
   const [opened, setOpened] = useState(false);
   const galleryPhotos = Array.from(
     new Set([data.media.coverImage, ...data.media.gallery]),
@@ -840,64 +854,106 @@ export default function WeddingOliveVintage({
           <section className="relative overflow-hidden bg-[#DED3BE] px-5 py-20">
             <FloralSpray className="-right-24 top-8 h-96 w-64 rotate-6 opacity-30" />
             <motion.div {...reveal} className="relative mx-auto max-w-3xl">
-              <SectionHeading eyebrow="Acompáñanos">
-                La celebración
-              </SectionHeading>
-              <div className="mt-12 grid border-4 border-double border-[#A78340]/45 bg-[#F3E9D5] sm:grid-cols-3">
-                <div className="flex min-h-40 flex-col items-center justify-center border-b border-[#A78340]/25 p-6 text-center sm:border-b-0 sm:border-r">
-                  <CalendarDays
-                    size={23}
-                    strokeWidth={1.25}
-                    className="text-[#687054]"
-                  />
-                  <p
-                    className="mt-4 text-[9px] uppercase tracking-[0.25em] text-[#9A7837]"
-                    style={{ fontFamily: "var(--font-cy-utility)" }}
-                  >
-                    Fecha
-                  </p>
-                  <p className="mt-2 text-xl">
-                    {formatDateLongMx(evento.fecha_evento)}
-                  </p>
+              <div className="relative mx-auto max-w-xl px-4 pt-10 text-center sm:px-10">
+                <div className="absolute inset-x-0 top-5 h-44 rounded-t-[9rem] border border-[#A78340]/35 border-b-0" />
+                <div className="absolute inset-x-3 top-8 h-40 rounded-t-[8rem] border border-[#A78340]/20 border-b-0" />
+                <div className="relative mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#A78340]/40 bg-[#DED3BE] text-xl text-[#9A7837] shadow-[0_5px_15px_rgba(91,70,36,.12)]">
+                  ❦
                 </div>
-                <div className="flex min-h-40 flex-col items-center justify-center border-b border-[#A78340]/25 p-6 text-center sm:border-b-0 sm:border-r">
-                  <Clock
-                    size={23}
-                    strokeWidth={1.25}
-                    className="text-[#687054]"
-                  />
-                  <p
-                    className="mt-4 text-[9px] uppercase tracking-[0.25em] text-[#9A7837]"
-                    style={{ fontFamily: "var(--font-cy-utility)" }}
-                  >
-                    Hora
+                <p
+                  className="relative mt-5 text-[10px] font-bold uppercase tracking-[0.45em] text-[#8C703B]"
+                  style={{ fontFamily: "var(--font-cy-utility)" }}
+                >
+                  Acompáñanos
+                </p>
+                <h2 className="relative mt-3 text-[clamp(3rem,13vw,5rem)] font-medium italic leading-none text-[#454B39]">
+                  La celebración
+                </h2>
+                <div className="relative mx-auto mt-6 flex max-w-xs items-center gap-4 text-[#A78340]">
+                  <span className="h-px flex-1 bg-current opacity-40" />
+                  <span className="text-sm">◆</span>
+                  <span className="h-px flex-1 bg-current opacity-40" />
+                </div>
+                <p className="relative mx-auto mt-5 max-w-sm text-lg italic leading-relaxed text-[#686D57]">
+                  Será un honor compartir contigo este día tan especial.
+                </p>
+              </div>
+              <div className="relative mx-auto mt-12 max-w-2xl text-center">
+                <CalendarDays
+                  size={21}
+                  strokeWidth={1.1}
+                  className="mx-auto text-[#7A8262]"
+                />
+                <p
+                  className="mt-4 text-[9px] font-bold uppercase tracking-[0.42em] text-[#91713A]"
+                  style={{ fontFamily: "var(--font-cy-utility)" }}
+                >
+                  Reserva esta fecha
+                </p>
+                <p className="mt-6 text-sm uppercase tracking-[0.36em] text-[#60684F]">
+                  {eventWeekday}
+                </p>
+                <div className="mx-auto mt-1 flex max-w-md items-center gap-5 text-[#9C7B3F]">
+                  <span className="h-px flex-1 bg-gradient-to-r from-transparent to-current opacity-45" />
+                  <p className="text-[7.5rem] font-medium leading-[0.85] text-[#424936] sm:text-[9rem]">
+                    {eventDay}
                   </p>
-                  <p className="mt-2 text-xl">
-                    {data.event.startsAt ??
-                      new Date(evento.fecha_evento).toLocaleTimeString(
-                        "es-MX",
-                        {
+
+                  <span className="h-px flex-1 bg-gradient-to-l from-transparent to-current opacity-45" />
+                </div>
+                <br />
+                <p className="mt-2 text-3xl capitalize italic text-[#8E6E35] sm:text-4xl">
+                  {eventMonth}
+                </p>
+                <p
+                  className="mt-3 text-[10px] tracking-[0.48em] text-[#60684F]"
+                  style={{ fontFamily: "var(--font-cy-utility)" }}
+                >
+                  {eventYear}
+                </p>
+
+                <div className="mx-auto my-9 flex h-16 w-px flex-col items-center bg-[#9C7B3F]/35">
+                  <span className="mt-7 h-2.5 w-2.5 shrink-0 rotate-45 border border-[#9C7B3F]/60 bg-[#DED3BE]" />
+                </div>
+
+                <div className="grid gap-9 sm:grid-cols-2 sm:gap-0">
+                  <div className="flex flex-col items-center px-6 sm:border-r sm:border-[#9C7B3F]/30">
+                    <Clock
+                      size={22}
+                      strokeWidth={1.1}
+                      className="text-[#6D765A]"
+                    />
+                    <p
+                      className="mt-4 text-[9px] font-bold uppercase tracking-[0.32em] text-[#91713A]"
+                      style={{ fontFamily: "var(--font-cy-utility)" }}
+                    >
+                      Hora de inicio
+                    </p>
+                    <p className="mt-2 text-3xl italic text-[#424936]">
+                      {data.event.startsAt ??
+                        invitationDate.toLocaleTimeString("es-MX", {
                           hour: "2-digit",
                           minute: "2-digit",
-                        },
-                      )}
-                  </p>
-                </div>
-                <div className="flex min-h-40 flex-col items-center justify-center p-6 text-center">
-                  <MapPin
-                    size={23}
-                    strokeWidth={1.25}
-                    className="text-[#687054]"
-                  />
-                  <p
-                    className="mt-4 text-[9px] uppercase tracking-[0.25em] text-[#9A7837]"
-                    style={{ fontFamily: "var(--font-cy-utility)" }}
-                  >
-                    Lugar
-                  </p>
-                  <p className="mt-2 text-xl leading-tight">
-                    {data.location.reception}
-                  </p>
+                        })}
+                    </p>
+                  </div>
+
+                  <div className="relative flex flex-col items-center px-6 before:absolute before:-top-5 before:h-px before:w-16 before:bg-[#9C7B3F]/30 sm:before:hidden">
+                    <MapPin
+                      size={22}
+                      strokeWidth={1.1}
+                      className="text-[#6D765A]"
+                    />
+                    <p
+                      className="mt-4 text-[9px] font-bold uppercase tracking-[0.32em] text-[#91713A]"
+                      style={{ fontFamily: "var(--font-cy-utility)" }}
+                    >
+                      Lugar
+                    </p>
+                    <p className="mt-2 max-w-xs text-2xl italic leading-snug text-[#424936]">
+                      {data.location.reception}
+                    </p>
+                  </div>
                 </div>
               </div>
               <VintageDivider />

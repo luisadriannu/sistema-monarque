@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { isEventFinished } from "@/lib/utils";
 
 export async function GET(request: Request) {
   // RNF-03: Límite de intentos por IP
@@ -55,7 +56,8 @@ export async function GET(request: Request) {
 
     const now = new Date();
     const fechaLimite = new Date(invitado.evento.fecha_limite_rsvp);
-    const expirado = now > fechaLimite;
+    const expirado =
+      now > fechaLimite || isEventFinished(invitado.evento.fecha_evento, now);
 
     // RF-24: Mostrar solo nombre y pases del invitado. Nunca teléfonos ni otros datos.
     return NextResponse.json({
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
     // RN-03: Pasada la fecha límite, el servidor rechaza nuevas respuestas
     const now = new Date();
     const fechaLimite = new Date(invitado.evento.fecha_limite_rsvp);
-    if (now > fechaLimite) {
+    if (now > fechaLimite || isEventFinished(invitado.evento.fecha_evento, now)) {
       return NextResponse.json(
         {
           error:
@@ -220,9 +222,18 @@ export async function PATCH(request: Request) {
 
     const invitado = await prisma.invitado.findUnique({
       where: { token: String(token).trim() },
+      include: {
+        evento: {
+          select: { fecha_evento: true },
+        },
+      },
     });
 
-    if (invitado && invitado.estado === "pendiente") {
+    if (
+      invitado &&
+      invitado.estado === "pendiente" &&
+      !isEventFinished(invitado.evento.fecha_evento)
+    ) {
       await prisma.invitado.update({
         where: { id: invitado.id },
         data: { estado: "visto" },

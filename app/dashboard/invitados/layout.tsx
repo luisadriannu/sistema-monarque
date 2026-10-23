@@ -9,7 +9,6 @@ export default async function InvitadosLayout({
   const user = await getCurrentUser();
 
   if (!user) redirect("/login");
-  if (user.rol === "admin") redirect("/dashboard/usuarios");
 
   return children;
 }

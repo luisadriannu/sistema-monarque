@@ -11,11 +11,14 @@ import {
   Link2,
   TicketCheck,
   UserRound,
+  X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   toDateInputValue,
   endOfDayMexicoDate,
   formatDateMx,
+  isEventFinished,
 } from "@/lib/utils";
 import DashboardLoader from "@/components/DashboardLoader";
 
@@ -113,12 +116,39 @@ export default function ConfiguracionPage() {
     loadEvento();
   }, []);
 
+  const fechaEventoMaxima = evento
+    ? toDateInputValue(evento.fecha_evento)
+    : "";
+  const fechaLimitePosteriorEvento = Boolean(
+    fechaLimiteRsvp &&
+      fechaEventoMaxima &&
+      fechaLimiteRsvp > fechaEventoMaxima,
+  );
+  const eventoFinalizado = evento
+    ? isEventFinished(evento.fecha_evento)
+    : false;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!evento) return;
-    setGuardando(true);
     setError(null);
     setMensajeExito(false);
+
+    if (eventoFinalizado) {
+      setError(
+        "El evento ya finalizó. La configuración está disponible únicamente para consulta.",
+      );
+      return;
+    }
+
+    if (fechaLimitePosteriorEvento) {
+      setError(
+        `La fecha límite de confirmación no puede ser posterior al día del evento (${formatDateMx(evento.fecha_evento)}).`,
+      );
+      return;
+    }
+
+    setGuardando(true);
 
     try {
       // Fecha límite se cierra al final de ese día en horario de México (23:59:59)
@@ -261,6 +291,60 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      <div className="pointer-events-none fixed left-4 right-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[100] mx-auto max-w-md [overflow-anchor:none] lg:left-auto lg:right-6 lg:top-6 lg:mx-0 lg:w-full">
+        <AnimatePresence>
+          {(mensajeExito || error) && (
+            <motion.div
+            key={error ? "configuration-error" : "configuration-success"}
+            role={error ? "alert" : "status"}
+            aria-live={error ? "assertive" : "polite"}
+            initial={{ opacity: 0, y: -18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border p-4 shadow-[0_18px_55px_rgba(43,33,27,.22)] backdrop-blur-md ${
+              error
+                ? "border-rose-200 bg-rose-50/95 text-rose-800"
+                : "border-emerald-200 bg-emerald-50/95 text-emerald-900"
+            }`}
+          >
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                error
+                  ? "bg-rose-100 text-rose-600"
+                  : "bg-emerald-100 text-emerald-600"
+              }`}
+            >
+              {error ? (
+                <AlertCircle className="h-5 w-5" />
+              ) : (
+                <CheckCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">
+                {error ? "No se guardaron los cambios" : "Configuración guardada"}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed opacity-80">
+                {error || "Los cambios se actualizaron correctamente."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMensajeExito(false);
+                setError(null);
+              }}
+              aria-label="Cerrar notificación"
+              className="shrink-0 rounded-lg p-1 opacity-55 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Cabecera */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -276,23 +360,25 @@ export default function ConfiguracionPage() {
             Gestiona la fecha límite de confirmación, la capacidad de tu evento y el mensaje de invitación por WhatsApp
           </p>
         </div>
-
-        {mensajeExito && (
-          <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl animate-in fade-in">
-            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>¡Configuración guardada correctamente!</span>
-          </div>
-        )}
       </div>
 
-      {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+      {eventoFinalizado && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-bold">Evento finalizado · Solo lectura</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-800/80">
+              Puedes consultar estos ajustes, pero ya no es posible modificarlos después del día del evento.
+            </p>
+          </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        <fieldset
+          disabled={eventoFinalizado}
+          className="space-y-8 disabled:[&_button]:cursor-not-allowed disabled:[&_button]:opacity-60 disabled:[&_input]:cursor-not-allowed disabled:[&_textarea]:cursor-not-allowed"
+        >
         {/* Parámetros de Asistencia y Capacidad */}
         <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex items-center gap-2.5 pb-4 border-b border-[#f5ede2]">
@@ -304,35 +390,52 @@ export default function ConfiguracionPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Fecha Límite de Confirmación */}
-            <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
-              <div>
-                <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>Fecha Límite de Confirmación (RSVP)</span>
-                  <span className="text-[10px] text-[#e05a1b] font-semibold lowercase">
+            <div className="min-w-0 overflow-hidden bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
+              <div className="min-w-0">
+                <label className="mb-2 flex min-w-0 flex-col items-start gap-1.5 text-xs font-bold uppercase tracking-wider text-stone-900 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="min-w-0">Fecha Límite de Confirmación (RSVP)</span>
+                  <span className="shrink-0 text-[10px] font-semibold lowercase tracking-normal text-[#e05a1b]">
                     cierre 23:59 hrs
                   </span>
                 </label>
                 <input
                   type="date"
                   required
+                  max={fechaEventoMaxima}
                   value={fechaLimiteRsvp}
-                  onChange={(e) => setFechaLimiteRsvp(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  onChange={(e) => {
+                    setFechaLimiteRsvp(e.target.value);
+                    setError(null);
+                  }}
+                  aria-invalid={fechaLimitePosteriorEvento}
+                  aria-describedby="fecha-limite-ayuda"
+                  className={`block min-w-0 max-w-full w-full appearance-none box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                    fechaLimitePosteriorEvento
+                      ? "border-rose-400 focus:ring-rose-400"
+                      : "border-[#dec0a2] focus:ring-[#e05a1b]"
+                  }`}
                 />
               </div>
-              <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
-                Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante.
+              <p
+                id="fecha-limite-ayuda"
+                className={`text-[11px] mt-3 leading-relaxed ${
+                  fechaLimitePosteriorEvento ? "font-medium text-rose-600" : "text-stone-600"
+                }`}
+              >
+                {fechaLimitePosteriorEvento
+                  ? `Selecciona una fecha igual o anterior al día del evento (${formatDateMx(evento.fecha_evento)}).`
+                  : "Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante."}
               </p>
             </div>
 
             {/* Capacidad / Cupo Total del Evento */}
-            <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
+            <div className="min-w-0 overflow-hidden bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
+              <div className="min-w-0">
+                <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                   <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
                     Capacidad del Evento (Cupo de asientos)
                   </label>
-                  <span className="text-[11px] text-[#e05a1b] font-semibold">
+                  <span className="shrink-0 text-[11px] text-[#e05a1b] font-semibold">
                     Opcional
                   </span>
                 </div>
@@ -342,7 +445,7 @@ export default function ConfiguracionPage() {
                   value={capacidadTotal}
                   onChange={(e) => setCapacidadTotal(e.target.value)}
                   placeholder="ej. 100"
-                  className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  className="block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                 />
               </div>
               <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
@@ -557,13 +660,14 @@ export default function ConfiguracionPage() {
         <div className="flex items-center justify-end">
           <button
             type="submit"
-            disabled={guardando}
+            disabled={guardando || fechaLimitePosteriorEvento || eventoFinalizado}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-md shadow-orange-500/20 transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4 text-white" />
             <span>{guardando ? "Guardando cambios..." : "Guardar Configuración"}</span>
           </button>
         </div>
+        </fieldset>
       </form>
     </div>
   );

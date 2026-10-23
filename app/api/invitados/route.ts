@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateInvitationToken } from "@/lib/tokens";
+import { isEventFinished } from "@/lib/utils";
+import type { Prisma } from "@/generated/prisma-client";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +22,14 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const eventoIdParam = searchParams.get("evento_id");
-  const search = searchParams.get("search")?.toLowerCase().trim();
+  const search = searchParams.get("search")?.trim();
   const estado = searchParams.get("estado");
+  const all = searchParams.get("all") === "true";
+  const requestedPage = Math.max(1, Number(searchParams.get("page")) || 1);
+  const pageSize = Math.min(
+    100,
+    Math.max(10, Number(searchParams.get("page_size")) || 25),
+  );
 
   // Buscar evento del usuario
   let evento;
@@ -41,6 +49,7 @@ export async function GET(request: Request) {
       {
         evento: null,
         invitados: [],
+        pagination: { page: 1, page_size: pageSize, total: 0, total_pages: 1 },
         kpis: {
           total_asignados: 0,
           total_confirmados: 0,
@@ -62,10 +71,15 @@ export async function GET(request: Request) {
     );
   }
 
-  // Obtener todos los invitados para calcular KPIs exactos
+  // Solo se leen los campos numéricos necesarios para mantener KPIs globales
+  // exactos sin enviar todos los registros al navegador.
   const todosInvitados = await prisma.invitado.findMany({
     where: { evento_id: evento.id },
-    orderBy: { creado_en: "desc" },
+    select: {
+      pases_asignados: true,
+      pases_confirmados: true,
+      estado: true,
+    },
   });
 
   // Cálculo de KPIs (RF-25, RN-05)
@@ -93,25 +107,68 @@ export async function GET(request: Request) {
     }
   }
 
-  // Filtrado para la tabla (RF-11)
-  let invitadosFiltrados = todosInvitados;
+  const where: Prisma.InvitadoWhereInput = { evento_id: evento.id };
 
   if (search) {
-    invitadosFiltrados = invitadosFiltrados.filter(
-      (inv) =>
-        inv.nombre.toLowerCase().includes(search) ||
-        (inv.grupo && inv.grupo.toLowerCase().includes(search))
-    );
+    where.OR = [
+      { nombre: { contains: search, mode: "insensitive" } },
+      { grupo: { contains: search, mode: "insensitive" } },
+    ];
   }
 
   if (estado && estado !== "todos") {
-    invitadosFiltrados = invitadosFiltrados.filter((inv) => inv.estado === estado);
+    if (estado === "pendiente") {
+      where.estado = { in: ["pendiente", "visto"] };
+    } else if (estado === "parcial") {
+      where.AND = [
+        { estado: "confirmado" },
+        { pases_confirmados: { gt: 0 } },
+        {
+          pases_confirmados: {
+            lt: prisma.invitado.fields.pases_asignados,
+          },
+        },
+      ];
+    } else if (estado === "liberados") {
+      where.AND = [
+        {
+          OR: [
+            { estado: "declinado" },
+            {
+              estado: "confirmado",
+              pases_confirmados: {
+                lt: prisma.invitado.fields.pases_asignados,
+              },
+            },
+          ],
+        },
+      ];
+    } else {
+      where.estado = estado;
+    }
   }
+
+  const total = await prisma.invitado.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const invitadosFiltrados = await prisma.invitado.findMany({
+    where,
+    orderBy: { creado_en: "desc" },
+    ...(all ? {} : { skip: (page - 1) * pageSize, take: pageSize }),
+  });
 
   return NextResponse.json(
     {
       evento,
       invitados: invitadosFiltrados,
+      pagination: {
+        page,
+        page_size: pageSize,
+        total,
+        total_pages: totalPages,
+      },
+      solo_lectura: user.rol === "admin" || isEventFinished(evento.fecha_evento),
+      vista_admin: user.rol === "admin",
       kpis: {
         total_asignados,
         total_confirmados,
@@ -152,6 +209,17 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "No tienes permiso para agregar invitados en este evento." },
         { status: 403 }
+      );
+    }
+
+
+    if (user.rol !== "admin" && isEventFinished(evento.fecha_evento)) {
+      return NextResponse.json(
+        {
+          error:
+            "El evento ya finalizó. La lista de invitados se encuentra en modo de solo lectura.",
+        },
+        { status: 403 },
       );
     }
 

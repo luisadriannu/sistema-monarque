@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateInvitationToken } from "@/lib/tokens";
+import { isEventFinished } from "@/lib/utils";
 
 export async function PUT(
   request: Request,
@@ -26,6 +27,16 @@ export async function PUT(
     return NextResponse.json(
       { error: "No tienes permiso para modificar este invitado." },
       { status: 403 }
+    );
+  }
+
+  if (user.rol !== "admin" && isEventFinished(invitado.evento.fecha_evento)) {
+    return NextResponse.json(
+      {
+        error:
+          "El evento ya finalizó. Los invitados se encuentran disponibles únicamente para consulta.",
+      },
+      { status: 403 },
     );
   }
 
@@ -150,6 +161,16 @@ export async function DELETE(
     return NextResponse.json(
       { error: "No tienes permiso para eliminar este invitado." },
       { status: 403 }
+    );
+  }
+
+  if (user.rol !== "admin" && isEventFinished(invitado.evento.fecha_evento)) {
+    return NextResponse.json(
+      {
+        error:
+          "El evento ya finalizó. Los invitados se encuentran disponibles únicamente para consulta.",
+      },
+      { status: 403 },
     );
   }
 
