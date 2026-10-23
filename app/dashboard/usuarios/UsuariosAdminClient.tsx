@@ -12,6 +12,7 @@ import {
   MapPin,
   Plus,
   ShieldCheck,
+  Sparkles,
   UserRound,
   Users,
   X,
@@ -33,6 +34,10 @@ interface EventoCliente {
   lugar: string;
   capacidad_total: number | null;
   fecha_limite_rsvp: string;
+  configuracion_invitacion?: {
+    event?: { phrase?: string; dressCode?: string };
+    design?: { variant?: string };
+  } | null;
   _count: { invitados: number };
 }
 
@@ -57,6 +62,9 @@ interface FormState {
   lugar: string;
   capacidadTotal: string;
   fechaLimiteRsvp: string;
+  tema: string;
+  frase: string;
+  vestimenta: string;
 }
 
 const emptyForm: FormState = {
@@ -71,6 +79,9 @@ const emptyForm: FormState = {
   lugar: "",
   capacidadTotal: "",
   fechaLimiteRsvp: "",
+  tema: "romantic",
+  frase: "Con mucha ilusión queremos compartir contigo este día tan especial.",
+  vestimenta: "",
 };
 
 function slugify(value: string) {
@@ -141,6 +152,13 @@ export default function UsuariosAdminClient() {
       setError("Esta cuenta no tiene un evento asociado.");
       return;
     }
+    const savedTheme = evento.configuracion_invitacion?.design?.variant;
+    const supportedTheme = ["romantic", "botanical", "midnight"].includes(
+      savedTheme || "",
+    )
+      ? savedTheme!
+      : "romantic";
+
     setEditingId(usuario.id);
     setForm({
       nombre: usuario.nombre,
@@ -155,6 +173,12 @@ export default function UsuariosAdminClient() {
       capacidadTotal:
         evento.capacidad_total === null ? "" : String(evento.capacidad_total),
       fechaLimiteRsvp: toDateInputValue(evento.fecha_limite_rsvp),
+      tema: supportedTheme,
+      frase:
+        evento.configuracion_invitacion?.event?.phrase ||
+        "Con mucha ilusión queremos compartir contigo este día tan especial.",
+      vestimenta:
+        evento.configuracion_invitacion?.event?.dressCode || "",
     });
     setError(null);
     setModalOpen(true);
@@ -190,6 +214,9 @@ export default function UsuariosAdminClient() {
           fecha_limite_rsvp: endOfDayMexicoDate(
             form.fechaLimiteRsvp,
           ).toISOString(),
+          tema: form.tema,
+          frase: form.frase,
+          vestimenta: form.vestimenta,
         },
       };
       const response = await fetch(
@@ -442,6 +469,35 @@ export default function UsuariosAdminClient() {
                       </Field>
                     </div>
                   </div>
+
+                  <div className="border-t border-[#f0e4d8] pt-6">
+                    <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#a04d24]">
+                      <Sparkles className="h-4 w-4" />
+                      Personalización de la invitación
+                    </h3>
+                    <p className="mb-4 text-xs leading-relaxed text-stone-500">
+                      Esta apariencia y estos textos pertenecen únicamente a esta clienta.
+                      Las nuevas invitaciones no reutilizan fotografías de otras bodas.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="Estilo visual" required>
+                        <select value={form.tema} onChange={(e) => updateField("tema", e.target.value)} className={inputClass}>
+                          <option value="romantic">Romántico · Rosa antiguo</option>
+                          <option value="botanical">Botánico · Verde natural</option>
+                          <option value="midnight">Noche elegante · Azul y oro</option>
+                        </select>
+                      </Field>
+                      <Field label="Código de vestimenta" hint="Opcional">
+                        <input value={form.vestimenta} onChange={(e) => updateField("vestimenta", e.target.value)} placeholder="Formal, tonos neutros…" className={inputClass} />
+                      </Field>
+                      <div className="sm:col-span-2">
+                        <Field label="Frase principal" required>
+                          <textarea value={form.frase} onChange={(e) => updateField("frase", e.target.value)} rows={3} required className={`${inputClass} resize-y`} />
+                        </Field>
+                      </div>
+                      <ThemePreview theme={form.tema} />
+                    </div>
+                  </div>
                 </fieldset>
 
                 {error && (
@@ -497,5 +553,37 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function ThemePreview({ theme }: { theme: string }) {
+  const palette =
+    theme === "botanical"
+      ? { background: "#F3F2E9", primary: "#405847", accent: "#AA8255" }
+      : theme === "midnight"
+        ? { background: "#EEEFF2", primary: "#24324A", accent: "#B39255" }
+        : { background: "#FAF3F1", primary: "#743C53", accent: "#C68972" };
+
+  return (
+    <div className="sm:col-span-2">
+      <div
+        className="flex items-center justify-between rounded-2xl border border-stone-200 px-5 py-4"
+        style={{ backgroundColor: palette.background }}
+      >
+        <div>
+          <p className="text-[9px] font-bold uppercase tracking-[.22em]" style={{ color: palette.accent }}>
+            Vista del estilo
+          </p>
+          <p className="mt-1 font-serif text-2xl" style={{ color: palette.primary }}>
+            Nuestros nombres
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {[palette.primary, palette.accent, palette.background].map((color) => (
+            <span key={color} className="h-8 w-8 rounded-full border border-white shadow-sm" style={{ backgroundColor: color }} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

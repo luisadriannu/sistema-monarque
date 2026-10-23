@@ -247,15 +247,12 @@ function OpeningCover({
           <div className="absolute inset-x-4 bottom-0 h-40 rounded-b-xl bg-[#D7C7A7]" />
           <div className="absolute inset-x-4 bottom-0 h-40 bg-[#E8DDC7] [clip-path:polygon(0_0,50%_58%,100%_0,100%_100%,0_100%)]" />
           <div className="absolute inset-x-4 top-0 h-32 bg-[#CDBB98] [clip-path:polygon(0_0,100%_0,50%_100%)]" />
-          <div className="absolute left-8 right-8 top-[-2.25rem] h-28 border border-[#B69A61]/35 bg-[#F4EBDD] px-5 pt-5 shadow-md">
+          <div className="absolute left-8 right-8 top-[-2.25rem] flex h-28 items-center justify-center border border-[#B69A61]/35 bg-[#F4EBDD] px-5 shadow-md">
             <p
-              className="text-[8px] font-bold uppercase tracking-[0.3em] text-[#94763C]"
+              className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#94763C]"
               style={{ fontFamily: "var(--font-cy-utility)" }}
             >
               Con cariño para ti
-            </p>
-            <p className="mt-3 text-2xl italic text-[#4B5340]">
-              {openingNames}
             </p>
           </div>
           <div className="absolute inset-x-0 top-[4.25rem] z-10 flex justify-center">
@@ -467,7 +464,7 @@ export default function WeddingOliveVintage({
           style={{ fontFamily: "var(--font-cy-display)" }}
         >
           {/* Hero */}
-          <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-6 py-12 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)]">
+          <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-4 py-6 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)] sm:px-6 sm:py-12">
             <VintageParticles reduceMotion={reduceMotion} />
             <div className="absolute inset-3 border border-[#C9AB68]/45" />
             <div className="absolute inset-5 border border-[#C9AB68]/15" />
@@ -499,7 +496,7 @@ export default function WeddingOliveVintage({
               }
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-              className="relative min-h-[86svh] w-full max-w-2xl overflow-hidden rounded-t-[10rem] border-[7px] border-[#D7C7A8] text-center outline outline-1 outline-offset-4 outline-[#B49350]/65 shadow-[0_30px_90px_rgba(14,20,12,.45)] sm:rounded-t-[16rem]"
+              className="relative h-[calc(100svh-3rem)] min-h-[31rem] w-full max-w-2xl overflow-hidden rounded-t-[10rem] border-[5px] border-[#D7C7A8] text-center outline outline-1 outline-offset-2 outline-[#B49350]/65 shadow-[0_30px_90px_rgba(14,20,12,.45)] sm:h-auto sm:min-h-[86svh] sm:rounded-t-[16rem] sm:border-[7px] sm:outline-offset-4"
             >
               <Image
                 src={data.media.coverImage}
@@ -541,7 +538,7 @@ export default function WeddingOliveVintage({
                   duration: 0.9,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="absolute inset-x-5 bottom-7 border border-[#B69959]/55 bg-[#F3E9D8]/[.94] px-5 py-8 shadow-[0_24px_55px_rgba(17,23,14,.38)] backdrop-blur-[3px] before:absolute before:inset-2 before:border before:border-[#99814C]/25 sm:inset-x-10 sm:bottom-10 sm:px-10"
+                className="absolute inset-x-3 bottom-4 border border-[#B69959]/55 bg-[#F3E9D8]/[.94] px-4 py-5 shadow-[0_24px_55px_rgba(17,23,14,.38)] backdrop-blur-[3px] before:absolute before:inset-2 before:border before:border-[#99814C]/25 sm:inset-x-10 sm:bottom-10 sm:px-10 sm:py-8"
               >
                 <Image
                   src="/pictures/wedding/ivory-rose-corner.png"
@@ -565,17 +562,19 @@ export default function WeddingOliveVintage({
                 >
                   Nuestra historia continúa
                 </p>
-                <h1 className="relative mt-5 text-[clamp(3rem,11vw,5.5rem)] font-medium leading-[.78] text-[#3F4735]">
-                  <span className="block">{groom}</span>
+                <h1 className="relative mt-3 text-[clamp(2rem,9.5vw,5.5rem)] font-medium leading-[.88] text-[#3F4735] sm:mt-5 sm:leading-[.82]">
+                  <span className="block [text-wrap:balance]">{groom}</span>
                   {bride && (
-                    <span className="my-5 block text-2xl italic text-[#AA8743]">
+                    <span className="my-2 block text-xl italic text-[#AA8743] sm:my-5 sm:text-2xl">
                       &amp;
                     </span>
                   )}
-                  {bride && <span className="block">{bride}</span>}
+                  {bride && (
+                    <span className="block [text-wrap:balance]">{bride}</span>
+                  )}
                 </h1>
                 <div
-                  className="relative mx-auto my-6 flex max-w-[16rem] items-center gap-3 text-[#A38445]"
+                  className="relative mx-auto my-4 flex max-w-[16rem] items-center gap-3 text-[#A38445] sm:my-6"
                   aria-hidden="true"
                 >
                   <span className="h-px flex-1 bg-current opacity-45" />
@@ -628,10 +627,10 @@ export default function WeddingOliveVintage({
                 Para toda la vida
               </p>
             </motion.div>
-            <div className="absolute right-[8%] top-[9%] text-center text-[#5A5544]">
-              <p className="text-3xl">❦</p>
+            <div className="absolute right-4 top-5 z-30 min-w-max border border-[#8F7342]/25 bg-[#F4EBD9]/90 px-4 py-3 text-center text-[#5A5544] shadow-[0_8px_24px_rgba(52,43,27,.16)] backdrop-blur-sm sm:right-[8%] sm:top-[9%]">
+              <p className="text-2xl leading-none">❦</p>
               <p
-                className="mt-1 text-[8px] uppercase tracking-[0.22em]"
+                className="mt-2 whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.2em]"
                 style={{ fontFamily: "var(--font-cy-utility)" }}
               >
                 Nuestra historia
@@ -698,10 +697,10 @@ export default function WeddingOliveVintage({
                   Juntos para siempre
                 </p>
               </motion.div>
-              <div className="absolute left-[8%] top-[9%] text-center text-[#5A5544]">
-                <p className="text-3xl">❦</p>
+              <div className="absolute left-4 top-5 z-30 min-w-max border border-[#8F7342]/25 bg-[#F4EBD9]/90 px-4 py-3 text-center text-[#5A5544] shadow-[0_8px_24px_rgba(52,43,27,.16)] backdrop-blur-sm sm:left-[8%] sm:top-[9%]">
+                <p className="text-2xl leading-none">❦</p>
                 <p
-                  className="mt-1 text-[8px] uppercase tracking-[0.22em]"
+                  className="mt-2 whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.2em]"
                   style={{ fontFamily: "var(--font-cy-utility)" }}
                 >
                   Nuestra boda

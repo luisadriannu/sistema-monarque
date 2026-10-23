@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import WeddingOliveVintage from "@/app/templates/WeddingOliveVintage";
+import WeddingPersonalized from "@/app/templates/WeddingPersonalized";
 import carlosYYazmin from "@/app/data/carlosYYazmin";
 import type { EventData } from "@/app/types/EventData";
 import { getCurrentUser } from "@/lib/auth";
@@ -69,28 +70,59 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     ? evento.configuracion_invitacion
     : {};
 
-  // Los textos y la estructura provienen de PostgreSQL. Las fotos permanecen
-  // en el proyecto y nunca se duplican en la base de datos.
-  const eventData: EventData = {
-    ...carlosYYazmin,
-    ...storedInvitation,
-    seo: {
-      ...carlosYYazmin.seo,
-      ...storedInvitation.seo,
-      image: carlosYYazmin.seo?.image,
-    },
-    event: {
-      ...carlosYYazmin.event,
-      ...storedInvitation.event,
-      date: evento.fecha_evento.toISOString(),
-    },
-    media: carlosYYazmin.media,
-    location: {
-      ...carlosYYazmin.location,
-      ...storedInvitation.location,
-      reception: evento.lugar || carlosYYazmin.location.reception,
-    },
-  };
+  const isCarlosYazminInvitation = evento.slug === "boda-yazmin-y-cesar";
+
+  // La boda original conserva su diseño editorial y fotografías locales. Los
+  // demás eventos se construyen únicamente con su propia configuración para
+  // que nunca hereden nombres, imágenes o contenido de otra clienta.
+  const eventData: EventData = isCarlosYazminInvitation
+    ? {
+        ...carlosYYazmin,
+        ...storedInvitation,
+        seo: {
+          ...carlosYYazmin.seo,
+          ...storedInvitation.seo,
+          image: carlosYYazmin.seo?.image,
+        },
+        event: {
+          ...carlosYYazmin.event,
+          ...storedInvitation.event,
+          date: evento.fecha_evento.toISOString(),
+        },
+        media: carlosYYazmin.media,
+        location: {
+          ...carlosYYazmin.location,
+          ...storedInvitation.location,
+          reception: evento.lugar || carlosYYazmin.location.reception,
+        },
+      }
+    : {
+        tipo: storedInvitation.tipo || "boda",
+        plan: storedInvitation.plan || "elite",
+        seo: storedInvitation.seo,
+        event: {
+          name:
+            storedInvitation.event?.name ||
+            evento.anfitriones.replace(/\s+y\s+/i, " & "),
+          date: evento.fecha_evento.toISOString(),
+          startsAt: storedInvitation.event?.startsAt,
+          ceremonyHour: storedInvitation.event?.ceremonyHour,
+          partyHour: storedInvitation.event?.partyHour,
+          phrase:
+            storedInvitation.event?.phrase ||
+            "Con mucha ilusión queremos compartir contigo este día tan especial.",
+          dressCode: storedInvitation.event?.dressCode,
+          itinerary: storedInvitation.event?.itinerary || [],
+        },
+        media: { coverImage: "", gallery: [] },
+        location: {
+          event: storedInvitation.location?.event || "Ceremonia y recepción",
+          reception: evento.lugar,
+        },
+        contact: storedInvitation.contact,
+        family: storedInvitation.family,
+        design: storedInvitation.design || { variant: "romantic" },
+      };
 
   const invitadoData = {
     nombre: invitado.nombre,
@@ -111,14 +143,18 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     expirado,
   };
 
-  return (
-    <WeddingOliveVintage
-      data={eventData}
-      invitado={invitadoData}
-      evento={eventoData}
-      token={effectiveToken}
-      previewMode={isPreview}
-    />
+  const invitationProps = {
+    data: eventData,
+    invitado: invitadoData,
+    evento: eventoData,
+    token: effectiveToken,
+    previewMode: isPreview,
+  };
+
+  return isCarlosYazminInvitation ? (
+    <WeddingOliveVintage {...invitationProps} />
+  ) : (
+    <WeddingPersonalized {...invitationProps} />
   );
 }
 

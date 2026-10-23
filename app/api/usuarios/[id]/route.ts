@@ -20,6 +20,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+const invitationThemes = {
+  romantic: {
+    primary: "#743C53",
+    secondary: "#EBD8D9",
+    accent: "#C68972",
+    background: "#FAF3F1",
+  },
+  botanical: {
+    primary: "#405847",
+    secondary: "#DDE3D4",
+    accent: "#AA8255",
+    background: "#F3F2E9",
+  },
+  midnight: {
+    primary: "#24324A",
+    secondary: "#D9DEE8",
+    accent: "#B39255",
+    background: "#EEEFF2",
+  },
+} as const;
+
+type InvitationTheme = keyof typeof invitationThemes;
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -85,6 +108,13 @@ export async function PUT(
     const lugar = String(evento.lugar || "").trim();
     const fechaEvento = new Date(evento.fecha_evento);
     const fechaLimite = new Date(evento.fecha_limite_rsvp);
+    const requestedTheme = String(evento.tema || "romantic");
+    const theme: InvitationTheme =
+      requestedTheme in invitationThemes
+        ? (requestedTheme as InvitationTheme)
+        : "romantic";
+    const phrase = String(evento.frase || "").trim();
+    const dressCode = String(evento.vestimenta || "").trim();
     const capacidad =
       evento.capacidad_total === "" || evento.capacidad_total == null
         ? null
@@ -129,10 +159,18 @@ export async function PUT(
         ...storedEvent,
         name: anfitriones.replace(/\s+y\s+/i, " & "),
         date: fechaEvento.toISOString(),
+        phrase:
+          phrase ||
+          "Con mucha ilusión queremos compartir contigo este día tan especial.",
+        dressCode,
       },
       location: {
         ...storedLocation,
         reception: lugar,
+      },
+      design: {
+        variant: theme,
+        colors: invitationThemes[theme],
       },
     } as Prisma.InputJsonValue;
 

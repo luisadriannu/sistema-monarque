@@ -16,10 +16,36 @@ function normalizeSlug(value: unknown) {
     .replace(/^-+|-+$/g, "");
 }
 
+const invitationThemes = {
+  romantic: {
+    primary: "#743C53",
+    secondary: "#EBD8D9",
+    accent: "#C68972",
+    background: "#FAF3F1",
+  },
+  botanical: {
+    primary: "#405847",
+    secondary: "#DDE3D4",
+    accent: "#AA8255",
+    background: "#F3F2E9",
+  },
+  midnight: {
+    primary: "#24324A",
+    secondary: "#D9DEE8",
+    accent: "#B39255",
+    background: "#EEEFF2",
+  },
+} as const;
+
+type InvitationTheme = keyof typeof invitationThemes;
+
 function invitationConfig(data: {
   anfitriones: string;
   fechaEvento: Date;
   lugar: string;
+  theme: InvitationTheme;
+  phrase: string;
+  dressCode: string;
 }) {
   return {
     tipo: "boda",
@@ -38,8 +64,9 @@ function invitationConfig(data: {
         timeZone: "America/Mexico_City",
       }).format(data.fechaEvento),
       phrase:
+        data.phrase ||
         "Con mucha ilusión queremos compartir contigo este día tan especial.",
-      dressCode: "",
+      dressCode: data.dressCode,
       itinerary: [],
     },
     location: {
@@ -52,13 +79,8 @@ function invitationConfig(data: {
       brideParents: { father: "", mother: "" },
     },
     design: {
-      variant: "oliveVintage",
-      colors: {
-        primary: "#596146",
-        secondary: "#E8DDC7",
-        accent: "#B08D46",
-        background: "#F4EDDF",
-      },
+      variant: data.theme,
+      colors: invitationThemes[data.theme],
     },
   };
 }
@@ -95,6 +117,7 @@ export async function GET() {
           lugar: true,
           capacidad_total: true,
           fecha_limite_rsvp: true,
+          configuracion_invitacion: true,
           _count: { select: { invitados: true } },
         },
         orderBy: { creado_en: "desc" },
@@ -127,6 +150,13 @@ export async function POST(request: Request) {
     const lugar = String(evento.lugar || "").trim();
     const fechaEvento = new Date(evento.fecha_evento);
     const fechaLimite = new Date(evento.fecha_limite_rsvp);
+    const requestedTheme = String(evento.tema || "romantic");
+    const theme: InvitationTheme =
+      requestedTheme in invitationThemes
+        ? (requestedTheme as InvitationTheme)
+        : "romantic";
+    const phrase = String(evento.frase || "").trim();
+    const dressCode = String(evento.vestimenta || "").trim();
     const capacidad =
       evento.capacidad_total === "" || evento.capacidad_total == null
         ? null
@@ -189,6 +219,9 @@ export async function POST(request: Request) {
             anfitriones,
             fechaEvento,
             lugar,
+            theme,
+            phrase,
+            dressCode,
           }),
         },
         select: { id: true, nombre: true, slug: true },
