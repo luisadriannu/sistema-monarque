@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  AlertTriangle,
   CalendarDays,
   CheckCircle2,
   Edit3,
@@ -10,9 +11,11 @@ import {
   KeyRound,
   Mail,
   MapPin,
+  LoaderCircle,
   Palette,
   Plus,
   ShieldCheck,
+  Trash2,
   UserRound,
   Users,
   X,
@@ -106,6 +109,10 @@ export default function UsuariosAdminClient() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [clienteEliminar, setClienteEliminar] =
+    useState<UsuarioCliente | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const loadUsuarios = useCallback(async () => {
     try {
@@ -139,6 +146,15 @@ export default function UsuariosAdminClient() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [modalOpen, saving]);
 
+  useEffect(() => {
+    if (!clienteEliminar) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !deleting) setClienteEliminar(null);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [clienteEliminar, deleting]);
+
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -167,6 +183,11 @@ export default function UsuariosAdminClient() {
     });
     setError(null);
     setModalOpen(true);
+  };
+
+  const openDelete = (usuario: UsuarioCliente) => {
+    setDeleteError(null);
+    setClienteEliminar(usuario);
   };
 
   const updateField = (field: keyof FormState, value: string) => {
@@ -226,6 +247,40 @@ export default function UsuariosAdminClient() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!clienteEliminar || deleting) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/usuarios/${clienteEliminar.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo eliminar la cuenta.");
+      }
+
+      const nombreEliminado = clienteEliminar.nombre;
+      setUsuarios((current) =>
+        current.filter((usuario) => usuario.id !== clienteEliminar.id),
+      );
+      setClienteEliminar(null);
+      setSuccess(`La cuenta de ${nombreEliminado} fue eliminada correctamente.`);
+      window.setTimeout(() => setSuccess(null), 4500);
+    } catch (deleteRequestError) {
+      setDeleteError(
+        deleteRequestError instanceof Error
+          ? deleteRequestError.message
+          : "No se pudo eliminar la cuenta.",
+      );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -325,14 +380,25 @@ export default function UsuariosAdminClient() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(usuario)}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#eadbca] px-3 py-2 text-xs font-semibold text-stone-600 transition-colors hover:border-[#e05a1b] hover:text-[#e05a1b]"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    Editar
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(usuario)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#eadbca] px-3 py-2 text-xs font-semibold text-stone-600 transition-colors hover:border-[#e05a1b] hover:text-[#e05a1b]"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openDelete(usuario)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
+                      title={`Eliminar a ${usuario.nombre}`}
+                      aria-label={`Eliminar a ${usuario.nombre}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {evento ? (
@@ -660,6 +726,135 @@ export default function UsuariosAdminClient() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {clienteEliminar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => {
+              if (!deleting) setClienteEliminar(null);
+            }}
+            className="fixed inset-0 z-[110] flex min-h-[100dvh] items-center justify-center bg-stone-950/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-client-title"
+              aria-describedby="delete-client-description"
+              initial={{ opacity: 0, y: 18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(event) => event.stopPropagation()}
+              className="relative w-full max-w-md rounded-3xl border border-rose-100 bg-white p-6 shadow-2xl"
+            >
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setClienteEliminar(null)}
+                aria-label="Cerrar confirmación"
+                className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 disabled:opacity-40"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                <AlertTriangle className="h-7 w-7" />
+              </div>
+              <h2
+                id="delete-client-title"
+                className="mt-5 pr-8 font-serif text-2xl font-bold text-[#2b211b]"
+              >
+                ¿Eliminar a {clienteEliminar.nombre}?
+              </h2>
+              <p
+                id="delete-client-description"
+                className="mt-2 text-sm leading-relaxed text-stone-600"
+              >
+                Esta acción eliminará permanentemente su cuenta
+                {clienteEliminar.eventos[0]
+                  ? `, el evento “${clienteEliminar.eventos[0].nombre}”`
+                  : ""}{" "}
+                y sus registros asociados.
+              </p>
+
+              <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[.16em] text-rose-700">
+                  Datos que se eliminarán
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-rose-900">
+                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    1 cuenta
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    {clienteEliminar.eventos.length}{" "}
+                    {clienteEliminar.eventos.length === 1
+                      ? "evento"
+                      : "eventos"}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    {clienteEliminar.eventos.reduce(
+                      (total, evento) => total + evento._count.invitados,
+                      0,
+                    )}{" "}
+                    {clienteEliminar.eventos.reduce(
+                      (total, evento) => total + evento._count.invitados,
+                      0,
+                    ) === 1
+                      ? "invitado"
+                      : "invitados"}
+                  </span>
+                </div>
+              </div>
+
+              {deleteError && (
+                <div
+                  role="alert"
+                  className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700"
+                >
+                  {deleteError}
+                </div>
+              )}
+
+              <p className="mt-4 text-xs font-semibold text-stone-500">
+                Esta operación no se puede deshacer.
+              </p>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => setClienteEliminar(null)}
+                  className="rounded-xl px-4 py-2.5 text-xs font-semibold text-stone-600 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={handleDelete}
+                  className="inline-flex min-w-36 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-500/20 transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-400"
+                >
+                  {deleting ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Eliminando…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Sí, eliminar
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

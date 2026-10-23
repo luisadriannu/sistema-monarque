@@ -14,6 +14,7 @@ import {
   Eye,
   AlertTriangle,
   LoaderCircle,
+  Headset,
   UserCog,
   MessageCircle,
 } from "lucide-react";
@@ -251,7 +252,7 @@ export default function DashboardNav({
             <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
-                  <MessageCircle className="h-4 w-4" />
+                  <Headset className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <p className="font-serif text-sm font-bold leading-tight text-[#2b211b]">

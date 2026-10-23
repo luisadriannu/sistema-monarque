@@ -180,3 +180,50 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.rol !== "admin") {
+    return NextResponse.json(
+      { error: "Acceso exclusivo para administradores." },
+      { status: 403, headers: noStoreHeaders },
+    );
+  }
+
+  const { id } = await params;
+
+  try {
+    const cliente = await prisma.usuario.findUnique({
+      where: { id },
+      select: { id: true, nombre: true, rol: true },
+    });
+
+    if (!cliente || cliente.rol !== "clienta") {
+      return NextResponse.json(
+        { error: "La cuenta de la clienta no existe." },
+        { status: 404, headers: noStoreHeaders },
+      );
+    }
+
+    // Evento e invitados se eliminan mediante las relaciones onDelete: Cascade
+    // definidas en Prisma, manteniendo la operación atómica en PostgreSQL.
+    await prisma.usuario.delete({ where: { id: cliente.id } });
+
+    return NextResponse.json(
+      {
+        ok: true,
+        message: `La cuenta de ${cliente.nombre} y todos sus datos fueron eliminados.`,
+      },
+      { headers: noStoreHeaders },
+    );
+  } catch (error) {
+    console.error("Error al eliminar clienta", error);
+    return NextResponse.json(
+      { error: "No se pudo eliminar la cuenta de la clienta." },
+      { status: 500, headers: noStoreHeaders },
+    );
+  }
+}
