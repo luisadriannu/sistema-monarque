@@ -18,6 +18,7 @@ type Guest = {
   pases_asignados: number;
   pases_confirmados: number | null;
   pases_ingresados: number;
+  ultima_entrada_en: string | null;
   estado: string;
   evento: { nombre: string; anfitriones: string };
 };
@@ -77,7 +78,7 @@ export default function EntradaScanner() {
       }
       setCode(normalized);
       setGuest(d.invitado);
-      setAmount(1);
+      setAmount(Math.max(1, d.invitado.pases_confirmados ?? d.invitado.pases_asignados));
     } catch {
       setMessage("No se pudo consultar el pase. Revisa tu conexión e intenta nuevamente.");
     } finally {
@@ -113,7 +114,7 @@ export default function EntradaScanner() {
     }
   }
   async function confirm() {
-    if (!guest || busy) return;
+    if (!guest || busy || guest.pases_ingresados > 0 || guest.ultima_entrada_en) return;
     setBusy(true);
     setMessage("");
     try {
@@ -124,7 +125,10 @@ export default function EntradaScanner() {
     });
     const d = await r.json();
     setBusy(false);
-    if (!r.ok) return setMessage(d.error);
+    if (!r.ok) {
+      if (d.code === "ALREADY_SCANNED" && d.invitado) setGuest(d.invitado);
+      return setMessage(d.error);
+    }
     setGuest(d.invitado);
     setMessage(
       `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`,
@@ -137,7 +141,8 @@ export default function EntradaScanner() {
     }
   }
   const limit = guest ? (guest.pases_confirmados ?? guest.pases_asignados) : 0;
-  const remaining = guest ? Math.max(0, limit - guest.pases_ingresados) : 0;
+  const alreadyScanned = Boolean(guest && (guest.pases_ingresados > 0 || guest.ultima_entrada_en));
+  const remaining = guest && !alreadyScanned ? Math.max(0, limit - guest.pases_ingresados) : 0;
   return (
     <div className="space-y-6">
       <div>
@@ -199,10 +204,17 @@ export default function EntradaScanner() {
                 <Stat value={guest.pases_ingresados} label="Ingresaron" />
                 <Stat value={remaining} label="Disponibles" />
               </div>
-              {guest.estado === "declinado" ? (
+              {alreadyScanned ? (
+                <div role="status" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <p className="font-bold">Este código QR ya ha sido escaneado.</p>
+                  <p className="mt-2">La entrada ya está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. No se puede volver a utilizar.</p>
+                  {guest.ultima_entrada_en && <p className="mt-2 text-xs">Registrado el {new Date(guest.ultima_entrada_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}.</p>}
+                </div>
+              ) : guest.estado === "declinado" ? (
                 <p className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">Este invitado declinó la invitación.</p>
               ) : remaining > 0 ? (
                 <>
+                  <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Este QR se utiliza una sola vez. Selecciona todas las personas que ingresan antes de confirmar; no podrás agregar más ingresos con este código.</p>
                   <label className="mt-6 block text-xs font-bold uppercase tracking-wider">
                     Personas que ingresan ahora
                     <select

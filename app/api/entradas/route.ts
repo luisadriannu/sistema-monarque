@@ -4,6 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 
 const headers = { "Cache-Control": "no-store" };
 
+class EntradaYaRegistrada extends Error {
+  constructor(public invitado: unknown) { super("ALREADY_SCANNED"); }
+}
+
 async function authorizedOrganizer() {
   const user = await getCurrentUser();
   if (user?.rol !== "organizador" || !user.organizacion_id || !user.organizacion?.qr_checkin_habilitado) return null;
@@ -12,7 +16,7 @@ async function authorizedOrganizer() {
 
 const guestSelect = {
   id: true, nombre: true, grupo: true, pases_asignados: true, pases_confirmados: true,
-  pases_ingresados: true, estado: true, evento: { select: { id: true, nombre: true, anfitriones: true, usuario: { select: { organizacion_id: true } } } },
+  pases_ingresados: true, ultima_entrada_en: true, estado: true, evento: { select: { id: true, nombre: true, anfitriones: true, usuario: { select: { organizacion_id: true } } } },
 } as const;
 
 export async function GET(request: Request) {
@@ -57,15 +61,19 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async tx => {
       const invitado = await tx.invitado.findUnique({ where: { codigo_entrada: code }, select: guestSelect });
       if (!invitado || invitado.evento.usuario.organizacion_id !== user.organizacion_id) throw new Error("INVALID_CODE");
+      if (invitado.pases_ingresados > 0 || invitado.ultima_entrada_en) throw new EntradaYaRegistrada(invitado);
       const limite = invitado.pases_confirmados ?? invitado.pases_asignados;
       if (invitado.estado === "declinado") throw new Error("DECLINED");
       if (invitado.pases_ingresados + cantidad > limite) throw new Error("CAPACITY");
-      const updated = await tx.invitado.update({ where: { id: invitado.id }, data: { pases_ingresados: { increment: cantidad }, ultima_entrada_en: new Date() }, select: { pases_ingresados: true } });
+      const updated = await tx.invitado.update({ where: { id: invitado.id }, data: { pases_ingresados: { increment: cantidad }, ultima_entrada_en: new Date() }, select: { pases_ingresados: true, ultima_entrada_en: true } });
       await tx.registroEntrada.create({ data: { invitado_id: invitado.id, evento_id: invitado.evento.id, escaneado_por_id: user.id, cantidad } });
-      return { ...invitado, pases_ingresados: updated.pases_ingresados };
+      return { ...invitado, ...updated };
     }, { isolationLevel: "Serializable" });
     return NextResponse.json({ ok: true, invitado: result }, { headers });
   } catch (error) {
+    if (error instanceof EntradaYaRegistrada) {
+      return NextResponse.json({ error: "Este código QR ya ha sido escaneado. La entrada ya está registrada.", code: "ALREADY_SCANNED", invitado: error.invitado }, { status: 409, headers });
+    }
     const message = error instanceof Error ? error.message : "";
     if (typeof error === "object" && error && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "El pase se está registrando en otro dispositivo. Escanéalo nuevamente." }, { status: 409, headers });

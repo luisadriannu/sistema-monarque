@@ -8,7 +8,7 @@ const ts = require("typescript");
 
 function loadSource(file, mocks, globals = {}) {
   const source = ts.transpileModule(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
+    compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   const exports = {};
   vm.runInNewContext(source, {
@@ -121,7 +121,7 @@ test("Solo el administrador puede modificar premium y el valor debe ser booleano
   assert.equal(f.organization.qr_checkin_habilitado, true);
 });
 
-test("Escaneo, confirmación parcial y tabla de asistentes usan el mismo invitado", async () => {
+test("El primer registro consume el QR incluso si quedan pases disponibles", async () => {
   const f = fixture();
   const route = loadSource("app/api/entradas/route.ts", f.mocks);
   const lookup = await route.GET(new Request("http://localhost/api/entradas?codigo=monarque:entrada:code-a"));
@@ -130,14 +130,18 @@ test("Escaneo, confirmación parcial y tabla de asistentes usan el mismo invitad
   assert.equal(entry.status, 200);
   assert.equal(f.logs[0].escaneado_por_id, "organizer");
   const second = await route.POST(request({ codigo: "code-a", cantidad: 1 }));
-  assert.equal(second.status, 200);
+  assert.equal(second.status, 409);
+  const duplicate = await second.json();
+  assert.equal(duplicate.code, "ALREADY_SCANNED");
+  assert.equal(duplicate.invitado.pases_ingresados, 1);
+  assert.ok(duplicate.invitado.ultima_entrada_en);
   const table = await route.GET(new Request("http://localhost/api/entradas?page=1"));
   const data = await table.json();
   assert.equal(data.asistentes.length, 1);
-  assert.equal(data.asistentes[0].pases_ingresados, 2);
+  assert.equal(data.asistentes[0].pases_ingresados, 1);
   assert.equal(data.pagination.total, 1);
   assert.equal((await route.POST(request({ codigo: "code-a", cantidad: 1 }))).status, 409);
-  assert.equal(f.logs.length, 2);
+  assert.equal(f.logs.length, 1);
 });
 
 test("Sin premium, otro organizador y una clienta no pueden usar el lector", async () => {
@@ -196,5 +200,20 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
     f.organization.qr_checkin_habilitado = true;
     f.setUser({ rol: "admin" });
     assert.equal((await render({ preview: "1" })).props.children.props.qrImage, null);
+  }
+});
+
+ test("Los QR usados anteriormente se rechazan por contador o fecha de ingreso", async () => {
+  for (const marker of ["parcial", "completo", "fecha"]) {
+    const f = fixture();
+    f.guest.pases_ingresados = marker === "completo" ? 2 : marker === "parcial" ? 1 : 0;
+    f.guest.ultima_entrada_en = marker === "fecha" ? new Date("2026-10-23T20:00:00Z") : null;
+    const route = loadSource("app/api/entradas/route.ts", f.mocks);
+    const lookup = await route.GET(new Request("http://localhost/api/entradas?codigo=code-a"));
+    assert.equal(lookup.status, 200);
+    const response = await route.POST(request({ codigo: "code-a", cantidad: 1 }));
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, "ALREADY_SCANNED");
+    assert.equal(f.logs.length, 0);
   }
 });
