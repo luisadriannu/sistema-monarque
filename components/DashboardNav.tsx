@@ -49,6 +49,34 @@ export default function DashboardNav({
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [qrEnabled, setQrEnabled] = useState(qrCheckinEnabled);
+
+  useEffect(() => setQrEnabled(qrCheckinEnabled), [qrCheckinEnabled]);
+  useEffect(() => {
+    if (user.rol !== "organizador") return;
+    let active = true;
+    const refreshPermission = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (active) setQrEnabled(Boolean(data.user?.organizacion?.qr_checkin_habilitado));
+      } catch {
+        // Conserva el último permiso conocido durante una interrupción de red.
+      }
+    };
+    void refreshPermission();
+    const interval = window.setInterval(refreshPermission, 30000);
+    window.addEventListener("focus", refreshPermission);
+    document.addEventListener("visibilitychange", refreshPermission);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshPermission);
+      document.removeEventListener("visibilitychange", refreshPermission);
+    };
+  }, [user.rol, pathname]);
 
   // Las clientas solo ven las herramientas de su evento. La administración
   // de cuentas se muestra exclusivamente a usuarios con rol admin.
@@ -64,7 +92,7 @@ export default function DashboardNav({
       : user.rol === "organizador"
         ? [
             { label: "Clientes", href: "/dashboard/usuarios", icon: UserCog },
-            ...(qrCheckinEnabled ? [{ label: "Escanear entrada", href: "/dashboard/escanear", icon: ScanLine }] : []),
+            ...(qrEnabled ? [{ label: "Escanear invitación", href: "/dashboard/escanear", icon: ScanLine }] : []),
           ]
       : [
           {

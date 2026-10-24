@@ -24,18 +24,31 @@ export async function GET(request: Request) {
     if (!invitado || invitado.evento.usuario.organizacion_id !== user.organizacion_id) return NextResponse.json({ error: "Código no válido para tu organización." }, { status: 404, headers });
     return NextResponse.json({ invitado }, { headers });
   }
+  const searchParams = new URL(request.url).searchParams;
+  const requestedPage = Math.max(1, Math.floor(Number(searchParams.get("page")) || 1));
+  const attendanceWhere = { pases_ingresados: { gt: 0 }, evento: { usuario: { organizacion_id: user.organizacion_id } } };
+  const total = await prisma.invitado.count({ where: attendanceWhere });
+  const totalPages = Math.max(1, Math.ceil(total / 25));
+  const page = Math.min(requestedPage, totalPages);
+  const asistentes = await prisma.invitado.findMany({
+    where: attendanceWhere,
+    select: { ...guestSelect, ultima_entrada_en: true },
+    orderBy: [{ ultima_entrada_en: "desc" }, { id: "asc" }],
+    skip: (page - 1) * 25, take: 25,
+  });
   const registros = await prisma.registroEntrada.findMany({
     where: { evento: { usuario: { organizacion_id: user.organizacion_id } } },
     include: { invitado: { select: { nombre: true, grupo: true } }, evento: { select: { nombre: true } } },
     orderBy: { creado_en: "desc" }, take: 100,
   });
-  return NextResponse.json({ registros }, { headers });
+  return NextResponse.json({ registros, asistentes, pagination: { page, total, total_pages: totalPages } }, { headers });
 }
 
 export async function POST(request: Request) {
   const user = await authorizedOrganizer();
   if (!user) return NextResponse.json({ error: "El acceso QR no está habilitado." }, { status: 403, headers });
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body.codigo !== "string" || !body.codigo.trim()) return NextResponse.json({ error: "Indica un código válido." }, { status: 400, headers });
   const code = String(body.codigo || "").replace(/^monarque:entrada:/, "").trim();
   const cantidad = Number(body.cantidad);
   if (!Number.isInteger(cantidad) || cantidad < 1) return NextResponse.json({ error: "Indica una cantidad válida." }, { status: 400, headers });
@@ -57,7 +70,7 @@ export async function POST(request: Request) {
     if (typeof error === "object" && error && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "El pase se está registrando en otro dispositivo. Escanéalo nuevamente." }, { status: 409, headers });
     }
-    const response = message === "CAPACITY" ? ["Ese QR ya alcanzó el total de accesos permitidos.", 409] : message === "DECLINED" ? ["Este invitado declinó la invitación.", 409] : ["El código no es válido para tu organización.", 404];
+    const response = message === "CAPACITY" ? ["Ese QR ya alcanzó el total de accesos permitidos.", 409] : message === "DECLINED" ? ["Este invitado declinó la invitación.", 409] : message === "INVALID_CODE" ? ["El código no es válido para tu organización.", 404] : ["No se pudo registrar la entrada. Intenta nuevamente.", 500];
     return NextResponse.json({ error: response[0] }, { status: Number(response[1]), headers });
   }
 }

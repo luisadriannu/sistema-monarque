@@ -117,3 +117,16 @@ Puedes ingresar directamente con uno de los tokens generados, por ejemplo:
    - `DATABASE_URL`: URL de conexión a tu base de datos PostgreSQL de Supabase.
    - `JWT_SECRET`: Clave aleatoria de 32+ caracteres.
    - `NEXT_PUBLIC_APP_URL`: Tu dominio en producción.
+
+## Control de acceso QR prémium
+
+- El administrador activa **Control de acceso QR** para la organización. El organizador ve **Escanear invitación** al volver a su panel o en un máximo de 30 segundos mientras lo mantiene abierto.
+- Las clientas deben pertenecer a esa organización. Sus invitados reciben automáticamente un pase único al abrir su enlace personalizado (`/[slug]?id=TOKEN`), también si fueron creados antes de activar prémium. No es necesario volver a crear invitados ni enlaces.
+- Después de abrir la portada, **Ver mi pase QR** lleva al código. El pase actualiza la cantidad al confirmar RSVP; una invitación declinada no muestra pase. La vista previa de la clienta no genera un QR de acceso real.
+- El organizador abre la cámara, escanea el QR y pulsa **Confirmar entrada** con la cantidad de personas que ingresan. Consultar el código no registra asistencia por sí solo. Se impide exceder los pases permitidos y usar códigos de otra organización.
+- La tabla **Asistencia registrada** muestra una fila por invitado, su evento, grupo, pases ingresados y último ingreso. Tiene paginación para consultar toda la asistencia; debajo está el historial de los 100 ingresos más recientes.
+- La cámara requiere HTTPS en el dominio publicado (o localhost para desarrollo) y permiso del navegador.
+
+Antes de desplegar, verifica que la base PostgreSQL tenga el esquema actual de `prisma/schema.prisma`, en particular `Organizacion.qr_checkin_habilitado`, `Invitado.codigo_entrada`, `Invitado.pases_ingresados`, `Invitado.ultima_entrada_en` y la tabla `RegistroEntrada`. Actualizar solo el código o generar Prisma Client no actualiza las tablas. En una base con datos existentes, prepara una migración que asigne códigos únicos a los invitados anteriores antes de exigir el campo obligatorio; respalda la base antes de aplicar cambios.
+
+Validación automatizada sin conexión a base de datos: `npm run test:qr`. Ejecuta los handlers y la página de invitación con persistencia simulada; no sustituye la prueba de cámara y base PostgreSQL en el despliegue.

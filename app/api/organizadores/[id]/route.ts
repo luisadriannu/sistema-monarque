@@ -5,6 +5,31 @@ import { getCurrentUser } from "@/lib/auth";
 
 const headers = { "Cache-Control": "no-store" };
 
+// Cambiar el servicio prémium no debe depender de reenviar los datos de la
+// cuenta (ni sobrescribirlos con una copia antigua del formulario).
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await getCurrentUser();
+  if (admin?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });
+  const { id } = await params;
+  const body = await request.json().catch(() => null);
+  if (typeof body?.qr_checkin_habilitado !== "boolean") {
+    return NextResponse.json({ error: "Indica si el acceso QR está habilitado." }, { status: 400, headers });
+  }
+  try {
+    const exists = await prisma.organizacion.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) return NextResponse.json({ error: "Organizador no encontrado." }, { status: 404, headers });
+    const organizacion = await prisma.organizacion.update({
+      where: { id },
+      data: { qr_checkin_habilitado: body.qr_checkin_habilitado },
+      select: { id: true, qr_checkin_habilitado: true },
+    });
+    return NextResponse.json({ ok: true, organizacion }, { headers });
+  } catch (error) {
+    console.error("Error al actualizar acceso QR", error);
+    return NextResponse.json({ error: "No se pudo actualizar el acceso QR." }, { status: 500, headers });
+  }
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await getCurrentUser();
   if (admin?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });

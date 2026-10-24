@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Building2, Crown, LoaderCircle, Plus, QrCode, Trash2, X } from "lucide-react";
+import usePanelDialog from "@/components/usePanelDialog";
 
 type Organizer = {
   id: string;
@@ -14,12 +15,15 @@ type Organizer = {
 const emptyForm = { nombre: "", negocio: "", email: "", password: "", qr_checkin_habilitado: false };
 
 export default function OrganizadoresAdminClient() {
+  const { confirmDialog, dialog } = usePanelDialog();
+  const [deleting, setDeleting] = useState(false);
   const [items, setItems] = useState<Organizer[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState("");
+  const [updatingQr, setUpdatingQr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,18 +45,44 @@ export default function OrganizadoresAdminClient() {
   }
 
   async function toggleQr(item: Organizer) {
-    const owner = item.usuarios[0]; if (!owner) return;
-    const response = await fetch(`/api/organizadores/${item.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: owner.nombre, negocio: item.nombre, email: owner.email, qr_checkin_habilitado: !item.qr_checkin_habilitado }) });
-    if (response.ok) { setMessage(!item.qr_checkin_habilitado ? "Acceso QR activado." : "Acceso QR desactivado."); void load(); }
+    if (updatingQr) return;
+    setUpdatingQr(item.id);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/organizadores/${item.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qr_checkin_habilitado: !item.qr_checkin_habilitado }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo actualizar el acceso QR.");
+      setItems(current => current.map(value => value.id === item.id ? { ...value, qr_checkin_habilitado: data.organizacion.qr_checkin_habilitado } : value));
+      setMessage(data.organizacion.qr_checkin_habilitado ? "Acceso QR activado. El organizador lo verá al volver a su panel." : "Acceso QR desactivado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo actualizar el acceso QR.");
+    } finally {
+      setUpdatingQr(null);
+    }
   }
 
   async function remove(item: Organizer) {
-    if (!window.confirm(`¿Eliminar ${item.nombre}? También se eliminarán sus clientes, eventos e invitados.`)) return;
-    const response = await fetch(`/api/organizadores/${item.id}`, { method: "DELETE" });
-    const data = await response.json(); setMessage(data.message || data.error); if (response.ok) void load();
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      if (!(await confirmDialog(`¿Eliminar ${item.nombre}? También se eliminarán sus clientes, eventos e invitados. Esta acción no se puede deshacer.`))) return;
+      const response = await fetch(`/api/organizadores/${item.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo eliminar el organizador.");
+      setMessage(data.message || "Organizador eliminado.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo eliminar el organizador.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return <div className="space-y-6">
+    {dialog}
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-xs font-bold uppercase tracking-[.22em] text-[#e05a1b]">Red Monarque</p><h1 className="mt-2 font-serif text-4xl font-bold">Organizadores</h1><p className="mt-2 text-sm text-stone-500">Crea empresas organizadoras y controla el acceso prémium al registro con QR.</p></div>
       <button onClick={() => setOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2b211b] px-5 py-3 text-sm font-semibold text-white"><Plus className="h-4 w-4"/>Nuevo organizador</button>
@@ -60,7 +90,7 @@ export default function OrganizadoresAdminClient() {
     {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
     {loading ? <div className="flex justify-center py-20"><LoaderCircle className="h-8 w-8 animate-spin text-[#e05a1b]"/></div> :
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map(item => { const owner = item.usuarios[0]; return <article key={item.id} className="rounded-3xl border border-[#ebd9c4] bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#e05a1b]"><Building2/></div><button onClick={() => remove(item)} className="rounded-lg p-2 text-stone-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4"/></button></div>
+        <div className="flex items-start justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#e05a1b]"><Building2/></div><button disabled={deleting} aria-label={`Eliminar ${item.nombre}`} onClick={() => remove(item)} className="rounded-lg p-2 text-stone-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4"/></button></div>
         <h2 className="mt-4 font-serif text-xl font-bold">{item.nombre}</h2><p className="mt-1 text-sm text-stone-600">{owner?.nombre}</p><p className="text-xs text-stone-400">{owner?.email}</p>
         <button onClick={() => toggleQr(item)} className={`mt-5 flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${item.qr_checkin_habilitado ? "border-amber-300 bg-amber-50" : "border-stone-200 bg-stone-50"}`}><span className="flex items-center gap-2 text-sm font-semibold"><QrCode className="h-4 w-4"/>Control de acceso QR</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${item.qr_checkin_habilitado ? "bg-amber-500 text-white" : "bg-stone-200 text-stone-600"}`}>{item.qr_checkin_habilitado ? "PRÉMIUM" : "INACTIVO"}</span></button>
       </article>})}</div>}

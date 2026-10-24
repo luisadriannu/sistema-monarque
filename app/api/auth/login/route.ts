@@ -5,12 +5,22 @@ import { createSessionToken, setSessionCookie } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json().catch(() => null);
+    const email = body?.email;
+    const password = body?.password;
 
-    if (!email || !password) {
+    if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
       return NextResponse.json(
         { error: "Por favor ingresa tu correo y contraseña." },
         { status: 400 }
+      );
+    }
+
+    if (!process.env.DATABASE_URL?.trim()) {
+      console.error("Error en login: falta configurar DATABASE_URL.");
+      return NextResponse.json(
+        { error: "El inicio de sesión no está disponible porque falta configurar la conexión a la base de datos (DATABASE_URL)." },
+        { status: 503 }
       );
     }
 

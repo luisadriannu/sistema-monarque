@@ -23,6 +23,7 @@ import { Cormorant_Garamond, Libre_Baskerville } from "next/font/google";
 import CountDown from "@/app/components/CountDown";
 import type { EventData } from "@/app/types/EventData";
 import { formatDateLongMx, formatDateMx } from "@/lib/utils";
+import InvitationQrPass from "@/components/InvitationQrPass";
 
 const display = Cormorant_Garamond({
   subsets: ["latin"],
@@ -333,6 +334,7 @@ interface Props {
   evento: EventoData;
   token: string;
   previewMode?: boolean;
+  qrImage?: string | null;
 }
 
 export default function WeddingOliveVintage({
@@ -341,6 +343,7 @@ export default function WeddingOliveVintage({
   evento,
   token,
   previewMode = false,
+  qrImage,
 }: Props) {
   const reduceMotion = useReducedMotion();
   const nameParts = data.event.name.split(" & ");
@@ -477,7 +480,10 @@ export default function WeddingOliveVintage({
           className={`${display.variable} ${utility.variable} overflow-hidden bg-[#E9DEC8] text-[#454938] [background-image:radial-gradient(circle_at_15%_20%,rgba(111,83,39,.09),transparent_28%),radial-gradient(circle_at_85%_70%,rgba(111,83,39,.08),transparent_30%)]`}
           style={{ fontFamily: "var(--font-cy-display)" }}
         >
-          {/* Hero */}
+          {qrImage && !previewMode && invitado.estado !== "declinado" && (
+  <a href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
+)}
+{/* Hero */}
           <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-4 py-6 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)] sm:px-6 sm:py-12">
             <VintageParticles reduceMotion={reduceMotion} />
             <div className="absolute inset-3 border border-[#C9AB68]/45" />
@@ -1473,7 +1479,10 @@ export default function WeddingOliveVintage({
             </motion.div>
           </section>
 
-          {/* Footer */}
+          {qrImage && !previewMode && invitado.estado !== "declinado" && (
+  <InvitationQrPass image={qrImage} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
+)}
+{/* Footer */}
           <footer className="relative overflow-hidden border-t-4 border-double border-[#9A7837]/35 bg-[#CDBD9C] px-6 py-16 text-center">
             <FloralSpray className="-bottom-28 -left-20 h-80 w-52 -rotate-12 opacity-30" />
             <FloralSpray className="-bottom-28 -right-20 h-80 w-52 scale-x-[-1] rotate-12 opacity-30" />

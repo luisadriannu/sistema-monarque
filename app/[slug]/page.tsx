@@ -7,7 +7,7 @@ import carlosYYazmin from "@/app/data/carlosYYazmin";
 import type { EventData } from "@/app/types/EventData";
 import { getCurrentUser } from "@/lib/auth";
 import QRCode from "qrcode";
-import InvitationQrPass from "@/components/InvitationQrPass";
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -158,7 +158,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   };
 
   const qrEnabled = Boolean(evento.usuario.organizacion?.qr_checkin_habilitado);
-  const qrImage = qrEnabled
+  const qrImage = qrEnabled && !isPreview
     ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, {
         width: 480,
         margin: 1,
@@ -167,10 +167,10 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     : null;
 
   return <>{isCarlosYazminInvitation ? (
-      <WeddingOliveVintage {...invitationProps} />
+      <WeddingOliveVintage {...invitationProps} qrImage={qrImage} />
     ) : (
-      <WeddingPersonalized {...invitationProps} />
-    )}{qrImage && !isPreview && <InvitationQrPass image={qrImage} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />}</>;
+      <WeddingPersonalized {...invitationProps} qrImage={qrImage} />
+     )}</>;
 }
 
 function InvitacionNoDisponible() {

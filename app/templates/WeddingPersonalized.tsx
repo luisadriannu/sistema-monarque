@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { EventData } from "@/app/types/EventData";
 import { formatDateLongMx, formatDateMx } from "@/lib/utils";
+import InvitationQrPass from "@/components/InvitationQrPass";
 import { genericInvitationTheme } from "@/lib/event-theme";
 
 interface InvitadoData {
@@ -41,6 +42,7 @@ interface Props {
   evento: EventoData;
   token: string;
   previewMode?: boolean;
+  qrImage?: string | null;
 }
 
 const genericTheme = {
@@ -91,6 +93,7 @@ export default function WeddingPersonalized({
   evento,
   token,
   previewMode = false,
+  qrImage,
 }: Props) {
   const reduceMotion = useReducedMotion();
   const theme = genericTheme;
@@ -181,6 +184,10 @@ export default function WeddingPersonalized({
 
   return (
     <div style={style} className="min-h-screen bg-[var(--background)] text-[var(--ink)]">
+{opened && qrImage && !previewMode && invitado.estado !== "declinado" && (
+  <a href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
+)}
+
       <AnimatePresence mode="wait">
         {!opened ? (
           <motion.main
@@ -363,7 +370,10 @@ export default function WeddingPersonalized({
               </motion.div>
             </section>
 
-            <footer className="bg-[var(--background)] px-5 py-12 text-center">
+            {qrImage && !previewMode && invitado.estado !== "declinado" && (
+  <InvitationQrPass image={qrImage} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
+)}
+<footer className="bg-[var(--background)] px-5 py-12 text-center">
               <p className="font-serif text-3xl text-[var(--primary)]">
                 {hasPair ? (
                   <>

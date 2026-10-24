@@ -36,6 +36,8 @@ import autoTable from "jspdf-autotable";
 import { formatDateTimeMx, formatDateMx, formatDateLongMx } from "@/lib/utils";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
+import usePanelDialog from "@/components/usePanelDialog";
+
 interface Invitado {
   id: string;
   nombre: string;
@@ -71,6 +73,7 @@ type Toast = {
 };
 
 function InvitadosContent() {
+  const { confirmDialog, notify, dialog } = usePanelDialog();
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
   const estadoParam = searchParams.get("estado");
@@ -335,9 +338,9 @@ function InvitadosContent() {
   // Regenerar link
   const handleRegenerarLink = async (invitado: Invitado) => {
     if (
-      !confirm(
+      !(await confirmDialog(
         `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`,
-      )
+      ))
     ) {
       return;
     }
@@ -350,7 +353,7 @@ function InvitadosContent() {
       });
       if (res.ok) {
         await fetchInvitados();
-        alert(
+        notify(
           "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.",
         );
       }
@@ -444,7 +447,7 @@ function InvitadosContent() {
       modalEditar.pases_confirmados !== null &&
       formPasesNumero < modalEditar.pases_confirmados
     ) {
-      const confirmar = confirm(
+      const confirmar = await confirmDialog(
         `Atención: El invitado ya tiene ${modalEditar.pases_confirmados} pases confirmados. Al reducir los pases a ${formPasesNumero}, su confirmación y desglose de niños se ajustarán automáticamente al nuevo límite. ¿Deseas continuar?`,
       );
       if (!confirmar) {
@@ -682,7 +685,7 @@ function InvitadosContent() {
         setResumenImportacion(null);
         setPage(1);
         await fetchInvitados(1);
-        alert(`¡Se importaron ${validas.length} invitados correctamente!`);
+        notify(`¡Se importaron ${validas.length} invitados correctamente!`);
       }
     } catch (e) {
       console.error("Error al importar", e);
@@ -726,7 +729,7 @@ function InvitadosContent() {
       return;
     }
     if (confirmados.length === 0) {
-      alert("Aún no tienes invitados confirmados para exportar.");
+      notify("Aún no tienes invitados confirmados para exportar.");
       return;
     }
 
@@ -794,7 +797,7 @@ function InvitadosContent() {
       return;
     }
     if (confirmados.length === 0) {
-      alert("Aún no tienes invitados confirmados para exportar.");
+      notify("Aún no tienes invitados confirmados para exportar.");
       return;
     }
 
@@ -1025,6 +1028,7 @@ function InvitadosContent() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div
         className="pointer-events-none fixed inset-x-4 top-4 z-[100] flex justify-center sm:inset-x-auto sm:right-6 sm:justify-end"
         aria-live="polite"

@@ -32,6 +32,7 @@ type Log = {
 export default function EntradaScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controls = useRef<IScannerControls | null>(null);
+  const processingScan = useRef(false);
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [guest, setGuest] = useState<Guest | null>(null);
@@ -39,48 +40,71 @@ export default function EntradaScanner() {
   const [amount, setAmount] = useState(1);
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<Log[]>([]);
+  const [attendees, setAttendees] = useState<(Guest & { ultima_entrada_en: string })[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+  const [logsError, setLogsError] = useState("");
   const loadLogs = useCallback(async () => {
-    const r = await fetch("/api/entradas", { cache: "no-store" });
-    const d = await r.json();
-    setLogs(d.registros || []);
-  }, []);
+    try {
+      const r = await fetch(`/api/entradas?page=${page}`, { cache: "no-store" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "No se pudo cargar la asistencia.");
+      setLogs(d.registros || []);
+      setAttendees(d.asistentes || []);
+      setPagination(d.pagination);
+      setLogsError("");
+    } catch (error) {
+      setLogsError(error instanceof Error ? error.message : "No se pudo cargar la asistencia.");
+    }
+  }, [page]);
   useEffect(() => {
     void loadLogs();
-    return () => controls.current?.stop();
   }, [loadLogs]);
+  useEffect(() => () => controls.current?.stop(), []);
   async function lookup(raw: string) {
     controls.current?.stop();
     setScanning(false);
     setBusy(true);
     setMessage("");
-    const normalized = raw.replace(/^monarque:entrada:/, "");
-    const r = await fetch(
-      `/api/entradas?codigo=${encodeURIComponent(normalized)}`,
-    );
-    const d = await r.json();
-    setBusy(false);
-    if (!r.ok) {
-      setGuest(null);
-      setMessage(d.error || "Código inválido.");
-      return;
+    setGuest(null);
+    const normalized = raw.replace(/^monarque:entrada:/, "").trim();
+    try {
+      const r = await fetch(`/api/entradas?codigo=${encodeURIComponent(normalized)}`);
+      const d = await r.json();
+      if (!r.ok) {
+        setMessage(d.error || "Código inválido.");
+        return;
+      }
+      setCode(normalized);
+      setGuest(d.invitado);
+      setAmount(1);
+    } catch {
+      setMessage("No se pudo consultar el pase. Revisa tu conexión e intenta nuevamente.");
+    } finally {
+      setBusy(false);
+      processingScan.current = false;
     }
-    setCode(normalized);
-    setGuest(d.invitado);
-    setAmount(1);
   }
   async function start() {
     setGuest(null);
     setMessage("");
     setScanning(true);
+    processingScan.current = false;
     const reader = new BrowserQRCodeReader();
     try {
-      controls.current = await reader.decodeFromVideoDevice(
-        undefined,
+      const scannerControls = await reader.decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" } }, audio: false },
         videoRef.current!,
-        (result) => {
-          if (result) void lookup(result.getText());
+        (result, _error, scanner) => {
+          if (result && !processingScan.current) {
+            processingScan.current = true;
+            scanner.stop();
+            void lookup(result.getText());
+          }
         },
       );
+      controls.current = scannerControls;
+      if (processingScan.current) scannerControls.stop();
     } catch {
       setScanning(false);
       setMessage(
@@ -89,8 +113,10 @@ export default function EntradaScanner() {
     }
   }
   async function confirm() {
-    if (!guest) return;
+    if (!guest || busy) return;
     setBusy(true);
+    setMessage("");
+    try {
     const r = await fetch("/api/entradas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -104,6 +130,11 @@ export default function EntradaScanner() {
       `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`,
     );
     void loadLogs();
+    } catch {
+      setMessage("No se pudo confirmar la entrada. Consulta el pase antes de reintentar.");
+    } finally {
+      setBusy(false);
+    }
   }
   const limit = guest ? (guest.pases_confirmados ?? guest.pases_asignados) : 0;
   const remaining = guest ? Math.max(0, limit - guest.pases_ingresados) : 0;
@@ -113,7 +144,7 @@ export default function EntradaScanner() {
         <p className="text-xs font-bold uppercase tracking-[.22em] text-[#e05a1b]">
           Acceso prémium
         </p>
-        <h1 className="mt-2 font-serif text-4xl font-bold">Escanear entrada</h1>
+        <h1 className="mt-2 font-serif text-4xl font-bold">Escanear invitación</h1>
         <p className="mt-2 text-sm text-stone-500">
           Valida el pase desde la invitación y registra cuántas personas
           ingresan.
@@ -168,7 +199,9 @@ export default function EntradaScanner() {
                 <Stat value={guest.pases_ingresados} label="Ingresaron" />
                 <Stat value={remaining} label="Disponibles" />
               </div>
-              {remaining > 0 ? (
+              {guest.estado === "declinado" ? (
+                <p className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">Este invitado declinó la invitación.</p>
+              ) : remaining > 0 ? (
                 <>
                   <label className="mt-6 block text-xs font-bold uppercase tracking-wider">
                     Personas que ingresan ahora
@@ -218,6 +251,29 @@ export default function EntradaScanner() {
           )}
         </section>
       </div>
+      <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-serif text-2xl font-bold">Asistencia registrada ({pagination.total})</h2>
+          <button onClick={() => void loadLogs()} aria-label="Actualizar asistencia"><RefreshCw className="h-4 w-4" /></button>
+        </div>
+        {logsError && <p role="alert" className="mt-3 text-sm text-rose-700">{logsError}</p>}
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-stone-50 text-xs text-stone-500"><tr>
+              <th className="p-3">Invitado</th><th className="p-3">Evento</th><th className="p-3">Grupo</th><th className="p-3">Ingresaron</th><th className="p-3">Permitidos</th><th className="p-3">Último ingreso</th>
+            </tr></thead>
+            <tbody className="divide-y">{attendees.map(attendee => <tr key={attendee.id}>
+              <td className="p-3 font-semibold">{attendee.nombre}</td><td className="p-3">{attendee.evento.nombre}</td><td className="p-3">{attendee.grupo || "—"}</td><td className="p-3">{attendee.pases_ingresados}</td><td className="p-3">{attendee.pases_confirmados ?? attendee.pases_asignados}</td><td className="whitespace-nowrap p-3">{new Date(attendee.ultima_entrada_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}</td>
+            </tr>)}</tbody>
+          </table>
+          {!attendees.length && !logsError && <p className="py-8 text-center text-sm text-stone-400">Aún no hay asistentes registrados. Escanea y confirma una entrada para registrarla.</p>}
+        </div>
+        <div className="mt-4 flex items-center justify-end gap-4 text-sm">
+          <button disabled={page <= 1} onClick={() => setPage(value => value - 1)} className="disabled:opacity-40">Anterior</button>
+          <span>Página {page} de {pagination.total_pages}</span>
+          <button disabled={page >= pagination.total_pages} onClick={() => setPage(value => value + 1)} className="disabled:opacity-40">Siguiente</button>
+        </div>
+      </section>
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl font-bold">Ingresos recientes</h2>
