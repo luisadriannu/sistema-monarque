@@ -29,6 +29,7 @@ function eventScope(user: { id: string; rol: string; organizacion_id: string | n
 const guestSelect = {
   id: true, nombre: true, grupo: true, codigo_entrada: true, pases_asignados: true, pases_confirmados: true,
   pases_ingresados: true, ultima_entrada_en: true, estado: true, evento: { select: { id: true, nombre: true, anfitriones: true, modo_ingreso: true, usuario: { select: { organizacion_id: true } } } },
+  escaneado_en: true,
 } as const;
 
 export async function GET(request: Request) {
@@ -150,14 +151,21 @@ export async function POST(request: Request) {
       if (invitado.estado === "declinado") throw new Error("DECLINED");
       if (invitado.estado !== "confirmado" || limite < 1) throw new Error("NOT_CONFIRMED");
       const fullyUsed = invitado.pases_ingresados >= limite;
-      if (fullyUsed || (eventoActivo.modo_ingreso === "unico" && (invitado.pases_ingresados > 0 || invitado.ultima_entrada_en))) throw new EntradaYaRegistrada(invitado);
+      if (fullyUsed || (eventoActivo.modo_ingreso === "unico" && invitado.escaneado_en)) throw new EntradaYaRegistrada(invitado);
       if (invitado.pases_ingresados + cantidad > limite) throw new Error("CAPACITY");
       const scannedAt = new Date();
-      const updated = await tx.invitado.update({ where: { id: invitado.id }, data: { pases_ingresados: { increment: cantidad }, ultima_entrada_en: scannedAt, escaneado_en: scannedAt, escaneado_por: user.id }, select: { pases_ingresados: true, ultima_entrada_en: true } });
+      const updated = await tx.invitado.update({ where: { id: invitado.id }, data: { pases_ingresados: { increment: cantidad }, ultima_entrada_en: scannedAt, escaneado_en: scannedAt, escaneado_por: user.id }, select: { pases_ingresados: true, ultima_entrada_en: true, escaneado_en: true } });
       await tx.registroEntrada.create({ data: { invitado_id: invitado.id, evento_id: invitado.evento.id, escaneado_por_id: user.id, cantidad } });
-      return { ...invitado, ...updated };
+      return { ...invitado, ...updated, registro_adicional: invitado.pases_ingresados > 0 };
     }, { isolationLevel: "Serializable" });
-    return NextResponse.json({ ok: true, invitado: result }, { headers });
+    return NextResponse.json({
+      ok: true,
+      invitado: result,
+      registro_adicional: result.registro_adicional,
+      message: result.registro_adicional
+        ? `Pases adicionales registrados: ${cantidad}. Total de ingresos: ${result.pases_ingresados}.`
+        : `Entrada registrada: ${cantidad} ${cantidad === 1 ? "persona" : "personas"}.`,
+    }, { headers });
   } catch (error) {
     if (error instanceof EntradaYaRegistrada) {
       return NextResponse.json({ error: "Este código QR ya ha sido escaneado. La entrada ya está registrada.", code: "ALREADY_SCANNED", invitado: error.invitado }, { status: 409, headers });

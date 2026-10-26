@@ -47,13 +47,27 @@ export async function PUT(
     // Acción especial: Regenerar link (RF-13)
     if (body.action === "regenerar_link") {
       const nuevoToken = generateInvitationToken();
+      const nuevoCodigoEntrada = generateInvitationToken(32);
+      const pasesDisponibles = Math.max(
+        0,
+        (invitado.pases_confirmados ?? 0) - invitado.pases_ingresados,
+      );
       const actualizado = await prisma.invitado.update({
         where: { id },
-        data: { token: nuevoToken },
+        data: {
+          token: nuevoToken,
+          // El enlace nuevo también invalida cualquier captura del QR anterior.
+          // Los ingresos históricos se conservan; solo se renueva la credencial.
+          codigo_entrada: nuevoCodigoEntrada,
+          escaneado_en: null,
+          escaneado_por: null,
+        },
       });
       return NextResponse.json({
         ok: true,
-        message: "Link regenerado exitosamente. El link anterior quedó invalidado.",
+        message: pasesDisponibles > 0
+          ? `Enlace y QR renovados. El nuevo código permitirá registrar ${pasesDisponibles} ${pasesDisponibles === 1 ? "pase pendiente" : "pases pendientes"}.`
+          : "Enlace renovado. El QR anterior quedó invalidado; aparecerá uno nuevo si se confirman pases adicionales.",
         token: nuevoToken,
         invitado: actualizado,
       });
@@ -94,6 +108,18 @@ export async function PUT(
       }
 
       updateData.pases_asignados = nuevoAsignados;
+
+      // Si ya hubo una entrada y se amplía el cupo, invalida el QR que pudo
+      // quedar guardado en una captura. El historial y el total ingresado no
+      // se reinician; el nuevo QR servirá únicamente para el saldo adicional.
+      if (
+        nuevoAsignados > invitado.pases_asignados &&
+        invitado.pases_ingresados > 0
+      ) {
+        updateData.codigo_entrada = generateInvitationToken(32);
+        updateData.escaneado_en = null;
+        updateData.escaneado_por = null;
+      }
 
       let avisoAjuste: string | null = null;
 

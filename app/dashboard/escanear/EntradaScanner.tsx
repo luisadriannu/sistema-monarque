@@ -38,6 +38,7 @@ type Guest = {
   pases_confirmados: number | null;
   pases_ingresados: number;
   ultima_entrada_en: string | null;
+  escaneado_en: string | null;
   estado: string;
   codigo_entrada: string;
   evento: { id: string; nombre: string; anfitriones: string; modo_ingreso: string };
@@ -145,7 +146,8 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       }
       setCode(normalized);
       setGuest(d.invitado);
-      setAmount(Math.max(1, d.invitado.pases_confirmados ?? d.invitado.pases_asignados));
+      const guestLimit = d.invitado.pases_confirmados ?? d.invitado.pases_asignados;
+      setAmount(Math.max(1, guestLimit - d.invitado.pases_ingresados));
     } catch {
       setMessage("No se pudo consultar el pase. Revisa tu conexión e intenta nuevamente.");
     } finally {
@@ -206,9 +208,7 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       return setMessage(d.error);
     }
     setGuest(d.invitado);
-    setMessage(
-      `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`,
-    );
+    setMessage(d.message || `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`);
     void loadLogs();
     } catch {
       setMessage("No se pudo confirmar la entrada. Consulta el pase antes de reintentar.");
@@ -240,7 +240,7 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     if (response.ok) { setGuest(null); void loadLogs(); }
   }
   const limit = guest ? (guest.pases_confirmados ?? guest.pases_asignados) : 0;
-  const alreadyScanned = Boolean(guest && (guest.pases_ingresados >= limit || (guest.evento.modo_ingreso === "unico" && (guest.pases_ingresados > 0 || guest.ultima_entrada_en))));
+  const alreadyScanned = Boolean(guest && (guest.pases_ingresados >= limit || (guest.evento.modo_ingreso === "unico" && guest.escaneado_en)));
   const remaining = guest && !alreadyScanned ? Math.max(0, limit - guest.pases_ingresados) : 0;
   const selectedEvent = events.find((event) => event.id === selectedEventId);
   function changeEvent(eventId: string) {
@@ -394,8 +394,8 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
               </div>
               {alreadyScanned ? (
                 <div role="status" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <p className="font-bold">Este código QR ya ha sido escaneado.</p>
-                  <p className="mt-2">La entrada ya está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. No se puede volver a utilizar.</p>
+                  <p className="font-bold">Este código QR ya ha sido utilizado.</p>
+                  <p className="mt-2">La entrada está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. Si se autorizaron pases adicionales, utiliza el nuevo QR generado en la invitación.</p>
                   {guest.ultima_entrada_en && <p className="mt-2 text-xs">Registrado el {new Date(guest.ultima_entrada_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}.</p>}
                 </div>
               ) : guest.estado === "declinado" ? (
@@ -449,9 +449,9 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
           )}
           {message && (
             <div
-              className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${message.startsWith("Entrada") ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}
+              className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${message.startsWith("Entrada") || message.startsWith("Pases adicionales") ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}
             >
-              {message.startsWith("Entrada") ? <CheckCircle2 /> : <XCircle />}
+              {message.startsWith("Entrada") || message.startsWith("Pases adicionales") ? <CheckCircle2 /> : <XCircle />}
               {message}
             </div>
           )}

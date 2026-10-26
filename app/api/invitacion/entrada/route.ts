@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       select: {
         pases_ingresados: true,
         ultima_entrada_en: true,
+        escaneado_en: true,
         estado: true,
         pases_confirmados: true,
         codigo_entrada: true,
@@ -36,9 +37,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invitación no disponible." }, { status: 404, headers });
     }
     const limite = invitado.pases_confirmados ?? 0;
-    const escaneado = invitado.evento.modo_ingreso === "parcial"
-      ? limite > 0 && invitado.pases_ingresados >= limite
-      : invitado.pases_ingresados > 0 || Boolean(invitado.ultima_entrada_en);
+    const sinPasesDisponibles = limite < 1 || invitado.pases_ingresados >= limite;
+    const escaneado = sinPasesDisponibles || (
+      invitado.evento.modo_ingreso === "unico" && Boolean(invitado.escaneado_en)
+    );
     const confirmado = invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0;
     const includeQr = new URL(request.url).searchParams.get("qr") === "1";
     const qrImage = includeQr && confirmado && !escaneado

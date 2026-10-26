@@ -167,9 +167,10 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   };
 
   const qrEnabled = Boolean(evento.usuario.organizacion?.qr_checkin_habilitado);
-  const qrUsed = evento.modo_ingreso === "parcial"
-    ? (invitado.pases_confirmados ?? 0) > 0 && invitado.pases_ingresados >= (invitado.pases_confirmados ?? 0)
-    : invitado.pases_ingresados > 0 || Boolean(invitado.ultima_entrada_en);
+  const qrLimit = invitado.pases_confirmados ?? 0;
+  const qrUsed = qrLimit < 1 || invitado.pases_ingresados >= qrLimit || (
+    evento.modo_ingreso === "unico" && Boolean(invitado.escaneado_en)
+  );
   const qrImage = qrEnabled && !isPreview && invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0 && !qrUsed
     ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, {
         width: 480,

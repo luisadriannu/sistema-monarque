@@ -23,7 +23,7 @@ function fixture() {
   const organization = { id: "org-a", plan: "elite", qr_checkin_habilitado: true, estado_servicio: "activo", servicio_vence_en: null, eliminado_en: null };
   let user = { id: "organizer", rol: "organizador", organizacion_id: "org-a", organizacion: organization };
   const event = { id: "event-a", nombre: "Evento de prueba", anfitriones: "Ana y Luis", fecha_evento: new Date("2027-01-01"), lugar: "Salón", estado: "recepcion_abierta", modo_ingreso: "unico", recepcion_abre_en: null, recepcion_cierra_en: null, usuario: { organizacion_id: "org-a" } };
-  const guest = { id: "guest-a", nombre: "Familia de prueba", grupo: "Amigos", codigo_entrada: "code-a", pases_asignados: 3, pases_confirmados: 2, pases_ingresados: 0, ultima_entrada_en: null, estado: "confirmado", evento: event };
+  const guest = { id: "guest-a", nombre: "Familia de prueba", grupo: "Amigos", codigo_entrada: "code-a", pases_asignados: 3, pases_confirmados: 2, pases_ingresados: 0, ultima_entrada_en: null, escaneado_en: null, estado: "confirmado", evento: event };
   const logs = [];
   const prisma = {
     organizacion: {
@@ -39,6 +39,7 @@ function fixture() {
       update: async ({ data }) => {
         guest.pases_ingresados += data.pases_ingresados.increment;
         guest.ultima_entrada_en = data.ultima_entrada_en;
+        guest.escaneado_en = data.escaneado_en;
         return { ...guest };
       },
       count: async ({ where }) => guest.pases_ingresados > 0 && where.evento_id === guest.evento.id ? 1 : 0,
@@ -141,7 +142,7 @@ test("Solo el administrador puede modificar premium y el valor debe ser booleano
   assert.equal(f.organization.qr_checkin_habilitado, true);
 });
 
-test("El primer registro consume el QR incluso si quedan pases disponibles", async () => {
+test("El primer registro consume el QR actual incluso si quedan pases disponibles", async () => {
   const f = fixture();
   const route = loadSource("app/api/entradas/route.ts", f.mocks);
   const lookup = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&codigo=monarque:entrada:code-a"));
@@ -251,11 +252,11 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
   }
 });
 
- test("Los QR usados anteriormente se rechazan por contador o fecha de ingreso", async () => {
-  for (const marker of ["parcial", "completo", "fecha"]) {
+ test("Los QR usados anteriormente se rechazan por contador o marca del código actual", async () => {
+  for (const marker of ["parcial", "completo", "escaneado"]) {
     const f = fixture();
     f.guest.pases_ingresados = marker === "completo" ? 2 : marker === "parcial" ? 1 : 0;
-    f.guest.ultima_entrada_en = marker === "fecha" ? new Date("2026-10-23T20:00:00Z") : null;
+    f.guest.escaneado_en = marker === "escaneado" || marker === "parcial" ? new Date("2026-10-23T20:00:00Z") : null;
     const route = loadSource("app/api/entradas/route.ts", f.mocks);
     const lookup = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&codigo=code-a"));
     assert.equal(lookup.status, 200);
@@ -276,6 +277,7 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
   assert.match(response.headers.get("Cache-Control"), /no-store/);
   assert.deepEqual(await response.json(), { escaneado: false, confirmado: true });
   f.guest.pases_ingresados = 1;
+  f.guest.escaneado_en = new Date("2026-10-23T20:00:00Z");
   assert.deepEqual(await (await read("token-a")).json(), { escaneado: true, confirmado: true });
   assert.equal((await read("invalido")).status, 404);
   f.organization.qr_checkin_habilitado = false;
@@ -357,8 +359,27 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
   assert.equal(active.confirmado, true);
   assert.equal(active.qrImage, "data:image/png;base64,qr");
   f.guest.pases_ingresados = 1;
+  f.guest.escaneado_en = new Date("2026-10-23T20:00:00Z");
   assert.equal((await (await read()).json()).qrImage, undefined);
   assert.equal(generated, 1);
+ });
+
+ test("Un QR renovado registra únicamente los pases adicionales sin borrar ingresos previos", async () => {
+  const f = fixture();
+  f.guest.pases_confirmados = 5;
+  f.guest.pases_ingresados = 2;
+  f.guest.ultima_entrada_en = new Date("2026-10-23T20:00:00Z");
+  f.guest.escaneado_en = null;
+  f.guest.codigo_entrada = "code-renovado";
+  const route = loadSource("app/api/entradas/route.ts", f.mocks);
+  const response = await route.POST(request({ codigo: "code-renovado", cantidad: 3 }));
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.registro_adicional, true);
+  assert.equal(data.invitado.pases_ingresados, 5);
+  assert.match(data.message, /Pases adicionales registrados/);
+  assert.equal(f.logs.length, 1);
+  assert.equal(f.logs[0].cantidad, 3);
  });
 
  test("El pase pendiente no consulta ni muestra QR y lo carga al confirmar sin recargar", async () => {

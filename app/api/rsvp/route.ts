@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { isEventFinished } from "@/lib/utils";
+import { generateInvitationToken } from "@/lib/tokens";
 
 export async function GET(request: Request) {
   // RNF-03: Límite de intentos por IP
@@ -179,6 +180,11 @@ export async function POST(request: Request) {
 
     // RF-20: Si elige 0 -> declinado; si > 0 -> confirmado
     const nuevoEstado = pases === 0 ? "declinado" : "confirmado";
+    const habilitaPasesAdicionales =
+      pases > (invitado.pases_confirmados ?? 0) &&
+      pases > invitado.pases_ingresados &&
+      invitado.pases_ingresados > 0 &&
+      Boolean(invitado.escaneado_en);
 
     const actualizado = await prisma.invitado.update({
       where: { id: invitado.id },
@@ -187,6 +193,13 @@ export async function POST(request: Request) {
         ninos_confirmados: ninos,
         estado: nuevoEstado,
         ultima_respuesta_en: new Date(),
+        ...(habilitaPasesAdicionales
+          ? {
+              codigo_entrada: generateInvitationToken(32),
+              escaneado_en: null,
+              escaneado_por: null,
+            }
+          : {}),
       },
     });
 

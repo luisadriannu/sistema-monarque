@@ -196,49 +196,60 @@ function InvitadosContent() {
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
 
   // Cargar lista de invitados
-  const fetchInvitados = useCallback(async (targetPage = page) => {
-    setLoading(true);
-    try {
-      const query = new URLSearchParams({
-        page: String(targetPage),
-        page_size: String(pageSize),
-        estado: filtroEstado,
-        entrada: filtroEntrada,
-      });
-      if (eventoIdParam) query.set("evento_id", eventoIdParam);
-      if (debouncedSearch) query.set("search", debouncedSearch);
+  const fetchInvitados = useCallback(
+    async (targetPage = page) => {
+      setLoading(true);
+      try {
+        const query = new URLSearchParams({
+          page: String(targetPage),
+          page_size: String(pageSize),
+          estado: filtroEstado,
+          entrada: filtroEntrada,
+        });
+        if (eventoIdParam) query.set("evento_id", eventoIdParam);
+        if (debouncedSearch) query.set("search", debouncedSearch);
 
-      const res = await fetch(`/api/invitados?${query.toString()}`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setEvento(data.evento);
-        setInvitados(data.invitados || []);
-        setSoloLectura(Boolean(data.solo_lectura));
-        setVistaAdmin(Boolean(data.vista_admin));
-        setQrCheckinEnabled(Boolean(data.permisos?.qr_checkin_habilitado));
-        setPermisoScopeResuelto(permisoScope);
-        setPagination(
-          data.pagination || {
-            page: 1,
-            page_size: pageSize,
-            total: 0,
-            total_pages: 1,
-          },
-        );
-        setPage(data.pagination?.page || 1);
-        setTotalPasesAsignados(
-          (data.kpis?.total_confirmados || 0) +
-            (data.kpis?.total_pendientes || 0),
-        );
+        const res = await fetch(`/api/invitados?${query.toString()}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setEvento(data.evento);
+          setInvitados(data.invitados || []);
+          setSoloLectura(Boolean(data.solo_lectura));
+          setVistaAdmin(Boolean(data.vista_admin));
+          setQrCheckinEnabled(Boolean(data.permisos?.qr_checkin_habilitado));
+          setPermisoScopeResuelto(permisoScope);
+          setPagination(
+            data.pagination || {
+              page: 1,
+              page_size: pageSize,
+              total: 0,
+              total_pages: 1,
+            },
+          );
+          setPage(data.pagination?.page || 1);
+          setTotalPasesAsignados(
+            (data.kpis?.total_confirmados || 0) +
+              (data.kpis?.total_pendientes || 0),
+          );
+        }
+      } catch (e) {
+        console.error("Error al cargar invitados", e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error("Error al cargar invitados", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, eventoIdParam, filtroEntrada, filtroEstado, page, pageSize, permisoScope]);
+    },
+    [
+      debouncedSearch,
+      eventoIdParam,
+      filtroEntrada,
+      filtroEstado,
+      page,
+      pageSize,
+      permisoScope,
+    ],
+  );
 
   useEffect(() => {
     fetchInvitados();
@@ -365,18 +376,31 @@ function InvitadosContent() {
     if (regeneratingId) return;
     setRegeneratingId(invitado.id);
     try {
-      if (!(await confirmDialog(`¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`))) return;
+      if (
+        !(await confirmDialog(
+          `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`,
+        ))
+      )
+        return;
       const response = await fetch(`/api/invitados/${invitado.id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "regenerar_link" }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudo regenerar el enlace.");
+      if (!response.ok)
+        throw new Error(data.error || "No se pudo regenerar el enlace.");
       await fetchInvitados();
-      notify("Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.");
+      notify(data.message || "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.");
     } catch (error) {
-      setToast({ type: "error", title: "No se pudo regenerar el enlace", message: error instanceof Error ? error.message : "Inténtalo de nuevo." });
-    } finally { setRegeneratingId(null); }
+      setToast({
+        type: "error",
+        title: "No se pudo regenerar el enlace",
+        message: error instanceof Error ? error.message : "Inténtalo de nuevo.",
+      });
+    } finally {
+      setRegeneratingId(null);
+    }
   };
 
   // Guardar nuevo invitado
@@ -1135,7 +1159,8 @@ function InvitadosContent() {
               onClick={handleExportarExcelConfirmados}
               title="Descargar lista de confirmados en Excel"
               className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-emerald-50 text-stone-800 hover:text-emerald-700 text-xs font-semibold rounded-lg border border-stone-200 transition-colors shadow-xs"
-             loadingText="Exportando…">
+              loadingText="Exportando…"
+            >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               <span>Excel</span>
             </AsyncButton>
@@ -1143,7 +1168,8 @@ function InvitadosContent() {
               onClick={handleExportarPDFConfirmados}
               title="Descargar lista de confirmados en PDF"
               className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-[#ffedd5] text-stone-800 hover:text-[#c2410c] text-xs font-semibold rounded-lg border border-stone-200 transition-colors shadow-xs ml-1"
-             loadingText="Exportando…">
+              loadingText="Exportando…"
+            >
               <FileText className="w-3.5 h-3.5 text-[#e05a1b]" />
               <span>PDF</span>
             </AsyncButton>
@@ -1187,7 +1213,9 @@ function InvitadosContent() {
           <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div>
             <p className="text-sm font-bold">
-              {vistaAdmin ? "Consulta administrativa" : "Evento finalizado · Solo lectura"}
+              {vistaAdmin
+                ? "Consulta administrativa"
+                : "Evento finalizado · Solo lectura"}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-amber-800/80">
               {vistaAdmin
@@ -1231,30 +1259,36 @@ function InvitadosContent() {
               ♻️ Pases liberados (declinados + parciales)
             </option>
           </select>
-          {qrCheckinEnabled && <select
-            value={filtroEntrada}
-            onChange={(e) => {
-              setFiltroEntrada(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Filtrar por registro de entrada"
-            className="w-full sm:w-auto px-3 py-2 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs text-stone-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-          >
-            <option value="todos">Todas las entradas</option>
-            <option value="ingresaron">🟢 Ya ingresaron</option>
-            <option value="sin_ingreso">⚪ Confirmados por llegar</option>
-            <option value="parcial">🟠 Ingreso parcial</option>
-            <option value="completo">✅ Ingreso completo</option>
-          </select>}
-          {qrCheckinEnabled && <button
-            type="button"
-            onClick={() => void fetchInvitados()}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-            Actualizar entradas
-          </button>}
+          {qrCheckinEnabled && (
+            <select
+              value={filtroEntrada}
+              onChange={(e) => {
+                setFiltroEntrada(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filtrar por registro de entrada"
+              className="w-full sm:w-auto px-3 py-2 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs text-stone-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+            >
+              <option value="todos">Todas las entradas</option>
+              <option value="ingresaron">🟢 Ya ingresaron</option>
+              <option value="sin_ingreso">⚪ Confirmados por llegar</option>
+              <option value="parcial">🟠 Ingreso parcial</option>
+              <option value="completo">✅ Ingreso completo</option>
+            </select>
+          )}
+          {qrCheckinEnabled && (
+            <button
+              type="button"
+              onClick={() => void fetchInvitados()}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              />
+              Actualizar entradas
+            </button>
+          )}
           <select
             value={pageSize}
             onChange={(e) => {
@@ -1281,7 +1315,9 @@ function InvitadosContent() {
                 <th className="py-3.5 px-4 text-center">Envío</th>
                 <th className="py-3.5 px-4 text-center">Estado</th>
                 <th className="py-3.5 px-4 text-center">Pases</th>
-                {qrCheckinEnabled && <th className="py-3.5 px-4 text-center">Entrada</th>}
+                {qrCheckinEnabled && (
+                  <th className="py-3.5 px-4 text-center">Entrada</th>
+                )}
                 <th className="py-3.5 px-4">Última Respuesta</th>
                 <th className="py-3.5 px-4 text-right">Compartir</th>
                 <th className="py-3.5 px-4 text-center w-12">Más</th>
@@ -1404,23 +1440,45 @@ function InvitadosContent() {
                           )}
                       </td>
 
-                      {qrCheckinEnabled && <td className="py-3.5 px-4 text-center">
-                        {inv.estado !== "confirmado" || (inv.pases_confirmados ?? 0) < 1 ? (
-                          <span className="text-[11px] font-medium text-stone-400">No aplica</span>
-                        ) : inv.pases_ingresados <= 0 ? (
-                          <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600">No ha llegado</span>
-                        ) : inv.pases_ingresados < (inv.pases_confirmados ?? 0) ? (
-                          <div>
-                            <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">Parcial · {inv.pases_ingresados}/{inv.pases_confirmados}</span>
-                            {inv.ultima_entrada_en && <p className="mt-1 whitespace-nowrap text-[10px] text-stone-400">{formatDateTimeMx(inv.ultima_entrada_en)}</p>}
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Completo · {inv.pases_ingresados}/{inv.pases_confirmados}</span>
-                            {inv.ultima_entrada_en && <p className="mt-1 whitespace-nowrap text-[10px] text-stone-400">{formatDateTimeMx(inv.ultima_entrada_en)}</p>}
-                          </div>
-                        )}
-                      </td>}
+                      {qrCheckinEnabled && (
+                        <td className="py-3.5 px-4 text-center">
+                          {inv.estado !== "confirmado" ||
+                          (inv.pases_confirmados ?? 0) < 1 ? (
+                            <span className="text-[11px] font-medium text-stone-400">
+                              No aplica
+                            </span>
+                          ) : inv.pases_ingresados <= 0 ? (
+                            <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600">
+                              No ha llegado
+                            </span>
+                          ) : inv.pases_ingresados <
+                            (inv.pases_confirmados ?? 0) ? (
+                            <div>
+                              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">
+                                Parcial · {inv.pases_ingresados}/
+                                {inv.pases_confirmados}
+                              </span>
+                              {inv.ultima_entrada_en && (
+                                <p className="mt-1 whitespace-nowrap text-[10px] text-stone-400">
+                                  {formatDateTimeMx(inv.ultima_entrada_en)}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                                Completo · {inv.pases_ingresados}/
+                                {inv.pases_confirmados}
+                              </span>
+                              {inv.ultima_entrada_en && (
+                                <p className="mt-1 whitespace-nowrap text-[10px] text-stone-400">
+                                  {formatDateTimeMx(inv.ultima_entrada_en)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      )}
 
                       {/* Última Respuesta */}
                       <td className="py-3.5 px-4 text-stone-500">
@@ -1437,38 +1495,40 @@ function InvitadosContent() {
                           </span>
                         ) : (
                           <div className="inline-flex items-center gap-1.5">
-                          {/* Copiar Mensaje */}
-                          <AsyncButton
-                            onClick={() => handleCopiarMensaje(inv)}
-                            title="Copiar mensaje personalizado con enlace"
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-700 rounded-lg border border-stone-200 transition-colors text-xs font-medium shadow-xs"
-                           loadingText="Copiando…">
-                            {copiadoId === inv.id ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-emerald-700 text-[11px]">
-                                  ¡Copiado!
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 text-stone-500" />
-                                <span className="text-[11px]">Copiar</span>
-                              </>
-                            )}
-                          </AsyncButton>
-
-                          {/* WhatsApp: Visible SOLO si aún no ha confirmado o declinado */}
-                          {!yaRespondio && (
+                            {/* Copiar Mensaje */}
                             <AsyncButton
-                              onClick={() => handleAbrirWhatsApp(inv)}
-                              title="Enviar por WhatsApp"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-xs transition-colors text-[11px]"
-                             loadingText="Abriendo…">
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>WhatsApp</span>
+                              onClick={() => handleCopiarMensaje(inv)}
+                              title="Copiar mensaje personalizado con enlace"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-700 rounded-lg border border-stone-200 transition-colors text-xs font-medium shadow-xs"
+                              loadingText="Copiando…"
+                            >
+                              {copiadoId === inv.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="text-emerald-700 text-[11px]">
+                                    ¡Copiado!
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-stone-500" />
+                                  <span className="text-[11px]">Copiar</span>
+                                </>
+                              )}
                             </AsyncButton>
-                          )}
+
+                            {/* WhatsApp: Visible SOLO si aún no ha confirmado o declinado */}
+                            {!yaRespondio && (
+                              <AsyncButton
+                                onClick={() => handleAbrirWhatsApp(inv)}
+                                title="Enviar por WhatsApp"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-xs transition-colors text-[11px]"
+                                loadingText="Abriendo…"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </AsyncButton>
+                            )}
                           </div>
                         )}
                       </td>
@@ -1488,7 +1548,11 @@ function InvitadosContent() {
                             type="button"
                             aria-haspopup="menu"
                             aria-expanded={menuAbiertoId === inv.id}
-                            aria-controls={menuAbiertoId === inv.id ? `guest-actions-${inv.id}` : undefined}
+                            aria-controls={
+                              menuAbiertoId === inv.id
+                                ? `guest-actions-${inv.id}`
+                                : undefined
+                            }
                             aria-label={`Más opciones para ${inv.nombre}`}
                             title="Más opciones"
                           >
@@ -1496,10 +1560,15 @@ function InvitadosContent() {
                           </button>
 
                           {menuAbiertoId === inv.id && menuAnchor && (
-                            <FloatingMenu anchor={menuAnchor!} id={`guest-actions-${inv.id}`} onClose={() => setMenuAbiertoId(null)}>
+                            <FloatingMenu
+                              anchor={menuAnchor!}
+                              id={`guest-actions-${inv.id}`}
+                              onClose={() => setMenuAbiertoId(null)}
+                            >
                               {/* Ver como invitado */}
                               {evento && (
-                                <a role="menuitem"
+                                <a
+                                  role="menuitem"
                                   href={`/${evento.slug}?id=${inv.token}`}
                                   target="_blank"
                                   rel="noreferrer"
@@ -1514,7 +1583,8 @@ function InvitadosContent() {
                               {puedeModificar && (
                                 <>
                                   {/* Editar */}
-                                  <button role="menuitem"
+                                  <button
+                                    role="menuitem"
                                     onClick={() => handleAbrirEditar(inv)}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-stone-700 hover:bg-[#fbf8f4]"
                                   >
@@ -1523,13 +1593,17 @@ function InvitadosContent() {
                                   </button>
 
                                   {/* Regenerar link */}
-                                  <AsyncButton role="menuitem"
+                                  <AsyncButton
+                                    role="menuitem"
                                     onClick={() => {
                                       setMenuAbiertoId(null);
                                       return handleRegenerarLink(inv);
                                     }}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
-                                   loading={regeneratingId === inv.id} disabled={Boolean(regeneratingId)} loadingText="Regenerando…">
+                                    loading={regeneratingId === inv.id}
+                                    disabled={Boolean(regeneratingId)}
+                                    loadingText="Regenerando…"
+                                  >
                                     <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
                                     <span>Regenerar link</span>
                                   </AsyncButton>
@@ -1537,7 +1611,8 @@ function InvitadosContent() {
                                   <div className="h-[1px] bg-stone-100 my-1" />
 
                                   {/* Eliminar */}
-                                  <button role="menuitem"
+                                  <button
+                                    role="menuitem"
                                     onClick={() => {
                                       setMenuAbiertoId(null);
                                       setModalEliminar(inv);
@@ -1729,7 +1804,9 @@ function InvitadosContent() {
                     type="submit"
                     disabled={guardando || !formPasesValido}
                     className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
-                   loadingText="Guardando…" loading={guardando}>
+                    loadingText="Guardando…"
+                    loading={guardando}
+                  >
                     {guardando ? "Guardando..." : "Guardar Invitado"}
                   </AsyncButton>
                 </div>
@@ -1864,7 +1941,9 @@ function InvitadosContent() {
                     type="submit"
                     disabled={guardando || !formPasesValido}
                     className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50"
-                   loadingText="Guardando…" loading={guardando}>
+                    loadingText="Guardando…"
+                    loading={guardando}
+                  >
                     {guardando ? "Actualizando..." : "Guardar Cambios"}
                   </AsyncButton>
                 </div>
@@ -1919,7 +1998,8 @@ function InvitadosContent() {
                   onClick={handleConfirmarEliminar}
                   disabled={eliminando}
                   className="inline-flex min-w-28 items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:cursor-not-allowed disabled:bg-rose-400"
-                 loadingText="Eliminando…">
+                  loadingText="Eliminando…"
+                >
                   {eliminando ? (
                     <>
                       <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -2221,7 +2301,8 @@ function InvitadosContent() {
                       disabled={resumenImportacion.validos === 0 || importando}
                       onClick={handleGuardarImportacion}
                       className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50"
-                     loadingText="Importando…">
+                      loadingText="Importando…"
+                    >
                       {importando
                         ? "Importando..."
                         : `Guardar ${resumenImportacion.validos} Invitados`}
