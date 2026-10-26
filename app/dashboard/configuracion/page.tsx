@@ -1,4 +1,5 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
 
 import { useState, useEffect, useRef } from "react";
 import {
@@ -130,6 +131,7 @@ export default function ConfiguracionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (guardando) return;
     if (!evento) return;
     setError(null);
     setMensajeExito(false);
@@ -658,14 +660,14 @@ export default function ConfiguracionPage() {
 
         {/* Botón de guardado */}
         <div className="flex items-center justify-end">
-          <button
+          <AsyncButton
             type="submit"
             disabled={guardando || fechaLimitePosteriorEvento || eventoFinalizado}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-md shadow-orange-500/20 transition-all disabled:opacity-50"
-          >
+           loadingText="Guardando…" loading={guardando}>
             <Save className="w-4 h-4 text-white" />
             <span>{guardando ? "Guardando cambios..." : "Guardar Configuración"}</span>
-          </button>
+          </AsyncButton>
         </div>
         </fieldset>
       </form>

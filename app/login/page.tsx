@@ -1,4 +1,5 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
 
 import { useState } from "react";
 import Image from "next/image";
@@ -41,6 +42,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
 
@@ -249,11 +251,11 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button
+          <AsyncButton
             type="submit"
             disabled={loading}
             className="w-full py-3.5 px-4 bg-[#2b211b] hover:bg-[#e05a1b] text-white font-semibold rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed group cursor-pointer"
-          >
+           loadingText="Ingresando…" loading={loading}>
             {loading ? (
               <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
@@ -262,7 +264,7 @@ export default function LoginPage() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
-          </button>
+          </AsyncButton>
         </form>
 
         </motion.div>

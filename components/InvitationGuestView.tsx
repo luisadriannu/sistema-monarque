@@ -1,4 +1,6 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
+import { isRsvpUnchanged } from "@/lib/rsvp-state";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -115,7 +117,10 @@ export default function InvitationGuestView({
     }
   };
 
-  const handleSubmit = async () => {
+  const responseUnchanged = isRsvpUnchanged(invitado, pasesSeleccionados, ninosSeleccionados);
+
+  const handleSubmit = async (pasesAConfirmar: number = pasesSeleccionados) => {
+    if (enviando || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninosSeleccionados : 0)) return;
     if (evento.expirado) return;
     setEnviando(true);
     setErrorEnvio(null);
@@ -127,9 +132,9 @@ export default function InvitationGuestView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
-          pases_confirmados: pasesSeleccionados,
+          pases_confirmados: pasesAConfirmar,
           ninos_confirmados:
-            maxPases >= 2 && pasesSeleccionados > 0 ? ninosSeleccionados : 0,
+            maxPases >= 2 && pasesAConfirmar > 0 ? ninosSeleccionados : 0,
         }),
       });
 
@@ -139,6 +144,8 @@ export default function InvitationGuestView({
       }
 
       setInvitado(resData.invitado);
+      setPasesSeleccionados(resData.invitado.pases_confirmados ?? pasesAConfirmar);
+      setNinosSeleccionados(resData.invitado.ninos_confirmados ?? 0);
       setMensajeExito(resData.mensaje);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -376,19 +383,21 @@ export default function InvitationGuestView({
               )}
 
               {/* Botón de envío con gradiente mariposa monarca */}
-              <button
+              <AsyncButton
                 type="button"
-                onClick={handleSubmit}
-                disabled={enviando}
+                onClick={() => handleSubmit()}
+                disabled={enviando || responseUnchanged}
                 className={`w-full py-4 px-6 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all duration-200 shadow-md flex items-center justify-center gap-2 ${
                   pasesSeleccionados === 0
                     ? "bg-rose-700 hover:bg-rose-800 text-white"
                     : "bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white shadow-orange-500/20"
                 } disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.99]`}
-              >
+               loading={enviando} loadingText="Guardando respuesta…">
                 {enviando ? (
                   <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : pasesSeleccionados === 0 ? (
+                ) : responseUnchanged ? (
+  <><CheckCircle2 className="h-4 w-4" /><span>{invitado.estado === "declinado" ? "Ya confirmaste que no asistirás" : "Asistencia confirmada"}</span></>
+) : pasesSeleccionados === 0 ? (
                   <>
                     <XCircle className="w-4 h-4" />
                     <span>Confirmar que no podré asistir</span>
@@ -401,7 +410,9 @@ export default function InvitationGuestView({
                     </span>
                   </>
                 )}
-              </button>
+              </AsyncButton>
+{pasesSeleccionados > 0 && <AsyncButton type="button" onClick={() => handleSubmit(0)} disabled={isRsvpUnchanged(invitado, 0, 0) || enviando} loading={enviando} loadingText="Guardando respuesta…" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"><XCircle className="h-4 w-4" />No podré asistir</AsyncButton>}
+
 
               <div className="text-center text-[11px] text-stone-500">
                 Fecha límite para confirmar:{" "}

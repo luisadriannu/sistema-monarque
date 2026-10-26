@@ -1,4 +1,4 @@
-import Link from "next/link";
+import LoadingLink from "@/components/LoadingLink";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -313,7 +313,7 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 1. Asignados */}
-          <Link
+          <LoadingLink
             href="/dashboard/invitados"
             title="Ver todos los invitados asignados"
             className="bg-white border border-[#ebd9c4] rounded-2xl p-5 shadow-xs hover:border-[#e05a1b] hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
@@ -336,10 +336,10 @@ export default async function DashboardPage() {
               <span>Ver todos</span>
               <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
             </div>
-          </Link>
+          </LoadingLink>
 
           {/* 2. Confirmados */}
-          <Link
+          <LoadingLink
             href="/dashboard/invitados?estado=confirmado"
             title="Ver invitados que ya confirmaron asistencia"
             className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 shadow-xs hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
@@ -401,10 +401,10 @@ export default async function DashboardPage() {
               <span>Ver quiénes van</span>
               <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
             </div>
-          </Link>
+          </LoadingLink>
 
           {/* 3. Pases Liberados / Declinados */}
-          <Link
+          <LoadingLink
             href="/dashboard/invitados?estado=liberados"
             title="Ver invitados que liberaron pases (declinados o confirmación parcial)"
             className="bg-rose-50/70 border border-rose-200 rounded-2xl p-5 shadow-xs hover:border-rose-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
@@ -431,10 +431,10 @@ export default async function DashboardPage() {
               <span>Ver quiénes liberaron</span>
               <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
             </div>
-          </Link>
+          </LoadingLink>
 
           {/* 4. Pendientes */}
-          <Link
+          <LoadingLink
             href="/dashboard/invitados?estado=pendiente"
             title="Ver invitados que aún no confirman ni declinan"
             className="bg-stone-50/80 border border-stone-200 rounded-2xl p-5 shadow-xs hover:border-stone-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
@@ -455,7 +455,7 @@ export default async function DashboardPage() {
               <span>Ver quiénes faltan</span>
               <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
             </div>
-          </Link>
+          </LoadingLink>
         </div>
       </div>
 
@@ -470,13 +470,13 @@ export default async function DashboardPage() {
               Confirmaciones registradas en tiempo real por tus invitados
             </p>
           </div>
-          <Link
+          <LoadingLink
             href="/dashboard/invitados"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[#e05a1b] hover:text-[#b8420f] transition-colors"
           >
             <span>Ver toda la lista</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          </LoadingLink>
         </div>
 
         {ultimasRespuestas.length === 0 ? (

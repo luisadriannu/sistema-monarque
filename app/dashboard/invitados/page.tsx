@@ -1,4 +1,6 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
+import FloatingMenu from "@/components/FloatingMenu";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -132,12 +134,14 @@ function InvitadosContent() {
 
   // Menú de opciones abierto por fila (id de invitado)
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null);
 
   // Formulario Agregar / Editar
   const [formNombre, setFormNombre] = useState("");
   const [formGrupo, setFormGrupo] = useState("");
   const [formPases, setFormPases] = useState("2");
   const [guardando, setGuardando] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const formPasesNumero = Number(formPases);
@@ -337,34 +341,27 @@ function InvitadosContent() {
 
   // Regenerar link
   const handleRegenerarLink = async (invitado: Invitado) => {
-    if (
-      !(await confirmDialog(
-        `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`,
-      ))
-    ) {
-      return;
-    }
-
+    if (regeneratingId) return;
+    setRegeneratingId(invitado.id);
     try {
-      const res = await fetch(`/api/invitados/${invitado.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      if (!(await confirmDialog(`¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`))) return;
+      const response = await fetch(`/api/invitados/${invitado.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "regenerar_link" }),
       });
-      if (res.ok) {
-        await fetchInvitados();
-        notify(
-          "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.",
-        );
-      }
-    } catch (e) {
-      console.error("Error al regenerar link", e);
-    }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo regenerar el enlace.");
+      await fetchInvitados();
+      notify("Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.");
+    } catch (error) {
+      setToast({ type: "error", title: "No se pudo regenerar el enlace", message: error instanceof Error ? error.message : "Inténtalo de nuevo." });
+    } finally { setRegeneratingId(null); }
   };
 
   // Guardar nuevo invitado
   const handleGuardarNuevo = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (guardando) return;
     if (!evento || !puedeModificar) {
       setModalAgregar(false);
       return;
@@ -428,6 +425,7 @@ function InvitadosContent() {
   // Guardar edición
   const handleGuardarEditar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (guardando) return;
     if (!modalEditar || !puedeModificar) {
       setModalEditar(null);
       return;
@@ -659,6 +657,7 @@ function InvitadosContent() {
 
   // Guardar importación masiva
   const handleGuardarImportacion = async () => {
+    if (importando) return;
     if (!puedeModificar) {
       setModalImportar(false);
       return;
@@ -1111,22 +1110,22 @@ function InvitadosContent() {
             <span className="text-[11px] font-bold text-[#86583d] uppercase tracking-wider px-2 hidden sm:inline">
               Confirmados:
             </span>
-            <button
+            <AsyncButton
               onClick={handleExportarExcelConfirmados}
               title="Descargar lista de confirmados en Excel"
               className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-emerald-50 text-stone-800 hover:text-emerald-700 text-xs font-semibold rounded-lg border border-stone-200 transition-colors shadow-xs"
-            >
+             loadingText="Exportando…">
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               <span>Excel</span>
-            </button>
-            <button
+            </AsyncButton>
+            <AsyncButton
               onClick={handleExportarPDFConfirmados}
               title="Descargar lista de confirmados en PDF"
               className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-[#ffedd5] text-stone-800 hover:text-[#c2410c] text-xs font-semibold rounded-lg border border-stone-200 transition-colors shadow-xs ml-1"
-            >
+             loadingText="Exportando…">
               <FileText className="w-3.5 h-3.5 text-[#e05a1b]" />
               <span>PDF</span>
-            </button>
+            </AsyncButton>
           </div>
 
           {puedeModificar && (
@@ -1375,11 +1374,11 @@ function InvitadosContent() {
                         ) : (
                           <div className="inline-flex items-center gap-1.5">
                           {/* Copiar Mensaje */}
-                          <button
+                          <AsyncButton
                             onClick={() => handleCopiarMensaje(inv)}
                             title="Copiar mensaje personalizado con enlace"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-700 rounded-lg border border-stone-200 transition-colors text-xs font-medium shadow-xs"
-                          >
+                           loadingText="Copiando…">
                             {copiadoId === inv.id ? (
                               <>
                                 <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -1393,18 +1392,18 @@ function InvitadosContent() {
                                 <span className="text-[11px]">Copiar</span>
                               </>
                             )}
-                          </button>
+                          </AsyncButton>
 
                           {/* WhatsApp: Visible SOLO si aún no ha confirmado o declinado */}
                           {!yaRespondio && (
-                            <button
+                            <AsyncButton
                               onClick={() => handleAbrirWhatsApp(inv)}
                               title="Enviar por WhatsApp"
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-xs transition-colors text-[11px]"
-                            >
+                             loadingText="Abriendo…">
                               <MessageCircle className="w-3.5 h-3.5" />
                               <span>WhatsApp</span>
-                            </button>
+                            </AsyncButton>
                           )}
                           </div>
                         )}
@@ -1416,24 +1415,27 @@ function InvitadosContent() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              setMenuAnchor(e.currentTarget);
                               setMenuAbiertoId(
                                 menuAbiertoId === inv.id ? null : inv.id,
                               );
                             }}
                             className="p-1.5 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors"
+                            type="button"
+                            aria-haspopup="menu"
+                            aria-expanded={menuAbiertoId === inv.id}
+                            aria-controls={menuAbiertoId === inv.id ? `guest-actions-${inv.id}` : undefined}
+                            aria-label={`Más opciones para ${inv.nombre}`}
                             title="Más opciones"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
 
-                          {menuAbiertoId === inv.id && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ebd9c4] rounded-xl shadow-xl z-30 py-1.5 text-left text-xs animate-in fade-in"
-                            >
+                          {menuAbiertoId === inv.id && menuAnchor && (
+                            <FloatingMenu anchor={menuAnchor!} id={`guest-actions-${inv.id}`} onClose={() => setMenuAbiertoId(null)}>
                               {/* Ver como invitado */}
                               {evento && (
-                                <a
+                                <a role="menuitem"
                                   href={`/${evento.slug}?id=${inv.token}`}
                                   target="_blank"
                                   rel="noreferrer"
@@ -1448,7 +1450,7 @@ function InvitadosContent() {
                               {puedeModificar && (
                                 <>
                                   {/* Editar */}
-                                  <button
+                                  <button role="menuitem"
                                     onClick={() => handleAbrirEditar(inv)}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-stone-700 hover:bg-[#fbf8f4]"
                                   >
@@ -1457,21 +1459,21 @@ function InvitadosContent() {
                                   </button>
 
                                   {/* Regenerar link */}
-                                  <button
+                                  <AsyncButton role="menuitem"
                                     onClick={() => {
                                       setMenuAbiertoId(null);
-                                      handleRegenerarLink(inv);
+                                      return handleRegenerarLink(inv);
                                     }}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
-                                  >
+                                   loading={regeneratingId === inv.id} disabled={Boolean(regeneratingId)} loadingText="Regenerando…">
                                     <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
                                     <span>Regenerar link</span>
-                                  </button>
+                                  </AsyncButton>
 
                                   <div className="h-[1px] bg-stone-100 my-1" />
 
                                   {/* Eliminar */}
-                                  <button
+                                  <button role="menuitem"
                                     onClick={() => {
                                       setMenuAbiertoId(null);
                                       setModalEliminar(inv);
@@ -1483,7 +1485,7 @@ function InvitadosContent() {
                                   </button>
                                 </>
                               )}
-                            </div>
+                            </FloatingMenu>
                           )}
                         </div>
                       </td>
@@ -1659,13 +1661,13 @@ function InvitadosContent() {
                   >
                     Cancelar
                   </button>
-                  <button
+                  <AsyncButton
                     type="submit"
                     disabled={guardando || !formPasesValido}
                     className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
-                  >
+                   loadingText="Guardando…" loading={guardando}>
                     {guardando ? "Guardando..." : "Guardar Invitado"}
-                  </button>
+                  </AsyncButton>
                 </div>
               </form>
             </motion.div>
@@ -1794,13 +1796,13 @@ function InvitadosContent() {
                   >
                     Cancelar
                   </button>
-                  <button
+                  <AsyncButton
                     type="submit"
                     disabled={guardando || !formPasesValido}
                     className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50"
-                  >
+                   loadingText="Guardando…" loading={guardando}>
                     {guardando ? "Actualizando..." : "Guardar Cambios"}
-                  </button>
+                  </AsyncButton>
                 </div>
               </form>
             </motion.div>
@@ -1849,11 +1851,11 @@ function InvitadosContent() {
                 >
                   Cancelar
                 </button>
-                <button
+                <AsyncButton
                   onClick={handleConfirmarEliminar}
                   disabled={eliminando}
                   className="inline-flex min-w-28 items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:cursor-not-allowed disabled:bg-rose-400"
-                >
+                 loadingText="Eliminando…">
                   {eliminando ? (
                     <>
                       <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -1862,7 +1864,7 @@ function InvitadosContent() {
                   ) : (
                     "Sí, eliminar"
                   )}
-                </button>
+                </AsyncButton>
               </div>
             </motion.div>
           </motion.div>
@@ -2151,15 +2153,15 @@ function InvitadosContent() {
                     >
                       Cancelar
                     </button>
-                    <button
+                    <AsyncButton
                       disabled={resumenImportacion.validos === 0 || importando}
                       onClick={handleGuardarImportacion}
                       className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50"
-                    >
+                     loadingText="Importando…">
                       {importando
                         ? "Importando..."
                         : `Guardar ${resumenImportacion.validos} Invitados`}
-                    </button>
+                    </AsyncButton>
                   </div>
                 </div>
               )}

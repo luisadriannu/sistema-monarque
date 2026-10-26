@@ -15,7 +15,8 @@
     "db:sync-invitation": "node scripts/sync-invitation-data.js",
     "seed": "node prisma/seed.js",
     "test:qr": "node --test scripts/qr-flow.test.cjs",
-    "test:auth": "node --test scripts/auth-login.test.cjs"
+    "test:auth": "node --test scripts/auth-login.test.cjs",
+    "test:actions": "node --test scripts/action-loading.test.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

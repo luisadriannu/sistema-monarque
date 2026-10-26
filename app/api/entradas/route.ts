@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   if (code) {
     const invitado = await prisma.invitado.findUnique({ where: { codigo_entrada: code }, select: guestSelect });
     if (!invitado || invitado.evento.usuario.organizacion_id !== user.organizacion_id) return NextResponse.json({ error: "Código no válido para tu organización." }, { status: 404, headers });
+    if (!invitado.pases_ingresados && !invitado.ultima_entrada_en && (invitado.estado !== "confirmado" || (invitado.pases_confirmados ?? 0) < 1)) return NextResponse.json({ error: "El invitado debe confirmar su asistencia antes de utilizar el pase QR.", code: "NOT_CONFIRMED" }, { status: 409, headers });
     return NextResponse.json({ invitado }, { headers });
   }
   const searchParams = new URL(request.url).searchParams;
@@ -62,8 +63,9 @@ export async function POST(request: Request) {
       const invitado = await tx.invitado.findUnique({ where: { codigo_entrada: code }, select: guestSelect });
       if (!invitado || invitado.evento.usuario.organizacion_id !== user.organizacion_id) throw new Error("INVALID_CODE");
       if (invitado.pases_ingresados > 0 || invitado.ultima_entrada_en) throw new EntradaYaRegistrada(invitado);
-      const limite = invitado.pases_confirmados ?? invitado.pases_asignados;
+      const limite = invitado.pases_confirmados ?? 0;
       if (invitado.estado === "declinado") throw new Error("DECLINED");
+      if (invitado.estado !== "confirmado" || limite < 1) throw new Error("NOT_CONFIRMED");
       if (invitado.pases_ingresados + cantidad > limite) throw new Error("CAPACITY");
       const updated = await tx.invitado.update({ where: { id: invitado.id }, data: { pases_ingresados: { increment: cantidad }, ultima_entrada_en: new Date() }, select: { pases_ingresados: true, ultima_entrada_en: true } });
       await tx.registroEntrada.create({ data: { invitado_id: invitado.id, evento_id: invitado.evento.id, escaneado_por_id: user.id, cantidad } });
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
     if (typeof error === "object" && error && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "El pase se está registrando en otro dispositivo. Escanéalo nuevamente." }, { status: 409, headers });
     }
+    if (message === "NOT_CONFIRMED") return NextResponse.json({ error: "El invitado debe confirmar su asistencia antes de utilizar el pase QR.", code: "NOT_CONFIRMED" }, { status: 409, headers });
     const response = message === "CAPACITY" ? ["Ese QR ya alcanzó el total de accesos permitidos.", 409] : message === "DECLINED" ? ["Este invitado declinó la invitación.", 409] : message === "INVALID_CODE" ? ["El código no es válido para tu organización.", 404] : ["No se pudo registrar la entrada. Intenta nuevamente.", 500];
     return NextResponse.json({ error: response[0] }, { status: Number(response[1]), headers });
   }

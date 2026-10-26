@@ -61,6 +61,8 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       estado: "pendiente",
       ultima_respuesta_en: null,
       codigo_entrada: "vista-previa",
+      pases_ingresados: 0,
+      ultima_entrada_en: null,
     };
   } else {
     invitado = await prisma.invitado.findFirst({
@@ -131,6 +133,8 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       };
 
   const invitadoData = {
+    pases_ingresados: invitado.pases_ingresados,
+    ultima_entrada_en: invitado.ultima_entrada_en?.toISOString() || null,
     nombre: invitado.nombre,
     pases_asignados: invitado.pases_asignados,
     pases_confirmados: invitado.pases_confirmados,
@@ -158,7 +162,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   };
 
   const qrEnabled = Boolean(evento.usuario.organizacion?.qr_checkin_habilitado);
-  const qrImage = qrEnabled && !isPreview
+  const qrImage = qrEnabled && !isPreview && invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0 && !invitado.pases_ingresados && !invitado.ultima_entrada_en
     ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, {
         width: 480,
         margin: 1,
@@ -167,9 +171,9 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     : null;
 
   return <>{isCarlosYazminInvitation ? (
-      <WeddingOliveVintage {...invitationProps} qrImage={qrImage} />
+      <WeddingOliveVintage {...invitationProps} qrEnabled={qrEnabled} qrImage={qrImage} />
     ) : (
-      <WeddingPersonalized {...invitationProps} qrImage={qrImage} />
+      <WeddingPersonalized {...invitationProps} qrEnabled={qrEnabled} qrImage={qrImage} />
      )}</>;
 }
 

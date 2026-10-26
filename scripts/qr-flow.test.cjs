@@ -68,6 +68,7 @@ test("El menú de una sesión abierta muestra y retira el escáner al cambiar pr
   const nav = loadSource("components/DashboardNav.tsx", {
     react,
     "next/link": "a",
+    "@/components/LoadingLink": "a",
     "next/image": "img",
     "next/navigation": { usePathname: () => "/dashboard/usuarios" },
     "motion/react": { useReducedMotion: () => true, AnimatePresence: "div", motion: { span: "span", div: "div" } },
@@ -217,3 +218,173 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
     assert.equal(f.logs.length, 0);
   }
 });
+
+ test("La consulta pública devuelve solo el estado del token y evita caché", async () => {
+  const f = fixture();
+  f.guest.evento.usuario.organizacion = f.organization;
+  f.prisma.invitado.findUnique = async ({ where }) => where.token === "token-a" ? f.guest : null;
+  const route = loadSource("app/api/invitacion/entrada/route.ts", { ...f.mocks, "@/lib/ratelimit": { checkRateLimit: () => true } });
+  const read = token => route.GET(new Request("http://localhost/api/invitacion/entrada?token=" + token));
+  let response = await read("token-a");
+  assert.match(response.headers.get("Cache-Control"), /no-store/);
+  assert.deepEqual(await response.json(), { escaneado: false, confirmado: true });
+  f.guest.pases_ingresados = 1;
+  assert.deepEqual(await (await read("token-a")).json(), { escaneado: true, confirmado: true });
+  assert.equal((await read("invalido")).status, 404);
+  f.organization.qr_checkin_habilitado = false;
+  assert.equal((await read("token-a")).status, 404);
+ });
+
+ test("El pase consulta cada 60 segundos, pausa oculto y oculta el QR al detectar ingreso", async () => {
+  const states = [], effects = [], cleanups = [], listeners = {};
+  let cursor = 0, interval, requests = 0, scanned = false, timerCleared = false;
+  const doc = { visibilityState: "visible", addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: name => { delete listeners[name]; } };
+  const component = loadSource("components/InvitationQrPass.tsx", {
+    "next/image": "img",
+    react: {
+      useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = value; }]; },
+      useEffect: fn => effects.push(fn),
+    },
+  }, {
+    document: doc, AbortController,
+    window: { setInterval: (fn, ms) => { assert.equal(ms, 60000); interval = fn; return 1; }, clearInterval: () => { timerCleared = true; } },
+    fetch: async () => { requests++; return Response.json({ escaneado: scanned, confirmado: true }); },
+  }).default;
+  const render = () => { cursor = 0; return component({ image: "data:image/png;base64,test", token: "token-a", guestName: "Prueba", passes: 2, confirmed: true }); };
+  const contains = (node, value) => node === value || (Array.isArray(node) ? node.some(child => contains(child, value)) : node && typeof node === "object" ? Object.values(node.props || {}).some(child => contains(child, value)) : false);
+  assert.equal(contains(render(), "data:image/png;base64,test"), true);
+  effects.splice(0).forEach(fn => cleanups.push(fn()));
+  await new Promise(setImmediate);
+  assert.equal(requests, 1);
+  doc.visibilityState = "hidden";
+  await interval();
+  assert.equal(requests, 1);
+  doc.visibilityState = "visible";
+  listeners.visibilitychange();
+  await new Promise(setImmediate);
+  assert.equal(requests, 2);
+  scanned = true;
+  await interval();
+  assert.equal(contains(render(), "data:image/png;base64,test"), false);
+  assert.equal(contains(render(), "Tu entrada ya fue escaneada"), true);
+  cleanups.forEach(fn => fn?.());
+  effects.splice(0).forEach(fn => fn());
+  assert.equal(timerCleared, true);
+  assert.equal(listeners.visibilitychange, undefined);
+ });
+
+ test("El escáner rechaza pendientes, vistos y confirmaciones sin pases sin registrar ingresos", async () => {
+  for (const [estado, pases] of [["pendiente", null], ["visto", 2], ["confirmado", null], ["confirmado", 0]]) {
+    const f = fixture(); f.guest.estado = estado; f.guest.pases_confirmados = pases;
+    const route = loadSource("app/api/entradas/route.ts", f.mocks);
+    const lookup = await route.GET(new Request("http://localhost/api/entradas?codigo=code-a"));
+    assert.equal(lookup.status, 409);
+    assert.equal((await lookup.json()).code, "NOT_CONFIRMED");
+    const response = await route.POST(request({ codigo: "code-a", cantidad: 1 }));
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, "NOT_CONFIRMED");
+    assert.equal(f.logs.length, 0);
+    assert.equal(f.guest.pases_ingresados, 0);
+  }
+ });
+
+ test("El servidor entrega la imagen QR solo tras confirmar y nunca después de usarla", async () => {
+  const f = fixture();
+  f.guest.evento.usuario.organizacion = f.organization;
+  f.prisma.invitado.findUnique = async ({ where }) => where.token === "token-a" ? f.guest : null;
+  let generated = 0;
+  const route = loadSource("app/api/invitacion/entrada/route.ts", { ...f.mocks,
+    "@/lib/ratelimit": { checkRateLimit: () => true },
+    qrcode: { toDataURL: async value => { generated++; assert.equal(value, "monarque:entrada:code-a"); return "data:image/png;base64,qr"; } },
+  });
+  const read = () => route.GET(new Request("http://localhost/api/invitacion/entrada?token=token-a&qr=1"));
+  for (const estado of ["pendiente", "visto", "declinado"]) {
+    f.guest.estado = estado;
+    const data = await (await read()).json();
+    assert.equal(data.confirmado, false);
+    assert.equal(data.qrImage, undefined);
+  }
+  assert.equal(generated, 0);
+  f.guest.estado = "confirmado";
+  const active = await (await read()).json();
+  assert.equal(active.confirmado, true);
+  assert.equal(active.qrImage, "data:image/png;base64,qr");
+  f.guest.pases_ingresados = 1;
+  assert.equal((await (await read()).json()).qrImage, undefined);
+  assert.equal(generated, 1);
+ });
+
+ test("El pase pendiente no consulta ni muestra QR y lo carga al confirmar sin recargar", async () => {
+  const states = [], effects = [], cleanups = [];
+  let cursor = 0, requests = 0, confirmed = false;
+  const component = loadSource("components/InvitationQrPass.tsx", {
+    "next/image": "img",
+    react: { useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = value; }]; }, useEffect: callback => effects.push(callback) },
+  }, {
+    AbortController, document: { visibilityState: "visible", addEventListener: () => {}, removeEventListener: () => {} },
+    window: { setInterval: () => 1, clearInterval: () => {} },
+    fetch: async url => { requests++; assert.match(url, /qr=1/); return Response.json({ confirmado: true, escaneado: false, qrImage: "data:image/png;base64,new" }); },
+  }).default;
+  const render = () => { cursor = 0; return component({ image: null, confirmed, token: "token-a", guestName: "Prueba", passes: 2 }); };
+  const contains = (node, value) => node === value || (Array.isArray(node) ? node.some(child => contains(child, value)) : node && typeof node === "object" ? Object.values(node.props || {}).some(child => contains(child, value)) : false);
+  const pending = render();
+  assert.equal(contains(pending, "Confirma tu asistencia para obtener tu pase QR"), true);
+  effects.splice(0).forEach(callback => cleanups.push(callback()));
+  assert.equal(requests, 0);
+  confirmed = true; render();
+  effects.splice(0).forEach(callback => cleanups.push(callback()));
+  await new Promise(setImmediate);
+  assert.equal(requests, 1);
+  assert.equal(contains(render(), "data:image/png;base64,new"), true);
+  cleanups.forEach(callback => callback?.());
+ });
+
+ test("La acción directa de no asistir guarda cero pases y oculta el QR en ambas plantillas", async () => {
+  for (const file of ["app/templates/WeddingPersonalized.tsx", "app/templates/WeddingOliveVintage.tsx"]) {
+    const states = []; let cursor = 0, sent, calls = 0;
+    const guest = { nombre: "Prueba", pases_asignados: 4, pases_confirmados: 3, ninos_confirmados: 1, estado: "confirmado", ultima_respuesta_en: null };
+    const evento = { nombre: "Evento", anfitriones: "Ana y Luis", fecha_evento: "2027-01-01T18:00:00Z", fecha_limite_rsvp: "2026-12-31T23:00:00Z", lugar: "Salón", expirado: false };
+    const component = loadSource(file, {
+      react: { useState: initial => { const index = cursor++; if (!(index in states)) states[index] = index === 0 ? true : typeof initial === "function" ? initial() : initial; return [states[index], value => { states[index] = typeof value === "function" ? value(states[index]) : value; }]; }, useEffect: () => {} },
+      "motion/react": { useReducedMotion: () => true, AnimatePresence: "div", motion: new Proxy({}, { get: (_object, key) => String(key) }) },
+      "next/image": "img", "next/font/google": { Cormorant_Garamond: () => ({ variable: "font-a" }), Libre_Baskerville: () => ({ variable: "font-b" }) },
+      "@/lib/rsvp-state": loadSource("lib/rsvp-state.ts", {}),
+      "@/components/AsyncButton": "action-button", "@/components/InvitationQrPass": "qr-pass", "@/app/components/CountDown": "countdown",
+      "@/lib/utils": { formatDateLongMx: () => "fecha", formatDateMx: () => "fecha" },
+      "@/lib/event-theme": { genericInvitationTheme: { background: "white", surface: "white", primary: "green", secondary: "gold", accent: "gold", ink: "black", muted: "gray" } },
+    }, { fetch: async (_url, options) => { calls++; sent = JSON.parse(options.body); return Response.json({ ok: true, mensaje: "Gracias por avisarnos", invitado: { ...guest, pases_confirmados: 0, ninos_confirmados: 0, estado: "declinado" } }); } }).default;
+    const props = { data: { event: { name: "Ana & Luis", date: evento.fecha_evento, itinerary: [] }, media: { coverImage: "image.jpg", gallery: [] }, location: { event: "Ceremonia", reception: "Salón" } }, invitado: guest, evento, token: "token-a", qrEnabled: true, qrImage: "data:image/png;base64,test" };
+    const render = extra => { cursor = 0; return component({ ...props, ...extra }); };
+    const nodes = node => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)];
+    const before = nodes(render());
+    assert.ok(before.some(node => node.type === "qr-pass"));
+    const savedConfirmation = before.find(node => node.type === "action-button");
+    assert.equal(savedConfirmation.props.disabled, true);
+    await savedConfirmation.props.onClick();
+    assert.equal(calls, 0);
+    const decline = before.find(node => node.type === "action-button" && Array.isArray(node.props.children) && node.props.children.includes("No podré asistir"));
+    assert.ok(decline, file);
+    await decline.props.onClick();
+    assert.deepEqual(sent, { token: "token-a", pases_confirmados: 0, ninos_confirmados: 0 });
+    const after = nodes(render());
+    assert.equal(after.some(node => node.type === "qr-pass"), false);
+    assert.ok(states.some(value => value && value.estado === "declinado"));
+    const savedDecline = after.find(node => node.type === "action-button");
+    assert.equal(savedDecline.props.disabled, true);
+    await savedDecline.props.onClick();
+    assert.equal(calls, 1);
+  }
+ });
+
+ test("Una respuesta solo se puede reenviar cuando cambian los pases, niños o decisión", () => {
+  const { isRsvpUnchanged } = loadSource("lib/rsvp-state.ts", {});
+  const confirmed = { estado: "confirmado", pases_confirmados: 3, ninos_confirmados: 1 };
+  assert.equal(isRsvpUnchanged(confirmed, 3, 1), true);
+  assert.equal(isRsvpUnchanged(confirmed, 2, 1), false);
+  assert.equal(isRsvpUnchanged(confirmed, 3, 0), false);
+  assert.equal(isRsvpUnchanged(confirmed, 0, 0), false);
+  const declined = { estado: "declinado", pases_confirmados: 0, ninos_confirmados: 0 };
+  assert.equal(isRsvpUnchanged(declined, 0, 0), true);
+  assert.equal(isRsvpUnchanged(declined, 1, 0), false);
+  assert.equal(isRsvpUnchanged({ estado: "pendiente", pases_confirmados: null }, 0, 0), false);
+ });

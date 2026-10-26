@@ -1,4 +1,6 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
+import { isRsvpUnchanged } from "@/lib/rsvp-state";
 
 import { CSSProperties, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -18,6 +20,8 @@ import InvitationQrPass from "@/components/InvitationQrPass";
 import { genericInvitationTheme } from "@/lib/event-theme";
 
 interface InvitadoData {
+  pases_ingresados?: number;
+  ultima_entrada_en?: string | null;
   nombre: string;
   pases_asignados: number;
   pases_confirmados: number | null;
@@ -43,6 +47,7 @@ interface Props {
   token: string;
   previewMode?: boolean;
   qrImage?: string | null;
+  qrEnabled?: boolean;
 }
 
 const genericTheme = {
@@ -94,6 +99,7 @@ export default function WeddingPersonalized({
   token,
   previewMode = false,
   qrImage,
+  qrEnabled = Boolean(qrImage),
 }: Props) {
   const reduceMotion = useReducedMotion();
   const theme = genericTheme;
@@ -147,7 +153,10 @@ export default function WeddingPersonalized({
     };
   }, [opened]);
 
-  const submitRsvp = async () => {
+  const responseUnchanged = isRsvpUnchanged(invitado, pases, ninos);
+
+  const submitRsvp = async (pasesAConfirmar: number = pases) => {
+    if (sending || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninos : 0)) return;
     if (previewMode || evento.expirado) return;
     setSending(true);
     setFeedback(null);
@@ -158,13 +167,15 @@ export default function WeddingPersonalized({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
-          pases_confirmados: pases,
-          ninos_confirmados: pases > 0 ? ninos : 0,
+          pases_confirmados: pasesAConfirmar,
+          ninos_confirmados: pasesAConfirmar > 0 ? ninos : 0,
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "No se pudo guardar tu respuesta.");
       setInvitado(result.invitado);
+      setPases(result.invitado.pases_confirmados ?? pasesAConfirmar);
+      setNinos(result.invitado.ninos_confirmados ?? 0);
       setFeedback(result.mensaje);
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : "No se pudo guardar tu respuesta.");
@@ -184,8 +195,8 @@ export default function WeddingPersonalized({
 
   return (
     <div style={style} className="min-h-screen bg-[var(--background)] text-[var(--ink)]">
-{opened && qrImage && !previewMode && invitado.estado !== "declinado" && (
-  <a href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
+{opened && qrEnabled && !previewMode && invitado.estado !== "declinado" && (
+  <a hidden={invitado.estado !== "confirmado" || !(invitado.pases_confirmados && invitado.pases_confirmados > 0)} href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
 )}
 
       <AnimatePresence mode="wait">
@@ -349,15 +360,17 @@ export default function WeddingPersonalized({
                           onChange={setNinos}
                         />
                       )}
-                      <button
+                      <AsyncButton
                         type="button"
-                        onClick={submitRsvp}
-                        disabled={sending || previewMode}
+                        onClick={() => submitRsvp()}
+                        disabled={sending || previewMode || responseUnchanged}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-4 text-xs font-bold uppercase tracking-[.18em] text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
-                      >
+                       loading={sending} loadingText="Guardando respuesta…">
                         {previewMode ? <Eye className="h-4 w-4" /> : pases === 0 ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                        {previewMode ? "Formulario deshabilitado" : sending ? "Guardando…" : pases === 0 ? "No podré asistir" : "Confirmar asistencia"}
-                      </button>
+                        {previewMode ? "Formulario deshabilitado" : sending ? "Guardando…" : responseUnchanged ? (invitado.estado === "declinado" ? "Ya confirmaste que no asistirás" : "Asistencia confirmada") : pases === 0 ? "No podré asistir" : "Confirmar asistencia"}
+                      </AsyncButton>
+{pases > 0 && <AsyncButton type="button" onClick={() => submitRsvp(0)} disabled={isRsvpUnchanged(invitado, 0, 0) || sending || previewMode} loading={sending} loadingText="Guardando respuesta…" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"><XCircle className="h-4 w-4" />No podré asistir</AsyncButton>}
+
                       <p className="text-center text-[10px] text-[var(--muted)]">Fecha límite: {formatDateMx(evento.fecha_limite_rsvp)}</p>
                     </>
                   ) : (
@@ -370,8 +383,8 @@ export default function WeddingPersonalized({
               </motion.div>
             </section>
 
-            {qrImage && !previewMode && invitado.estado !== "declinado" && (
-  <InvitationQrPass image={qrImage} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
+            {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
+  <InvitationQrPass confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en)} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
 )}
 <footer className="bg-[var(--background)] px-5 py-12 text-center">
               <p className="font-serif text-3xl text-[var(--primary)]">

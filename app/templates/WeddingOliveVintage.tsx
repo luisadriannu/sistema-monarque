@@ -1,4 +1,6 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
+import { isRsvpUnchanged } from "@/lib/rsvp-state";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -310,6 +312,8 @@ function SectionHeading({
 }
 
 interface InvitadoData {
+  pases_ingresados?: number;
+  ultima_entrada_en?: string | null;
   nombre: string;
   pases_asignados: number;
   pases_confirmados: number | null;
@@ -335,6 +339,7 @@ interface Props {
   token: string;
   previewMode?: boolean;
   qrImage?: string | null;
+  qrEnabled?: boolean;
 }
 
 export default function WeddingOliveVintage({
@@ -344,6 +349,7 @@ export default function WeddingOliveVintage({
   token,
   previewMode = false,
   qrImage,
+  qrEnabled = Boolean(qrImage),
 }: Props) {
   const reduceMotion = useReducedMotion();
   const nameParts = data.event.name.split(" & ");
@@ -422,7 +428,10 @@ export default function WeddingOliveVintage({
     );
   };
 
-  const handleSubmit = async () => {
+  const responseUnchanged = isRsvpUnchanged(invitado, pasesSeleccionados, ninosSeleccionados);
+
+  const handleSubmit = async (pasesAConfirmar: number = pasesSeleccionados) => {
+    if (enviando || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninosSeleccionados : 0)) return;
     if (evento.expirado || previewMode) return;
     setEnviando(true);
     setErrorEnvio(null);
@@ -433,9 +442,9 @@ export default function WeddingOliveVintage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
-          pases_confirmados: pasesSeleccionados,
+          pases_confirmados: pasesAConfirmar,
           ninos_confirmados:
-            maxPases >= 2 && pasesSeleccionados > 0 ? ninosSeleccionados : 0,
+            maxPases >= 2 && pasesAConfirmar > 0 ? ninosSeleccionados : 0,
         }),
       });
       const resData = await res.json();
@@ -444,6 +453,8 @@ export default function WeddingOliveVintage({
           resData.error || "Ocurrió un error al guardar tu respuesta.",
         );
       setInvitado(resData.invitado);
+      setPasesSeleccionados(resData.invitado.pases_confirmados ?? pasesAConfirmar);
+      setNinosSeleccionados(resData.invitado.ninos_confirmados ?? 0);
       setMensajeExito(resData.mensaje);
     } catch (err: unknown) {
       setErrorEnvio(
@@ -480,8 +491,8 @@ export default function WeddingOliveVintage({
           className={`${display.variable} ${utility.variable} overflow-hidden bg-[#E9DEC8] text-[#454938] [background-image:radial-gradient(circle_at_15%_20%,rgba(111,83,39,.09),transparent_28%),radial-gradient(circle_at_85%_70%,rgba(111,83,39,.08),transparent_30%)]`}
           style={{ fontFamily: "var(--font-cy-display)" }}
         >
-          {qrImage && !previewMode && invitado.estado !== "declinado" && (
-  <a href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
+          {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
+  <a hidden={invitado.estado !== "confirmado" || !(invitado.pases_confirmados && invitado.pases_confirmados > 0)} href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
 )}
 {/* Hero */}
           <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-4 py-6 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)] sm:px-6 sm:py-12">
@@ -1423,13 +1434,13 @@ export default function WeddingOliveVintage({
                     )}
 
                     {/* Botón confirmar */}
-                    <button
+                    <AsyncButton
                       type="button"
-                      onClick={handleSubmit}
-                      disabled={enviando || previewMode}
+                      onClick={() => handleSubmit()}
+                      disabled={enviando || previewMode || responseUnchanged}
                       className={`w-full py-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${pasesSeleccionados === 0 ? "bg-[#6B3A3A] text-[#F5E9D0] hover:bg-[#5A2E2E]" : "bg-[#37402F] text-[#E0C687] hover:bg-[#464B38]"}`}
                       style={{ fontFamily: "var(--font-cy-utility)" }}
-                    >
+                     loading={enviando} loadingText="Guardando respuesta…">
                       {previewMode ? (
                         <>
                           <Eye className="w-4 h-4" />
@@ -1437,7 +1448,9 @@ export default function WeddingOliveVintage({
                         </>
                       ) : enviando ? (
                         <span className="inline-block w-4 h-4 border-2 border-[#E0C687]/30 border-t-[#E0C687] rounded-full animate-spin" />
-                      ) : pasesSeleccionados === 0 ? (
+                      ) : responseUnchanged ? (
+  <><CheckCircle2 className="h-4 w-4" /><span>{invitado.estado === "declinado" ? "Ya confirmaste que no asistirás" : "Asistencia confirmada"}</span></>
+) : pasesSeleccionados === 0 ? (
                         <>
                           <XCircle className="w-4 h-4" />
                           <span>Confirmar que no podré asistir</span>
@@ -1452,7 +1465,9 @@ export default function WeddingOliveVintage({
                           </span>
                         </>
                       )}
-                    </button>
+                    </AsyncButton>
+{pasesSeleccionados > 0 && <AsyncButton type="button" onClick={() => handleSubmit(0)} disabled={isRsvpUnchanged(invitado, 0, 0) || enviando || previewMode} loading={enviando} loadingText="Guardando respuesta…" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"><XCircle className="h-4 w-4" />No podré asistir</AsyncButton>}
+
 
                     <p
                       className="text-center text-[11px] text-[#9A7837]"
@@ -1479,8 +1494,8 @@ export default function WeddingOliveVintage({
             </motion.div>
           </section>
 
-          {qrImage && !previewMode && invitado.estado !== "declinado" && (
-  <InvitationQrPass image={qrImage} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
+          {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
+  <InvitationQrPass confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en)} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
 )}
 {/* Footer */}
           <footer className="relative overflow-hidden border-t-4 border-double border-[#9A7837]/35 bg-[#CDBD9C] px-6 py-16 text-center">

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import LoadingLink from "@/components/LoadingLink";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
@@ -225,7 +225,7 @@ export default function DashboardNav({
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <Link
+                <LoadingLink
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
@@ -255,7 +255,7 @@ export default function DashboardNav({
                   {isActive && (
                     <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-[#e05a1b]" />
                   )}
-                </Link>
+                </LoadingLink>
               );
             })}
           </nav>

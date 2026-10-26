@@ -1,4 +1,5 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserQRCodeReader, IScannerControls } from "@zxing/browser";
@@ -45,7 +46,9 @@ export default function EntradaScanner() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
   const [logsError, setLogsError] = useState("");
+  const [logsLoading, setLogsLoading] = useState(false);
   const loadLogs = useCallback(async () => {
+    setLogsLoading(true);
     try {
       const r = await fetch(`/api/entradas?page=${page}`, { cache: "no-store" });
       const d = await r.json();
@@ -56,6 +59,8 @@ export default function EntradaScanner() {
       setLogsError("");
     } catch (error) {
       setLogsError(error instanceof Error ? error.message : "No se pudo cargar la asistencia.");
+    } finally {
+      setLogsLoading(false);
     }
   }, [page]);
   useEffect(() => {
@@ -127,6 +132,7 @@ export default function EntradaScanner() {
     setBusy(false);
     if (!r.ok) {
       if (d.code === "ALREADY_SCANNED" && d.invitado) setGuest(d.invitado);
+      if (d.code === "NOT_CONFIRMED") setGuest(null);
       return setMessage(d.error);
     }
     setGuest(d.invitado);
@@ -212,6 +218,8 @@ export default function EntradaScanner() {
                 </div>
               ) : guest.estado === "declinado" ? (
                 <p className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">Este invitado declinó la invitación.</p>
+              ) : guest.estado !== "confirmado" || (guest.pases_confirmados ?? 0) < 1 ? (
+                <p className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">El invitado debe confirmar su asistencia antes de utilizar el pase QR.</p>
               ) : remaining > 0 ? (
                 <>
                   <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Este QR se utiliza una sola vez. Selecciona todas las personas que ingresan antes de confirmar; no podrás agregar más ingresos con este código.</p>
@@ -227,17 +235,17 @@ export default function EntradaScanner() {
                       ))}
                     </select>
                   </label>
-                  <button
+                  <AsyncButton
                     onClick={confirm}
                     disabled={busy}
                     className="mt-4 flex w-full justify-center rounded-xl bg-emerald-600 p-3 font-semibold text-white"
-                  >
+                   loadingText="Registrando…">
                     {busy ? (
                       <LoaderCircle className="animate-spin" />
                     ) : (
                       "Confirmar entrada"
                     )}
-                  </button>
+                  </AsyncButton>
                 </>
               ) : (
                 <div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
@@ -266,7 +274,7 @@ export default function EntradaScanner() {
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-serif text-2xl font-bold">Asistencia registrada ({pagination.total})</h2>
-          <button onClick={() => void loadLogs()} aria-label="Actualizar asistencia"><RefreshCw className="h-4 w-4" /></button>
+          <AsyncButton loading={logsLoading} onClick={() => loadLogs()} aria-label="Actualizar asistencia" loadingText="Actualizando…"><RefreshCw className="h-4 w-4" /></AsyncButton>
         </div>
         {logsError && <p role="alert" className="mt-3 text-sm text-rose-700">{logsError}</p>}
         <div className="mt-4 overflow-x-auto">
@@ -281,17 +289,17 @@ export default function EntradaScanner() {
           {!attendees.length && !logsError && <p className="py-8 text-center text-sm text-stone-400">Aún no hay asistentes registrados. Escanea y confirma una entrada para registrarla.</p>}
         </div>
         <div className="mt-4 flex items-center justify-end gap-4 text-sm">
-          <button disabled={page <= 1} onClick={() => setPage(value => value - 1)} className="disabled:opacity-40">Anterior</button>
+          <button disabled={logsLoading || page <= 1} onClick={() => setPage(value => value - 1)} className="disabled:opacity-40">Anterior</button>
           <span>Página {page} de {pagination.total_pages}</span>
-          <button disabled={page >= pagination.total_pages} onClick={() => setPage(value => value + 1)} className="disabled:opacity-40">Siguiente</button>
+          <button disabled={logsLoading || page >= pagination.total_pages} onClick={() => setPage(value => value + 1)} className="disabled:opacity-40">Siguiente</button>
         </div>
       </section>
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl font-bold">Ingresos recientes</h2>
-          <button onClick={loadLogs}>
+          <AsyncButton loading={logsLoading} onClick={loadLogs} loadingText="Actualizando…">
             <RefreshCw className="h-4 w-4" />
-          </button>
+          </AsyncButton>
         </div>
         <div className="mt-4 divide-y">
           {logs.length ? (

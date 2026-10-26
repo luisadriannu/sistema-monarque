@@ -1,4 +1,6 @@
 "use client";
+import AsyncButton from "@/components/AsyncButton";
+import LoadingLink from "@/components/LoadingLink";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -200,6 +202,7 @@ export default function UsuariosAdminClient() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -441,13 +444,13 @@ export default function UsuariosAdminClient() {
                       {evento.lugar}
                     </p>
                     <div className="flex flex-wrap items-center gap-3 pt-1">
-                      <a
+                      <LoadingLink
                         href={`/dashboard/invitados?evento_id=${evento.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#2b211b] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#49392f]"
-                      >
+                       loadingText="Cargando invitados…">
                         <Users className="h-3.5 w-3.5" />
                         Ver invitados
-                      </a>
+                      </LoadingLink>
                       <a
                         href={`/${evento.slug}?preview=1`}
                         target="_blank"
@@ -712,18 +715,18 @@ export default function UsuariosAdminClient() {
                   >
                     Cancelar
                   </button>
-                  <button
+                  <AsyncButton
                     type="submit"
                     disabled={saving}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e05a1b] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-[#c94d14] disabled:opacity-60"
-                  >
+                   loadingText="Guardando…" loading={saving}>
                     {saving ? (
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                     ) : (
                       <CheckCircle2 className="h-4 w-4" />
                     )}
                     {editingId ? "Guardar cambios" : "Crear cuenta y evento"}
-                  </button>
+                  </AsyncButton>
                 </div>
               </form>
             </motion.div>
@@ -836,12 +839,12 @@ export default function UsuariosAdminClient() {
                 >
                   Cancelar
                 </button>
-                <button
+                <AsyncButton
                   type="button"
                   disabled={deleting}
                   onClick={handleDelete}
                   className="inline-flex min-w-36 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-500/20 transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-400"
-                >
+                 loadingText="Eliminando…">
                   {deleting ? (
                     <>
                       <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -853,7 +856,7 @@ export default function UsuariosAdminClient() {
                       Sí, eliminar
                     </>
                   )}
-                </button>
+                </AsyncButton>
               </div>
             </motion.div>
           </motion.div>
