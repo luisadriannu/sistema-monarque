@@ -1,7 +1,7 @@
 "use client";
 import AsyncButton from "@/components/AsyncButton";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   Lock,
@@ -47,10 +47,33 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rateLimit, setRateLimit] = useState<{
+    email: string;
+    blockedUntil: number;
+  } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const rateLimitSeconds =
+    rateLimit?.email === normalizedEmail
+      ? Math.max(0, Math.ceil((rateLimit.blockedUntil - now) / 1000))
+      : 0;
+  const isRateLimited = rateLimitSeconds > 0;
+
+  useEffect(() => {
+    if (!isRateLimited) return;
+
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [isRateLimited]);
+
+  const retryTimeLabel = `${Math.floor(rateLimitSeconds / 60)}:${String(
+    rateLimitSeconds % 60,
+  ).padStart(2, "0")}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || isRateLimited) return;
     setLoading(true);
     setError(null);
 
@@ -64,6 +87,20 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = Number.parseInt(
+            res.headers.get("Retry-After") ?? "60",
+            10,
+          );
+          const retryAfterSeconds =
+            Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60;
+
+          setNow(Date.now());
+          setRateLimit({
+            email: normalizedEmail,
+            blockedUntil: Date.now() + retryAfterSeconds * 1000,
+          });
+        }
         throw new Error(data.error || "Error al iniciar sesión.");
       }
 
@@ -217,7 +254,11 @@ export default function LoginPage() {
                 className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-2"
               >
                 <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                <p>{error}</p>
+                <p>
+                  {isRateLimited
+                    ? `Demasiados intentos. Podrás volver a intentarlo en ${retryTimeLabel}.`
+                    : error}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -278,7 +319,7 @@ export default function LoginPage() {
 
             <AsyncButton
               type="submit"
-              disabled={loading}
+              disabled={loading || isRateLimited}
               className="w-full py-3.5 px-4 bg-[#2b211b] hover:bg-[#e05a1b] text-white font-semibold rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed group cursor-pointer"
               loadingText="Ingresando…"
               loading={loading}
@@ -287,7 +328,11 @@ export default function LoginPage() {
                 <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Acceder a mi Dashboard</span>
+                  <span>
+                    {isRateLimited
+                      ? `Intenta de nuevo en ${retryTimeLabel}`
+                      : "Acceder a mi Dashboard"}
+                  </span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
