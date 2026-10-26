@@ -24,8 +24,16 @@ function BotanicalCorner({ flip = false }: { flip?: boolean }) {
       className="h-52 w-44 text-[#bf8b55]"
       style={flip ? { transform: "scale(-1)" } : undefined}
     >
-      <path d="M12 211C45 154 72 91 157 12" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M42 159C15 151 9 129 13 113c25 5 39 19 29 46ZM69 107C47 88 52 64 63 51c19 13 25 32 6 56ZM105 68C91 43 104 22 119 13c14 17 12 36-14 55ZM53 139c31 5 51-11 59-27-25-7-47 0-59 27ZM85 91c29 5 49-9 57-25-23-8-44-1-57 25Z" fill="currentColor" opacity=".3" />
+      <path
+        d="M12 211C45 154 72 91 157 12"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M42 159C15 151 9 129 13 113c25 5 39 19 29 46ZM69 107C47 88 52 64 63 51c19 13 25 32 6 56ZM105 68C91 43 104 22 119 13c14 17 12 36-14 55ZM53 139c31 5 51-11 59-27-25-7-47 0-59 27ZM85 91c29 5 49-9 57-25-23-8-44-1-57 25Z"
+        fill="currentColor"
+        opacity=".3"
+      />
       <circle cx="39" cy="164" r="3" fill="currentColor" opacity=".55" />
       <circle cx="74" cy="111" r="2.5" fill="currentColor" opacity=".55" />
     </svg>
@@ -60,7 +68,11 @@ export default function LoginPage() {
       }
 
       window.location.replace(
-        data.user?.rol === "admin" || data.user?.rol === "organizador" ? "/dashboard/usuarios" : "/dashboard",
+        data.user?.rol === "admin" || data.user?.rol === "organizador"
+          ? "/dashboard/usuarios"
+          : data.user?.rol === "recepcionista"
+            ? "/dashboard/escanear"
+            : "/dashboard",
       );
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -118,11 +130,21 @@ export default function LoginPage() {
 
           <div className="relative flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-[#d7a86e]/60 bg-white">
-              <Image src="/logo.png" alt="" width={44} height={44} className="h-full w-full object-cover" />
+              <Image
+                src="/logo.png"
+                alt=""
+                width={44}
+                height={44}
+                className="h-full w-full object-cover"
+              />
             </div>
             <div>
-              <p className="font-serif text-lg font-semibold tracking-[0.16em]">MONARQUE</p>
-              <p className="text-[9px] uppercase tracking-[0.3em] text-[#e6b37a]">Invitaciones Web</p>
+              <p className="font-serif text-lg font-semibold tracking-[0.16em]">
+                MONARQUE
+              </p>
+              <p className="text-[9px] uppercase tracking-[0.3em] text-[#e6b37a]">
+                Invitaciones Web
+              </p>
             </div>
           </div>
 
@@ -142,7 +164,8 @@ export default function LoginPage() {
               <span className="h-px flex-1 bg-current opacity-40" />
             </div>
             <p className="mx-auto mt-6 max-w-sm text-sm leading-relaxed text-stone-300">
-              Gestiona invitados, pases y confirmaciones mientras disfrutas de cada momento especial.
+              Gestiona invitados, pases y confirmaciones mientras disfrutas de
+              cada momento especial.
             </p>
           </div>
 
@@ -153,120 +176,123 @@ export default function LoginPage() {
         </motion.section>
 
         <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full bg-white/95 p-8 sm:p-11 lg:flex lg:flex-col lg:justify-center lg:p-14"
-      >
-        <div className="pointer-events-none absolute -right-20 -top-24 opacity-[.12] lg:hidden">
-          <BotanicalCorner flip />
-        </div>
-        {/* Monarque Brand Header */}
-        <div className="relative text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full overflow-hidden border-2 border-[#ebd9c4] bg-white mb-3 shadow-sm p-0.5">
-            <Image
-              src="/logo.png"
-              alt="Monarque"
-              width={64}
-              height={64}
-              className="w-full h-full object-cover rounded-full"
-              priority
-            />
+          initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full bg-white/95 p-8 sm:p-11 lg:flex lg:flex-col lg:justify-center lg:p-14"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 opacity-[.12] lg:hidden">
+            <BotanicalCorner flip />
           </div>
-          <h1 className="font-serif text-3xl font-semibold tracking-wide text-[#2b211b]">
-            MONARQUE
-          </h1>
-          <p className="text-xs uppercase tracking-widest text-[#e05a1b] font-semibold mt-1">
-            Plan Elite • Control de Pases
-          </p>
-          <div className="h-[2px] w-12 bg-[#e05a1b] mx-auto mt-3 rounded-full opacity-80" />
-          <p className="mx-auto mt-5 max-w-xs font-serif text-lg italic leading-relaxed text-stone-600">
-            Bienvenida de nuevo a la organización de tu gran día.
-          </p>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {error && (
-            <motion.div
-              initial={reduceMotion ? false : { opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-2"
-            >
-              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-              <p>{error}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-              Correo Electrónico
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                <Mail className="w-4 h-4" />
-              </div>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@correo.com"
-                className="w-full pl-10 pr-4 py-3 bg-[#faf8f5] border border-stone-200 rounded-xl text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b] focus:border-transparent transition-all"
+          {/* Monarque Brand Header */}
+          <div className="relative text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full overflow-hidden border-2 border-[#ebd9c4] bg-white mb-3 shadow-sm p-0.5">
+              <Image
+                src="/logo.png"
+                alt="Monarque"
+                width={64}
+                height={64}
+                className="w-full h-full object-cover rounded-full"
+                priority
               />
             </div>
+            <h1 className="font-serif text-3xl font-semibold tracking-wide text-[#2b211b]">
+              MONARQUE
+            </h1>
+            <p className="text-xs uppercase tracking-widest text-[#e05a1b] font-semibold mt-1">
+              Plan Elite • Control de Pases
+            </p>
+            <div className="h-[2px] w-12 bg-[#e05a1b] mx-auto mt-3 rounded-full opacity-80" />
+            <p className="mx-auto mt-5 max-w-xs font-serif text-lg italic leading-relaxed text-stone-600">
+              Bienvenida(o) de nuevo a la organización de tu gran día.
+            </p>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-              Contraseña
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                <Lock className="w-4 h-4" />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-12 py-3 bg-[#faf8f5] border border-stone-200 rounded-xl text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b] focus:border-transparent transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                aria-pressed={showPassword}
-                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-stone-400 transition-colors hover:text-[#e05a1b] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#e05a1b]"
+          <AnimatePresence initial={false}>
+            {error && (
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-2"
               >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <AsyncButton
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 px-4 bg-[#2b211b] hover:bg-[#e05a1b] text-white font-semibold rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed group cursor-pointer"
-           loadingText="Ingresando…" loading={loading}>
-            {loading ? (
-              <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                <span>Acceder a mi Dashboard</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </>
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                <p>{error}</p>
+              </motion.div>
             )}
-          </AsyncButton>
-        </form>
+          </AnimatePresence>
 
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
+                Correo Electrónico
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@correo.com"
+                  className="w-full pl-10 pr-4 py-3 bg-[#faf8f5] border border-stone-200 rounded-xl text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b] focus:border-transparent transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
+                Contraseña
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-12 py-3 bg-[#faf8f5] border border-stone-200 rounded-xl text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b] focus:border-transparent transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-stone-400 transition-colors hover:text-[#e05a1b] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#e05a1b]"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <AsyncButton
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-4 bg-[#2b211b] hover:bg-[#e05a1b] text-white font-semibold rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed group cursor-pointer"
+              loadingText="Ingresando…"
+              loading={loading}
+            >
+              {loading ? (
+                <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>Acceder a mi Dashboard</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </>
+              )}
+            </AsyncButton>
+          </form>
         </motion.div>
       </div>
 
@@ -282,18 +308,31 @@ export default function LoginPage() {
             className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#fbf8f4]/95 backdrop-blur-md"
           >
             <motion.div
-              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }}
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }
+              }
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className="flex flex-col items-center"
             >
               <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-[#ebd9c4] bg-white shadow-lg shadow-stone-200/60">
-                <Image src="/logo.png" alt="" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
-                <LoaderCircle className="absolute -inset-1 h-[88px] w-[88px] animate-spin text-[#e05a1b] motion-reduce:animate-none" strokeWidth={1.25} />
+                <Image
+                  src="/logo.png"
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+                <LoaderCircle
+                  className="absolute -inset-1 h-[88px] w-[88px] animate-spin text-[#e05a1b] motion-reduce:animate-none"
+                  strokeWidth={1.25}
+                />
               </div>
               <p className="font-serif text-xl font-semibold tracking-wide text-[#2b211b]">
                 Preparando tu dashboard
               </p>
-              <p className="mt-2 text-sm text-stone-500">Un momento, estamos cargando tu evento…</p>
+              <p className="mt-2 text-sm text-stone-500">
+                Un momento, estamos cargando tu evento…
+              </p>
               <span className="sr-only">Cargando</span>
             </motion.div>
           </motion.div>

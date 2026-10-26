@@ -3,6 +3,7 @@
 /generated/prisma/
 /generated/prisma-client/
 /generated/prisma-client-v2/
+/generated/prisma-client-v3/
 /.pnp
 .pnp.js
 

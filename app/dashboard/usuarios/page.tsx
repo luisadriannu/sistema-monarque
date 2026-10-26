@@ -8,6 +8,7 @@ export default async function UsuariosPage() {
 
   if (!user) redirect("/login");
   if (user.rol === "clienta") redirect("/dashboard");
+  if (user.rol === "recepcionista") redirect("/dashboard/escanear");
 
   return user.rol === "admin" ? <OrganizadoresAdminClient /> : <UsuariosAdminClient />;
 }

@@ -21,6 +21,8 @@ import {
   UserRound,
   Users,
   X,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import DashboardLoader from "@/components/DashboardLoader";
 import EventTypeIcon from "@/components/EventTypeIcon";
@@ -59,6 +61,7 @@ interface UsuarioCliente {
   email: string;
   rol: string;
   creado_en: string;
+  eliminado_en: string | null;
   eventos: EventoCliente[];
 }
 
@@ -104,6 +107,7 @@ function eventDateToIso(value: string) {
 
 export default function UsuariosAdminClient() {
   const [usuarios, setUsuarios] = useState<UsuarioCliente[]>([]);
+  const [usuariosEliminados, setUsuariosEliminados] = useState<UsuarioCliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -124,6 +128,7 @@ export default function UsuariosAdminClient() {
       if (!response.ok)
         throw new Error(data.error || "No se pudieron cargar las cuentas.");
       setUsuarios(data.usuarios || []);
+      setUsuariosEliminados(data.eliminados || []);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -274,7 +279,7 @@ export default function UsuariosAdminClient() {
         current.filter((usuario) => usuario.id !== clienteEliminar.id),
       );
       setClienteEliminar(null);
-      setSuccess(`La cuenta de ${nombreEliminado} fue eliminada correctamente.`);
+      setSuccess(`La cuenta de ${nombreEliminado} se movió a la papelera y puede restaurarse.`);
       window.setTimeout(() => setSuccess(null), 4500);
     } catch (deleteRequestError) {
       setDeleteError(
@@ -285,6 +290,13 @@ export default function UsuariosAdminClient() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const restoreClient = async (usuario: UsuarioCliente) => {
+    const response = await fetch(`/api/usuarios/${usuario.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restaurar" }) });
+    const data = await response.json();
+    if (!response.ok) return setError(data.error || "No se pudo restaurar la cuenta.");
+    setSuccess(data.message); await loadUsuarios();
   };
 
   if (loading) {
@@ -473,6 +485,14 @@ export default function UsuariosAdminClient() {
         )}
       </section>
 
+      {usuariosEliminados.length > 0 && (
+        <section className="rounded-3xl border border-dashed border-stone-300 bg-stone-50 p-5">
+          <div className="flex items-center gap-2"><Archive className="h-5 w-5 text-stone-500"/><h2 className="font-serif text-xl font-bold">Clientes en papelera ({usuariosEliminados.length})</h2></div>
+          <p className="mt-1 text-xs text-stone-500">Sus eventos e invitados permanecen intactos hasta que restaures la cuenta.</p>
+          <div className="mt-4 space-y-2">{usuariosEliminados.map(usuario => <div key={usuario.id} className="flex flex-col gap-3 rounded-2xl bg-white p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong>{usuario.nombre}</strong><p className="text-xs text-stone-500">{usuario.email}</p></div><button onClick={() => restoreClient(usuario)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300 px-4 py-2 text-xs font-bold text-emerald-700"><RotateCcw className="h-4 w-4"/>Restaurar</button></div>)}</div>
+        </section>
+      )}
+
       <AnimatePresence>
         {modalOpen && (
           <motion.div
@@ -547,14 +567,14 @@ export default function UsuariosAdminClient() {
                             ? "Nueva contraseña (opcional)"
                             : "Contraseña temporal"
                         }
-                        hint="Mínimo 8 caracteres"
+                        hint="Mínimo 10 caracteres"
                         required={!editingId}
                       >
                         <div className="relative">
                           <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
                           <input
                             type="password"
-                            minLength={8}
+                            minLength={10}
                             value={form.password}
                             onChange={(e) =>
                               updateField("password", e.target.value)
@@ -775,22 +795,22 @@ export default function UsuariosAdminClient() {
                 id="delete-client-title"
                 className="mt-5 pr-8 font-serif text-2xl font-bold text-[#2b211b]"
               >
-                ¿Eliminar a {clienteEliminar.nombre}?
+                ¿Mover a {clienteEliminar.nombre} a la papelera?
               </h2>
               <p
                 id="delete-client-description"
                 className="mt-2 text-sm leading-relaxed text-stone-600"
               >
-                Esta acción eliminará permanentemente su cuenta
+                Se bloqueará su cuenta, pero se conservarán
                 {clienteEliminar.eventos[0]
                   ? `, el evento “${clienteEliminar.eventos[0].nombre}”`
                   : ""}{" "}
-                y sus registros asociados.
+                y sus registros asociados para poder restaurarlos.
               </p>
 
               <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[.16em] text-rose-700">
-                  Datos que se eliminarán
+                  Datos que se conservarán
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-rose-900">
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
@@ -827,7 +847,7 @@ export default function UsuariosAdminClient() {
               )}
 
               <p className="mt-4 text-xs font-semibold text-stone-500">
-                Esta operación no se puede deshacer.
+                Podrás restaurar la cuenta desde esta misma pantalla.
               </p>
 
               <div className="mt-6 flex justify-end gap-3">
@@ -844,16 +864,16 @@ export default function UsuariosAdminClient() {
                   disabled={deleting}
                   onClick={handleDelete}
                   className="inline-flex min-w-36 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-500/20 transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-400"
-                 loadingText="Eliminando…">
+                 loadingText="Moviendo…">
                   {deleting ? (
                     <>
                       <LoaderCircle className="h-4 w-4 animate-spin" />
-                      Eliminando…
+                      Moviendo…
                     </>
                   ) : (
                     <>
                       <Trash2 className="h-4 w-4" />
-                      Sí, eliminar
+                      Mover a papelera
                     </>
                   )}
                 </AsyncButton>

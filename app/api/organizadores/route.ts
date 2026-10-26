@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@/generated/prisma-client-v2";
+import { Prisma } from "@/generated/prisma-client-v3";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { normalizePlan, planPresets } from "@/lib/organization-access";
 
 const headers = { "Cache-Control": "no-store" };
 
@@ -10,7 +11,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (user?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });
 
-  const organizaciones = await prisma.organizacion.findMany({
+  const all = await prisma.organizacion.findMany({
     include: {
       usuarios: {
         where: { rol: "organizador" },
@@ -20,7 +21,10 @@ export async function GET() {
     },
     orderBy: { creado_en: "desc" },
   });
-  return NextResponse.json({ organizaciones }, { headers });
+  return NextResponse.json({
+    organizaciones: all.filter(item => !item.eliminado_en),
+    eliminadas: all.filter(item => Boolean(item.eliminado_en)),
+  }, { headers });
 }
 
 export async function POST(request: Request) {
@@ -33,18 +37,28 @@ export async function POST(request: Request) {
     const negocio = String(body.negocio || nombre).trim();
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
+    const plan = normalizePlan(body.plan);
+    const preset = planPresets[plan];
+    const expiresAt = body.servicio_vence_en ? new Date(body.servicio_vence_en) : null;
     if (!nombre || !negocio || !email.includes("@")) {
       return NextResponse.json({ error: "Completa el nombre, negocio y correo." }, { status: 400, headers });
     }
-    if (password.length < 8) {
-      return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres." }, { status: 400, headers });
+    if (password.length < 10) {
+      return NextResponse.json({ error: "La contraseña debe tener al menos 10 caracteres." }, { status: 400, headers });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
     const organizacion = await prisma.organizacion.create({
       data: {
         nombre: negocio,
-        qr_checkin_habilitado: Boolean(body.qr_checkin_habilitado),
+        plan,
+        estado_servicio: body.estado_servicio === "prueba" ? "prueba" : "activo",
+        servicio_vence_en: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
+        max_clientes: preset.maxClientes,
+        max_eventos_activos: preset.maxEventos,
+        max_invitados_evento: preset.maxInvitados,
+        qr_checkin_habilitado: preset.qr && Boolean(body.qr_checkin_habilitado ?? preset.qr),
+        marca_personalizada: preset.marca,
         usuarios: { create: { nombre, email, passwordHash, rol: "organizador" } },
       },
       include: { usuarios: { where: { rol: "organizador" }, select: { id: true, nombre: true, email: true } } },

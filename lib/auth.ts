@@ -1,10 +1,16 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import prisma from "./prisma";
+import { isOrganizationServiceActive } from "./organization-access";
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || "monarque-elite-secret-key-fallback-32chars"
-);
+function getSecretKey() {
+  const configured = process.env.JWT_SECRET?.trim();
+  if (configured) return new TextEncoder().encode(configured);
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET es obligatorio en producción.");
+  }
+  return new TextEncoder().encode("monarque-local-development-secret-only");
+}
 
 const COOKIE_NAME = "monarque_session";
 
@@ -13,6 +19,7 @@ export interface SessionPayload {
   email: string;
   rol: string;
   nombre: string;
+  sessionVersion?: number;
 }
 
 /**
@@ -23,7 +30,7 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(SECRET_KEY);
+    .sign(getSecretKey());
 }
 
 /**
@@ -31,7 +38,7 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
  */
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
+    const { payload } = await jwtVerify(token, getSecretKey());
     return payload as unknown as SessionPayload;
   } catch {
     return null;
@@ -68,13 +75,31 @@ export async function getCurrentUser() {
         email: true,
         nombre: true,
         rol: true,
+        session_version: true,
+        eliminado_en: true,
+        lector_qr_habilitado: true,
         organizacion_id: true,
         organizacion: {
-          select: { id: true, nombre: true, qr_checkin_habilitado: true },
+          select: {
+            id: true,
+            nombre: true,
+            qr_checkin_habilitado: true,
+            plan: true,
+            estado_servicio: true,
+            servicio_vence_en: true,
+            max_clientes: true,
+            max_eventos_activos: true,
+            max_invitados_evento: true,
+            marca_personalizada: true,
+            eliminado_en: true,
+          },
         },
         creado_en: true,
       },
     });
+    if (!user || user.eliminado_en || user.organizacion?.eliminado_en) return null;
+    if (user.organizacion && !isOrganizationServiceActive(user.organizacion)) return null;
+    if ((session.sessionVersion ?? 0) !== user.session_version) return null;
     return user;
   } catch {
     return null;
@@ -90,6 +115,7 @@ export async function setSessionCookie(token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
+    priority: "high",
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 días
   });

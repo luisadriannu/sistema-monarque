@@ -384,7 +384,7 @@ export default function WeddingPersonalized({
             </section>
 
             {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
-  <InvitationQrPass confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en)} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
+  <InvitationQrPass confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(!qrImage && (initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en))} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
 )}
 <footer className="bg-[var(--background)] px-5 py-12 text-center">
               <p className="font-serif text-3xl text-[var(--primary)]">

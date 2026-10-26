@@ -20,14 +20,19 @@ function loadSource(file, mocks, globals = {}) {
 
 const nextServer = { NextResponse: { json: (data, init) => Response.json(data, init) } };
 function fixture() {
-  const organization = { id: "org-a", qr_checkin_habilitado: true };
+  const organization = { id: "org-a", plan: "elite", qr_checkin_habilitado: true, estado_servicio: "activo", servicio_vence_en: null, eliminado_en: null };
   let user = { id: "organizer", rol: "organizador", organizacion_id: "org-a", organizacion: organization };
-  const guest = { id: "guest-a", nombre: "Familia de prueba", grupo: "Amigos", codigo_entrada: "code-a", pases_asignados: 3, pases_confirmados: 2, pases_ingresados: 0, estado: "confirmado", evento: { id: "event-a", nombre: "Evento de prueba", usuario: { organizacion_id: "org-a" } } };
+  const event = { id: "event-a", nombre: "Evento de prueba", anfitriones: "Ana y Luis", fecha_evento: new Date("2027-01-01"), lugar: "Salón", estado: "recepcion_abierta", modo_ingreso: "unico", recepcion_abre_en: null, recepcion_cierra_en: null, usuario: { organizacion_id: "org-a" } };
+  const guest = { id: "guest-a", nombre: "Familia de prueba", grupo: "Amigos", codigo_entrada: "code-a", pases_asignados: 3, pases_confirmados: 2, pases_ingresados: 0, ultima_entrada_en: null, estado: "confirmado", evento: event };
   const logs = [];
   const prisma = {
     organizacion: {
       findUnique: async () => organization,
       update: async ({ data }) => Object.assign(organization, data),
+    },
+    evento: {
+      findFirst: async ({ where }) => where.id === event.id && (user.rol !== "recepcionista" || where.recepcionistas) && user.organizacion_id === "org-a" ? { ...event } : null,
+      findMany: async () => [{ ...event }],
     },
     invitado: {
       findUnique: async ({ where }) => where.codigo_entrada === guest.codigo_entrada ? { ...guest } : null,
@@ -36,8 +41,8 @@ function fixture() {
         guest.ultima_entrada_en = data.ultima_entrada_en;
         return { ...guest };
       },
-      count: async ({ where }) => guest.pases_ingresados > 0 && where.evento.usuario.organizacion_id === guest.evento.usuario.organizacion_id ? 1 : 0,
-      findMany: async ({ where }) => guest.pases_ingresados > 0 && where.evento.usuario.organizacion_id === guest.evento.usuario.organizacion_id ? [{ ...guest }] : [],
+      count: async ({ where }) => guest.pases_ingresados > 0 && where.evento_id === guest.evento.id ? 1 : 0,
+      findMany: async ({ where }) => guest.pases_ingresados > 0 && where.evento_id === guest.evento.id ? [{ ...guest }] : [],
     },
     registroEntrada: {
       create: async ({ data }) => { logs.push(data); return data; },
@@ -45,11 +50,25 @@ function fixture() {
     },
     $transaction: async fn => fn(prisma),
   };
-  const mocks = { "next/server": nextServer, "@/lib/auth": { getCurrentUser: async () => user }, "@/lib/prisma": prisma };
-  return { organization, guest, logs, prisma, mocks, setUser: value => { user = value; } };
+  const mocks = {
+    "next/server": nextServer,
+    "@/lib/auth": { getCurrentUser: async () => user },
+    "@/lib/prisma": prisma,
+    "@/lib/organization-access": {
+      isOrganizationServiceActive: organization => organization?.estado_servicio === "activo" && !organization?.eliminado_en,
+      organizationBlockMessage: () => "Servicio no disponible.",
+      normalizePlan: value => ["basico", "pro", "elite"].includes(value) ? value : "basico",
+      planPresets: { basico: { qr: false }, pro: { qr: true }, elite: { qr: true } },
+    },
+  };
+  return { organization, event, guest, logs, prisma, mocks, setUser: value => { user = value; } };
 }
 
-const request = (body, method = "POST") => new Request("http://localhost/api/entradas", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const request = (body, method = "POST") => new Request("http://localhost/api/entradas", {
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body && typeof body === "object" ? { evento_id: "event-a", ...body } : body),
+});
 
 test("El menú de una sesión abierta muestra y retira el escáner al cambiar premium", async () => {
   const states = [];
@@ -75,7 +94,7 @@ test("El menú de una sesión abierta muestra y retira el escáner al cambiar pr
     "@/components/EventTypeIcon": "span",
   }, {
     document: { visibilityState: "visible", addEventListener: (name, callback) => { listeners[name] = callback; }, removeEventListener: () => {} },
-    window: { setInterval: () => 1, clearInterval: () => {}, addEventListener: (name, callback) => { listeners[name] = callback; }, removeEventListener: () => {} },
+    window: { addEventListener: (name, callback) => { listeners[name] = callback; }, removeEventListener: () => {} },
     fetch: async () => Response.json({ user: { organizacion: { qr_checkin_habilitado: premium } } }),
   }).default;
   const render = () => {
@@ -125,7 +144,7 @@ test("Solo el administrador puede modificar premium y el valor debe ser booleano
 test("El primer registro consume el QR incluso si quedan pases disponibles", async () => {
   const f = fixture();
   const route = loadSource("app/api/entradas/route.ts", f.mocks);
-  const lookup = await route.GET(new Request("http://localhost/api/entradas?codigo=monarque:entrada:code-a"));
+  const lookup = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&codigo=monarque:entrada:code-a"));
   assert.equal((await lookup.json()).invitado.id, f.guest.id);
   const entry = await route.POST(request({ codigo: "monarque:entrada:code-a", cantidad: 1 }));
   assert.equal(entry.status, 200);
@@ -136,7 +155,7 @@ test("El primer registro consume el QR incluso si quedan pases disponibles", asy
   assert.equal(duplicate.code, "ALREADY_SCANNED");
   assert.equal(duplicate.invitado.pases_ingresados, 1);
   assert.ok(duplicate.invitado.ultima_entrada_en);
-  const table = await route.GET(new Request("http://localhost/api/entradas?page=1"));
+  const table = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&page=1"));
   const data = await table.json();
   assert.equal(data.asistentes.length, 1);
   assert.equal(data.asistentes[0].pases_ingresados, 1);
@@ -152,11 +171,39 @@ test("Sin premium, otro organizador y una clienta no pueden usar el lector", asy
   assert.equal((await route.POST(request({ codigo: "code-a", cantidad: 1 }))).status, 403);
   f.organization.qr_checkin_habilitado = true;
   f.setUser({ rol: "organizador", organizacion_id: "org-b", organizacion: f.organization });
-  assert.equal((await route.POST(request({ codigo: "code-a", cantidad: 1 }))).status, 404);
-  assert.equal((await (await route.GET(new Request("http://localhost/api/entradas"))).json()).asistentes.length, 0);
+  assert.equal((await route.POST(request({ codigo: "code-a", cantidad: 1 }))).status, 403);
+  assert.equal((await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a"))).status, 403);
   f.setUser({ rol: "clienta", organizacion_id: "org-a", organizacion: f.organization });
-  assert.equal((await route.GET(new Request("http://localhost/api/entradas?codigo=code-a"))).status, 403);
+  assert.equal((await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&codigo=code-a"))).status, 403);
   assert.equal(f.logs.length, 0);
+});
+
+test("Un pase de otra fiesta se rechaza sin registrar asistencia", async () => {
+  const f = fixture();
+  const otherEvent = { ...f.event, id: "event-b", nombre: "Fiesta contraria" };
+  f.prisma.evento.findFirst = async ({ where }) => where.id === "event-b" ? otherEvent : null;
+  const route = loadSource("app/api/entradas/route.ts", f.mocks);
+  const lookup = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-b&codigo=code-a"));
+  assert.equal(lookup.status, 409);
+  assert.equal((await lookup.json()).code, "WRONG_EVENT");
+  const entry = await route.POST(request({ evento_id: "event-b", codigo: "code-a", cantidad: 1 }));
+  assert.equal(entry.status, 409);
+  assert.equal((await entry.json()).code, "WRONG_EVENT");
+  assert.equal(f.logs.length, 0);
+  assert.equal(f.guest.pases_ingresados, 0);
+});
+
+test("El modo parcial permite reingresar el mismo QR hasta consumir sus pases", async () => {
+  const f = fixture();
+  f.event.modo_ingreso = "parcial";
+  const route = loadSource("app/api/entradas/route.ts", f.mocks);
+  assert.equal((await route.POST(request({ codigo: "code-a", cantidad: 1 }))).status, 200);
+  assert.equal((await route.POST(request({ codigo: "code-a", cantidad: 1 }))).status, 200);
+  const exhausted = await route.POST(request({ codigo: "code-a", cantidad: 1 }));
+  assert.equal(exhausted.status, 409);
+  assert.equal((await exhausted.json()).code, "ALREADY_SCANNED");
+  assert.equal(f.logs.length, 2);
+  assert.equal(f.guest.pases_ingresados, 2);
 });
 
 test("Rechaza invitaciones declinadas y cantidades inválidas", async () => {
@@ -210,7 +257,7 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
     f.guest.pases_ingresados = marker === "completo" ? 2 : marker === "parcial" ? 1 : 0;
     f.guest.ultima_entrada_en = marker === "fecha" ? new Date("2026-10-23T20:00:00Z") : null;
     const route = loadSource("app/api/entradas/route.ts", f.mocks);
-    const lookup = await route.GET(new Request("http://localhost/api/entradas?codigo=code-a"));
+    const lookup = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&codigo=code-a"));
     assert.equal(lookup.status, 200);
     const response = await route.POST(request({ codigo: "code-a", cantidad: 1 }));
     assert.equal(response.status, 409);
@@ -235,9 +282,9 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
   assert.equal((await read("token-a")).status, 404);
  });
 
- test("El pase consulta cada 60 segundos, pausa oculto y oculta el QR al detectar ingreso", async () => {
+ test("El pase no hace sondeo periódico y solo comprueba al volver a la pestaña", async () => {
   const states = [], effects = [], cleanups = [], listeners = {};
-  let cursor = 0, interval, requests = 0, scanned = false, timerCleared = false;
+  let cursor = 0, requests = 0, scanned = false;
   const doc = { visibilityState: "visible", addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: name => { delete listeners[name]; } };
   const component = loadSource("components/InvitationQrPass.tsx", {
     "next/image": "img",
@@ -247,37 +294,37 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
     },
   }, {
     document: doc, AbortController,
-    window: { setInterval: (fn, ms) => { assert.equal(ms, 60000); interval = fn; return 1; }, clearInterval: () => { timerCleared = true; } },
+    window: { addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: name => { delete listeners[name]; } },
     fetch: async () => { requests++; return Response.json({ escaneado: scanned, confirmado: true }); },
   }).default;
   const render = () => { cursor = 0; return component({ image: "data:image/png;base64,test", token: "token-a", guestName: "Prueba", passes: 2, confirmed: true }); };
   const contains = (node, value) => node === value || (Array.isArray(node) ? node.some(child => contains(child, value)) : node && typeof node === "object" ? Object.values(node.props || {}).some(child => contains(child, value)) : false);
   assert.equal(contains(render(), "data:image/png;base64,test"), true);
   effects.splice(0).forEach(fn => cleanups.push(fn()));
-  await new Promise(setImmediate);
-  assert.equal(requests, 1);
+  assert.equal(requests, 0);
   doc.visibilityState = "hidden";
-  await interval();
-  assert.equal(requests, 1);
+  listeners.visibilitychange();
+  assert.equal(requests, 0);
   doc.visibilityState = "visible";
   listeners.visibilitychange();
   await new Promise(setImmediate);
-  assert.equal(requests, 2);
+  assert.equal(requests, 1);
   scanned = true;
-  await interval();
+  await listeners.focus();
+  await new Promise(setImmediate);
   assert.equal(contains(render(), "data:image/png;base64,test"), false);
   assert.equal(contains(render(), "Tu entrada ya fue escaneada"), true);
   cleanups.forEach(fn => fn?.());
   effects.splice(0).forEach(fn => fn());
-  assert.equal(timerCleared, true);
   assert.equal(listeners.visibilitychange, undefined);
+  assert.equal(listeners.focus, undefined);
  });
 
  test("El escáner rechaza pendientes, vistos y confirmaciones sin pases sin registrar ingresos", async () => {
   for (const [estado, pases] of [["pendiente", null], ["visto", 2], ["confirmado", null], ["confirmado", 0]]) {
     const f = fixture(); f.guest.estado = estado; f.guest.pases_confirmados = pases;
     const route = loadSource("app/api/entradas/route.ts", f.mocks);
-    const lookup = await route.GET(new Request("http://localhost/api/entradas?codigo=code-a"));
+    const lookup = await route.GET(new Request("http://localhost/api/entradas?evento_id=event-a&codigo=code-a"));
     assert.equal(lookup.status, 409);
     assert.equal((await lookup.json()).code, "NOT_CONFIRMED");
     const response = await route.POST(request({ codigo: "code-a", cantidad: 1 }));
@@ -322,7 +369,7 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
     react: { useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = value; }]; }, useEffect: callback => effects.push(callback) },
   }, {
     AbortController, document: { visibilityState: "visible", addEventListener: () => {}, removeEventListener: () => {} },
-    window: { setInterval: () => 1, clearInterval: () => {} },
+    window: { addEventListener: () => {}, removeEventListener: () => {} },
     fetch: async url => { requests++; assert.match(url, /qr=1/); return Response.json({ confirmado: true, escaneado: false, qrImage: "data:image/png;base64,new" }); },
   }).default;
   const render = () => { cursor = 0; return component({ image: null, confirmed, token: "token-a", guestName: "Prueba", passes: 2 }); };

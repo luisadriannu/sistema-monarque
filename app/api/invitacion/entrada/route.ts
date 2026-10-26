@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/ratelimit";
 import QRCode from "qrcode";
+import { isOrganizationServiceActive } from "@/lib/organization-access";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, max-age=0" };
@@ -24,13 +25,20 @@ export async function GET(request: Request) {
         estado: true,
         pases_confirmados: true,
         codigo_entrada: true,
-        evento: { select: { usuario: { select: { organizacion: { select: { qr_checkin_habilitado: true } } } } } },
+        evento: { select: { estado: true, modo_ingreso: true, usuario: { select: { organizacion: { select: { qr_checkin_habilitado: true, estado_servicio: true, servicio_vence_en: true, eliminado_en: true } } } } } },
       },
     });
-    if (!invitado?.evento.usuario.organizacion?.qr_checkin_habilitado) {
+    if (!invitado) {
       return NextResponse.json({ error: "Invitación no disponible." }, { status: 404, headers });
     }
-    const escaneado = invitado.pases_ingresados > 0 || Boolean(invitado.ultima_entrada_en);
+    const organization = invitado.evento.usuario.organizacion;
+    if (!organization?.qr_checkin_habilitado || !isOrganizationServiceActive(organization) || ["borrador", "cancelado", "archivado", "finalizado"].includes(invitado.evento.estado)) {
+      return NextResponse.json({ error: "Invitación no disponible." }, { status: 404, headers });
+    }
+    const limite = invitado.pases_confirmados ?? 0;
+    const escaneado = invitado.evento.modo_ingreso === "parcial"
+      ? limite > 0 && invitado.pases_ingresados >= limite
+      : invitado.pases_ingresados > 0 || Boolean(invitado.ultima_entrada_en);
     const confirmado = invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0;
     const includeQr = new URL(request.url).searchParams.get("qr") === "1";
     const qrImage = includeQr && confirmado && !escaneado

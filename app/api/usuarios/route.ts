@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@/generated/prisma-client-v2";
+import { Prisma } from "@/generated/prisma-client-v3";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { endOfDayMexicoDate, toDateInputValue } from "@/lib/utils";
@@ -10,6 +10,7 @@ import {
   normalizeEventType,
   type EventType,
 } from "@/lib/event-theme";
+import { isOrganizationServiceActive, organizationBlockMessage } from "@/lib/organization-access";
 
 const noStoreHeaders = { "Cache-Control": "no-store" };
 
@@ -73,7 +74,7 @@ function invitationConfig(data: {
 
 async function requireOrganizer() {
   const user = await getCurrentUser();
-  return user?.rol === "organizador" && user.organizacion_id ? user : null;
+  return user?.rol === "organizador" && user.organizacion_id && user.organizacion ? user : null;
 }
 
 export async function GET() {
@@ -84,8 +85,11 @@ export async function GET() {
       { status: 403, headers: noStoreHeaders },
     );
   }
+  if (!isOrganizationServiceActive(organizer.organizacion!)) {
+    return NextResponse.json({ error: organizationBlockMessage(organizer.organizacion!) }, { status: 403, headers: noStoreHeaders });
+  }
 
-  const usuarios = await prisma.usuario.findMany({
+  const all = await prisma.usuario.findMany({
     where: { rol: "clienta", organizacion_id: organizer.organizacion_id },
     select: {
       id: true,
@@ -93,6 +97,7 @@ export async function GET() {
       email: true,
       rol: true,
       creado_en: true,
+      eliminado_en: true,
       eventos: {
         select: {
           id: true,
@@ -112,7 +117,10 @@ export async function GET() {
     orderBy: { creado_en: "desc" },
   });
 
-  return NextResponse.json({ usuarios }, { headers: noStoreHeaders });
+  return NextResponse.json({
+    usuarios: all.filter(item => !item.eliminado_en),
+    eliminados: all.filter(item => Boolean(item.eliminado_en)),
+  }, { headers: noStoreHeaders });
 }
 
 export async function POST(request: Request) {
@@ -122,6 +130,9 @@ export async function POST(request: Request) {
       { error: "Acceso exclusivo para organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
+  }
+  if (!isOrganizationServiceActive(organizer.organizacion!)) {
+    return NextResponse.json({ error: organizationBlockMessage(organizer.organizacion!) }, { status: 403, headers: noStoreHeaders });
   }
 
   try {
@@ -138,15 +149,26 @@ export async function POST(request: Request) {
     const fechaLimite = endOfDayMexicoDate(toDateInputValue(fechaEvento));
     const eventType = normalizeEventType(evento.tipo_evento);
 
+    const [clientCount, activeEventCount] = await prisma.$transaction([
+      prisma.usuario.count({ where: { organizacion_id: organizer.organizacion_id, rol: "clienta", eliminado_en: null } }),
+      prisma.evento.count({ where: { usuario: { organizacion_id: organizer.organizacion_id, eliminado_en: null }, estado: { notIn: ["finalizado", "cancelado", "archivado"] } } }),
+    ]);
+    if (clientCount >= organizer.organizacion!.max_clientes) {
+      return NextResponse.json({ error: `Tu plan permite hasta ${organizer.organizacion!.max_clientes} clientes activos.` }, { status: 403, headers: noStoreHeaders });
+    }
+    if (activeEventCount >= organizer.organizacion!.max_eventos_activos) {
+      return NextResponse.json({ error: `Tu plan permite hasta ${organizer.organizacion!.max_eventos_activos} eventos activos.` }, { status: 403, headers: noStoreHeaders });
+    }
+
     if (!nombre || !email || !email.includes("@")) {
       return NextResponse.json(
         { error: "Ingresa un nombre y un correo válido." },
         { status: 400, headers: noStoreHeaders },
       );
     }
-    if (password.length < 8) {
+    if (password.length < 10) {
       return NextResponse.json(
-        { error: "La contraseña debe tener al menos 8 caracteres." },
+        { error: "La contraseña debe tener al menos 10 caracteres." },
         { status: 400, headers: noStoreHeaders },
       );
     }

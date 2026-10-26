@@ -20,6 +20,7 @@ import {
   endOfDayMexicoDate,
   formatDateMx,
   isEventFinished,
+  toDateTimeInputValue,
 } from "@/lib/utils";
 import DashboardLoader from "@/components/DashboardLoader";
 
@@ -34,6 +35,10 @@ interface EventoConfig {
   texto_edad_nino?: string;
   plantilla_mensaje: string;
   slug: string;
+  estado: string;
+  recepcion_abre_en?: string | null;
+  recepcion_cierra_en?: string | null;
+  modo_ingreso?: string;
 }
 
 const variablesMensaje = [
@@ -79,6 +84,11 @@ export default function ConfiguracionPage() {
   const [fechaLimiteRsvp, setFechaLimiteRsvp] = useState("");
   const [textoEdadNino, setTextoEdadNino] = useState("menores de 12 años");
   const [plantillaMensaje, setPlantillaMensaje] = useState("");
+  const [estadoEvento, setEstadoEvento] = useState("publicado");
+  const [recepcionAbreEn, setRecepcionAbreEn] = useState("");
+  const [recepcionCierraEn, setRecepcionCierraEn] = useState("");
+  const [modoIngreso, setModoIngreso] = useState("unico");
+  const [qrCheckinEnabled, setQrCheckinEnabled] = useState(false);
   const mensajeRef = useRef<HTMLTextAreaElement>(null);
   const plantillaMensajeRef = useRef("");
   const cursorMensajeRef = useRef<number | null>(null);
@@ -92,6 +102,7 @@ export default function ConfiguracionPage() {
       try {
         const res = await fetch("/api/eventos");
         const data = await res.json();
+        setQrCheckinEnabled(Boolean(data.permisos?.qr_checkin_habilitado));
         if (res.ok && data.eventos?.[0]) {
           const ev = data.eventos[0];
           setEvento(ev);
@@ -106,6 +117,10 @@ export default function ConfiguracionPage() {
             ev.plantilla_mensaje ||
               "¡Hola {nombre}! Te invitamos con mucho cariño a nuestro evento. Tienes {pases} pases reservados. Por favor confírmanos tu asistencia aquí: {link}"
           );
+          setEstadoEvento(ev.estado || "publicado");
+          setRecepcionAbreEn(ev.recepcion_abre_en ? toDateTimeInputValue(ev.recepcion_abre_en) : "");
+          setRecepcionCierraEn(ev.recepcion_cierra_en ? toDateTimeInputValue(ev.recepcion_cierra_en) : "");
+          setModoIngreso(ev.modo_ingreso || "unico");
         }
       } catch (e) {
         console.error("Error al cargar configuración", e);
@@ -165,6 +180,10 @@ export default function ConfiguracionPage() {
           fecha_limite_rsvp: fechaLimiteEndOfDay.toISOString(),
           texto_edad_nino: textoEdadNino.trim() || "menores de 12 años",
           plantilla_mensaje: plantillaMensaje,
+          estado: estadoEvento,
+          recepcion_abre_en: recepcionAbreEn ? new Date(recepcionAbreEn).toISOString() : null,
+          recepcion_cierra_en: recepcionCierraEn ? new Date(recepcionCierraEn).toISOString() : null,
+          modo_ingreso: modoIngreso,
         }),
       });
 
@@ -388,6 +407,18 @@ export default function ConfiguracionPage() {
             <h2 className="font-serif text-lg font-bold text-[#2b211b]">
               Control de Asistencia y Capacidad
             </h2>
+          </div>
+
+          <div className="rounded-2xl border border-[#ebd9c4] bg-[#fffaf5] p-5">
+            <div className="flex items-start gap-3"><CalendarClock className="mt-0.5 h-5 w-5 text-[#e05a1b]"/><div><h3 className="font-serif text-lg font-bold">{qrCheckinEnabled ? "Publicación y recepción" : "Publicación de la invitación"}</h3><p className="mt-1 text-[11px] leading-relaxed text-stone-500">{qrCheckinEnabled ? "Controla si la invitación es visible y programa la ventana en la que el organizador podrá abrir el escáner." : "Controla si la invitación pública se encuentra disponible para tus invitados."}</p></div></div>
+            <div className={`mt-4 grid gap-4 md:grid-cols-2 ${qrCheckinEnabled ? "xl:grid-cols-4" : "xl:grid-cols-1"}`}>
+              <label className="text-xs font-bold uppercase tracking-wider">Estado público<select value={estadoEvento} onChange={event => setEstadoEvento(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"><option value="borrador">Borrador · no visible</option><option value="publicado">Publicado</option><option value="cancelado">Cancelado · no visible</option><option value="archivado">Archivado · no visible</option></select></label>
+              {qrCheckinEnabled && <>
+                <label className="text-xs font-bold uppercase tracking-wider">Apertura programada<input type="datetime-local" value={recepcionAbreEn} onChange={event => setRecepcionAbreEn(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"/></label>
+                <label className="text-xs font-bold uppercase tracking-wider">Cierre programado<input type="datetime-local" value={recepcionCierraEn} min={recepcionAbreEn || undefined} onChange={event => setRecepcionCierraEn(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"/></label>
+                <label className="text-xs font-bold uppercase tracking-wider">Uso del QR<select value={modoIngreso} onChange={event => setModoIngreso(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"><option value="unico">Una sola llegada</option><option value="parcial">Llegadas separadas</option></select><span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">En modo parcial, la familia puede usar el QR hasta completar sus pases.</span></label>
+              </>}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

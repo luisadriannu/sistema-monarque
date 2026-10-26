@@ -7,6 +7,7 @@ import carlosYYazmin from "@/app/data/carlosYYazmin";
 import type { EventData } from "@/app/types/EventData";
 import { getCurrentUser } from "@/lib/auth";
 import QRCode from "qrcode";
+import { isOrganizationServiceActive } from "@/lib/organization-access";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -40,9 +41,13 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   const evento = await prisma.evento.findUnique({
     where: { slug },
-    include: { usuario: { select: { organizacion: { select: { id: true, qr_checkin_habilitado: true } } } } },
+    include: { usuario: { select: { organizacion: true } } },
   });
   if (!evento) return <InvitacionNoDisponible />;
+  if (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) return <InvitacionNoDisponible />;
+  if (!isPreview && ["borrador", "cancelado", "archivado"].includes(evento.estado)) {
+    return <InvitacionNoDisponible />;
+  }
 
   let invitado;
 
@@ -162,7 +167,10 @@ export default async function InvitationPage({ params, searchParams }: PageProps
   };
 
   const qrEnabled = Boolean(evento.usuario.organizacion?.qr_checkin_habilitado);
-  const qrImage = qrEnabled && !isPreview && invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0 && !invitado.pases_ingresados && !invitado.ultima_entrada_en
+  const qrUsed = evento.modo_ingreso === "parcial"
+    ? (invitado.pases_confirmados ?? 0) > 0 && invitado.pases_ingresados >= (invitado.pases_confirmados ?? 0)
+    : invitado.pases_ingresados > 0 || Boolean(invitado.ultima_entrada_en);
+  const qrImage = qrEnabled && !isPreview && invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0 && !qrUsed
     ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, {
         width: 480,
         margin: 1,

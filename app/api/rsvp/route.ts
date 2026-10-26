@@ -41,6 +41,7 @@ export async function GET(request: Request) {
             lugar: true,
             fecha_limite_rsvp: true,
             texto_edad_nino: true,
+            estado: true,
           },
         },
       },
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
     const now = new Date();
     const fechaLimite = new Date(invitado.evento.fecha_limite_rsvp);
     const expirado =
-      now > fechaLimite || isEventFinished(invitado.evento.fecha_evento, now);
+      now > fechaLimite || isEventFinished(invitado.evento.fecha_evento, now) || ["borrador", "cancelado", "archivado", "finalizado"].includes(invitado.evento.estado);
 
     // RF-24: Mostrar solo nombre y pases del invitado. Nunca teléfonos ni otros datos.
     return NextResponse.json({
@@ -119,6 +120,10 @@ export async function POST(request: Request) {
         { error: "Invitación no disponible." },
         { status: 404 }
       );
+    }
+
+    if (["borrador", "cancelado", "archivado", "finalizado"].includes(invitado.evento.estado)) {
+      return NextResponse.json({ error: "El evento no está disponible para recibir confirmaciones." }, { status: 409 });
     }
 
     // RN-03: Pasada la fecha límite, el servidor rechaza nuevas respuestas

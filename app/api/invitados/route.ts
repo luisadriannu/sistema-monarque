@@ -3,7 +3,8 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { generateInvitationToken } from "@/lib/tokens";
 import { isEventFinished } from "@/lib/utils";
-import type { Prisma } from "@/generated/prisma-client-v2";
+import type { Prisma } from "@/generated/prisma-client-v3";
+import { isOrganizationServiceActive, organizationBlockMessage } from "@/lib/organization-access";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +37,13 @@ export async function GET(request: Request) {
   if (eventoIdParam) {
     evento = await prisma.evento.findUnique({
       where: { id: eventoIdParam },
-      include: { usuario: { select: { organizacion_id: true } } },
+      include: { usuario: { select: { organizacion_id: true, organizacion: true } } },
     });
   } else {
     evento = await prisma.evento.findFirst({
       where: user.rol === "admin" ? {} : { usuario_id: user.id },
       orderBy: { creado_en: "desc" },
-      include: { usuario: { select: { organizacion_id: true } } },
+      include: { usuario: { select: { organizacion_id: true, organizacion: true } } },
     });
   }
 
@@ -201,7 +202,7 @@ export async function POST(request: Request) {
 
     const evento = await prisma.evento.findUnique({
       where: { id: evento_id },
-      include: { usuario: { select: { organizacion_id: true } } },
+      include: { usuario: { select: { organizacion_id: true, organizacion: true } } },
     });
 
     if (!evento) {
@@ -217,6 +218,10 @@ export async function POST(request: Request) {
       );
     }
 
+    if (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) {
+      return NextResponse.json({ error: organizationBlockMessage(evento.usuario.organizacion) }, { status: 403 });
+    }
+
 
     if (user.rol !== "admin" && isEventFinished(evento.fecha_evento)) {
       return NextResponse.json(
@@ -226,6 +231,15 @@ export async function POST(request: Request) {
         },
         { status: 403 },
       );
+    }
+
+    const currentGuestCount = await prisma.invitado.count({ where: { evento_id: evento.id } });
+    const incomingCount = bulk && Array.isArray(invitados)
+      ? invitados.filter(item => String(item?.nombre || "").trim()).length
+      : 1;
+    const guestLimit = evento.usuario.organizacion?.max_invitados_evento;
+    if (guestLimit && currentGuestCount + incomingCount > guestLimit) {
+      return NextResponse.json({ error: `El plan permite hasta ${guestLimit} invitados por evento. Actualmente hay ${currentGuestCount}.` }, { status: 403 });
     }
 
     // Manejo de importación masiva (RF-10)

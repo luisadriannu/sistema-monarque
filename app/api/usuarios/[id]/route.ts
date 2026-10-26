@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@/generated/prisma-client-v2";
+import { Prisma } from "@/generated/prisma-client-v3";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -46,13 +46,14 @@ export async function PUT(
       select: {
         rol: true,
         organizacion_id: true,
+        eliminado_en: true,
         eventos: {
           select: { id: true, configuracion_invitacion: true },
         },
       },
     });
 
-    if (!existing || existing.rol !== "clienta" || existing.organizacion_id !== organizer.organizacion_id) {
+    if (!existing || existing.eliminado_en || existing.rol !== "clienta" || existing.organizacion_id !== organizer.organizacion_id) {
       return NextResponse.json(
         { error: "La cuenta de la clienta no existe." },
         { status: 404, headers: noStoreHeaders },
@@ -71,9 +72,9 @@ export async function PUT(
         { status: 400, headers: noStoreHeaders },
       );
     }
-    if (password && password.length < 8) {
+    if (password && password.length < 10) {
       return NextResponse.json(
-        { error: "La nueva contraseña debe tener al menos 8 caracteres." },
+        { error: "La nueva contraseña debe tener al menos 10 caracteres." },
         { status: 400, headers: noStoreHeaders },
       );
     }
@@ -182,6 +183,23 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const organizer = await getCurrentUser();
+  if (!organizer || organizer.rol !== "organizador" || !organizer.organizacion_id) {
+    return NextResponse.json({ error: "Acceso exclusivo para organizadores." }, { status: 403, headers: noStoreHeaders });
+  }
+  const body = await request.json().catch(() => null);
+  if (body?.action !== "restaurar") return NextResponse.json({ error: "Acción no válida." }, { status: 400, headers: noStoreHeaders });
+  const { id } = await params;
+  const client = await prisma.usuario.findFirst({ where: { id, rol: "clienta", organizacion_id: organizer.organizacion_id }, select: { id: true } });
+  if (!client) return NextResponse.json({ error: "La cuenta no existe." }, { status: 404, headers: noStoreHeaders });
+  await prisma.usuario.update({ where: { id }, data: { eliminado_en: null, session_version: { increment: 1 } } });
+  return NextResponse.json({ ok: true, message: "Cliente restaurado correctamente." }, { headers: noStoreHeaders });
+}
+
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -211,12 +229,12 @@ export async function DELETE(
 
     // Evento e invitados se eliminan mediante las relaciones onDelete: Cascade
     // definidas en Prisma, manteniendo la operación atómica en PostgreSQL.
-    await prisma.usuario.delete({ where: { id: cliente.id } });
+    await prisma.usuario.update({ where: { id: cliente.id }, data: { eliminado_en: new Date(), session_version: { increment: 1 } } });
 
     return NextResponse.json(
       {
         ok: true,
-        message: `La cuenta de ${cliente.nombre} y todos sus datos fueron eliminados.`,
+        message: `La cuenta de ${cliente.nombre} se movió a la papelera. Sus eventos e invitados se conservaron.`,
       },
       { headers: noStoreHeaders },
     );

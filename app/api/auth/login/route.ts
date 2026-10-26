@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { createSessionToken, setSessionCookie } from "@/lib/auth";
+import { clearLoginFailures, getLoginAllowance, getRequestIp, recordLoginFailure } from "@/lib/login-security";
+import { isOrganizationServiceActive, organizationBlockMessage } from "@/lib/organization-access";
 
 export async function POST(request: Request) {
   try {
@@ -25,11 +27,21 @@ export async function POST(request: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const ip = getRequestIp(request);
+    const allowance = await getLoginAllowance(normalizedEmail, ip);
+    if (!allowance.allowed) {
+      return NextResponse.json(
+        { error: "Demasiados intentos. Espera unos minutos antes de volver a intentarlo." },
+        { status: 429, headers: { "Retry-After": String(allowance.retryAfterSeconds) } },
+      );
+    }
     const user = await prisma.usuario.findUnique({
       where: { email: normalizedEmail },
+      include: { organizacion: true },
     });
 
-    if (!user) {
+    if (!user || user.eliminado_en || user.organizacion?.eliminado_en) {
+      await recordLoginFailure(normalizedEmail, ip);
       return NextResponse.json(
         { error: "Credenciales incorrectas. Verifica tus datos." },
         { status: 401 }
@@ -38,17 +50,28 @@ export async function POST(request: Request) {
 
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatch) {
+      await recordLoginFailure(normalizedEmail, ip);
       return NextResponse.json(
         { error: "Credenciales incorrectas. Verifica tus datos." },
         { status: 401 }
       );
     }
 
+    if (user.organizacion && !isOrganizationServiceActive(user.organizacion)) {
+      return NextResponse.json(
+        { error: organizationBlockMessage(user.organizacion) },
+        { status: 403 },
+      );
+    }
+
+    await clearLoginFailures(normalizedEmail, ip);
+
     const token = await createSessionToken({
       userId: user.id,
       email: user.email,
       rol: user.rol,
       nombre: user.nombre,
+      sessionVersion: user.session_version,
     });
 
     await setSessionCookie(token);

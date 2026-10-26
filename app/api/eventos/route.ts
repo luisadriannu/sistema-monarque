@@ -22,7 +22,12 @@ export async function GET() {
     orderBy: { creado_en: "desc" },
   });
 
-  return NextResponse.json({ eventos });
+  return NextResponse.json({
+    eventos,
+    permisos: {
+      qr_checkin_habilitado: Boolean(user.organizacion?.qr_checkin_habilitado),
+    },
+  });
 }
 
 export async function PUT(request: Request) {
@@ -45,6 +50,10 @@ export async function PUT(request: Request) {
       plantilla_mensaje,
       plantilla_recordatorio,
       slug,
+      estado,
+      recepcion_abre_en,
+      recepcion_cierra_en,
+      modo_ingreso,
     } = data;
 
     if (!id) {
@@ -84,6 +93,18 @@ export async function PUT(request: Request) {
       ? new Date(fecha_limite_rsvp)
       : existing.fecha_limite_rsvp;
 
+    const allowedClientStates = ["borrador", "publicado", "cancelado", "archivado"];
+    const nextState = estado && allowedClientStates.includes(estado) ? estado : undefined;
+    const nextEntryMode = modo_ingreso === "parcial" ? "parcial" : modo_ingreso === "unico" ? "unico" : undefined;
+    const receptionOpens = recepcion_abre_en ? new Date(recepcion_abre_en) : recepcion_abre_en === null ? null : undefined;
+    const receptionCloses = recepcion_cierra_en ? new Date(recepcion_cierra_en) : recepcion_cierra_en === null ? null : undefined;
+    if (receptionOpens instanceof Date && Number.isNaN(receptionOpens.getTime()) || receptionCloses instanceof Date && Number.isNaN(receptionCloses.getTime())) {
+      return NextResponse.json({ error: "La ventana de recepción no es válida." }, { status: 400 });
+    }
+    if (receptionOpens && receptionCloses && receptionOpens >= receptionCloses) {
+      return NextResponse.json({ error: "La hora de cierre debe ser posterior a la apertura de recepción." }, { status: 400 });
+    }
+
     if (
       toDateInputValue(targetDeadline) > toDateInputValue(targetEventDate)
     ) {
@@ -114,6 +135,10 @@ export async function PUT(request: Request) {
         ...(plantilla_mensaje && { plantilla_mensaje }),
         ...(plantilla_recordatorio && { plantilla_recordatorio }),
         ...(slug && { slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, "-") }),
+        ...(nextState && { estado: nextState }),
+        ...(recepcion_abre_en !== undefined && { recepcion_abre_en: receptionOpens }),
+        ...(recepcion_cierra_en !== undefined && { recepcion_cierra_en: receptionCloses }),
+        ...(nextEntryMode && { modo_ingreso: nextEntryMode }),
       },
     });
 

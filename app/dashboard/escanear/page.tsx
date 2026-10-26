@@ -5,7 +5,8 @@ import EntradaScanner from "./EntradaScanner";
 export default async function EscanearPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.rol !== "organizador") redirect("/dashboard");
+  if (!["organizador", "recepcionista"].includes(user.rol)) redirect("/dashboard");
   if (!user.organizacion?.qr_checkin_habilitado) redirect("/dashboard/usuarios");
-  return <EntradaScanner />;
+  if (user.rol === "recepcionista" && !user.lector_qr_habilitado) redirect("/dashboard/cuenta");
+  return <EntradaScanner canManageReception={user.rol === "organizador"} />;
 }

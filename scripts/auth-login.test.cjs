@@ -6,14 +6,16 @@ const vm = require("node:vm");
 const ts = require("typescript");
 const bcrypt = require("bcryptjs");
 
-function loginHandler(databaseUrl) {
-  const user = { id: "user-a", nombre: "Prueba", email: "prueba@example.com", rol: "organizador", passwordHash: bcrypt.hashSync("clave-prueba", 4) };
+function loginHandler(databaseUrl, options = {}) {
+  const user = { id: "user-a", nombre: "Prueba", email: "prueba@example.com", rol: "organizador", passwordHash: bcrypt.hashSync("clave-prueba", 4), session_version: 0, eliminado_en: null, organizacion: { estado_servicio: "activo", eliminado_en: null, servicio_vence_en: null } };
   const calls = { queries: 0, cookies: 0 };
   const mocks = {
     "next/server": { NextResponse: { json: (body, init) => Response.json(body, init) } },
     "bcryptjs": bcrypt,
     "@/lib/prisma": { usuario: { findUnique: async ({ where }) => { calls.queries++; return where.email === user.email ? user : null; } } },
     "@/lib/auth": { createSessionToken: async () => "session-token", setSessionCookie: async () => { calls.cookies++; } },
+    "@/lib/login-security": { getRequestIp: () => "127.0.0.1", getLoginAllowance: async () => options.allowance || ({ allowed: true, retryAfterSeconds: 0 }), recordLoginFailure: async () => {}, clearLoginFailures: async () => {} },
+    "@/lib/organization-access": { isOrganizationServiceActive: () => true, organizationBlockMessage: () => "Servicio no disponible." },
   };
   const source = ts.transpileModule(fs.readFileSync(path.join(__dirname, "../app/api/auth/login/route.ts"), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true },
@@ -67,5 +69,14 @@ test("Credenciales incorrectas devuelven 401 sin establecer sesión", async () =
   for (const email of ["prueba@example.com", "otro@example.com"]) {
     assert.equal((await handler.post(request({ email, password: "incorrecta" }))).status, 401);
   }
+  assert.equal(handler.calls.cookies, 0);
+});
+
+test("Demasiados intentos responden 429 antes de consultar credenciales", async () => {
+  const handler = loginHandler("postgresql://test", { allowance: { allowed: false, retryAfterSeconds: 600 } });
+  const response = await handler.post(request({ email: "prueba@example.com", password: "clave-prueba" }));
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("Retry-After"), "600");
+  assert.equal(handler.calls.queries, 0);
   assert.equal(handler.calls.cookies, 0);
 });

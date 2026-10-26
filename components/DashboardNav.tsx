@@ -18,6 +18,8 @@ import {
   UserCog,
   MessageCircle,
   ScanLine,
+  UserRoundCheck,
+  KeyRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -53,7 +55,7 @@ export default function DashboardNav({
 
   useEffect(() => setQrEnabled(qrCheckinEnabled), [qrCheckinEnabled]);
   useEffect(() => {
-    if (user.rol !== "organizador") return;
+    if (!["organizador", "recepcionista"].includes(user.rol)) return;
     let active = true;
     const refreshPermission = async () => {
       if (document.visibilityState === "hidden") return;
@@ -61,18 +63,19 @@ export default function DashboardNav({
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         if (!response.ok) return;
         const data = await response.json();
-        if (active) setQrEnabled(Boolean(data.user?.organizacion?.qr_checkin_habilitado));
+        if (active) setQrEnabled(Boolean(
+          data.user?.organizacion?.qr_checkin_habilitado
+          && (data.user?.rol !== "recepcionista" || data.user?.lector_qr_habilitado),
+        ));
       } catch {
         // Conserva el último permiso conocido durante una interrupción de red.
       }
     };
     void refreshPermission();
-    const interval = window.setInterval(refreshPermission, 30000);
     window.addEventListener("focus", refreshPermission);
     document.addEventListener("visibilitychange", refreshPermission);
     return () => {
       active = false;
-      window.clearInterval(interval);
       window.removeEventListener("focus", refreshPermission);
       document.removeEventListener("visibilitychange", refreshPermission);
     };
@@ -92,6 +95,13 @@ export default function DashboardNav({
       : user.rol === "organizador"
         ? [
             { label: "Clientes", href: "/dashboard/usuarios", icon: UserCog },
+            ...(qrEnabled ? [
+              { label: "Equipo de recepción", href: "/dashboard/equipo", icon: UserRoundCheck },
+              { label: "Escanear invitación", href: "/dashboard/escanear", icon: ScanLine },
+            ] : []),
+          ]
+      : user.rol === "recepcionista"
+        ? [
             ...(qrEnabled ? [{ label: "Escanear invitación", href: "/dashboard/escanear", icon: ScanLine }] : []),
           ]
       : [
@@ -111,6 +121,8 @@ export default function DashboardNav({
             icon: Settings,
           },
         ];
+
+  navItems.push({ label: "Mi cuenta", href: "/dashboard/cuenta", icon: KeyRound });
 
   const openLogoutModal = () => {
     setMobileMenuOpen(false);
@@ -214,7 +226,7 @@ export default function DashboardNav({
                 {user.rol === "clienta" && eventType && (
                   <EventTypeIcon type={eventType} className="h-3 w-3" />
                 )}
-                {user.rol === "admin" ? "Administración" : user.rol === "organizador" ? "Organizador" : eventTypeLabel || "Mi evento"}
+                {user.rol === "admin" ? "Administración" : user.rol === "organizador" ? "Organizador" : user.rol === "recepcionista" ? "Recepción" : eventTypeLabel || "Mi evento"}
               </span>
             </div>
           </div>

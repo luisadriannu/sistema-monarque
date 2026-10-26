@@ -54,7 +54,10 @@ export default async function DashboardLayout({
         eventSlug={evento?.slug}
         eventTypeLabel={eventType ? eventTypeThemes[eventType].label : undefined}
         eventType={eventType || undefined}
-        qrCheckinEnabled={Boolean(user.organizacion?.qr_checkin_habilitado)}
+        qrCheckinEnabled={Boolean(
+          user.organizacion?.qr_checkin_habilitado
+          && (user.rol !== "recepcionista" || user.lector_qr_habilitado),
+        )}
       />
       <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">

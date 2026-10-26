@@ -1495,7 +1495,7 @@ export default function WeddingOliveVintage({
           </section>
 
           {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
-  <InvitationQrPass confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en)} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
+  <InvitationQrPass confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(!qrImage && (initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en))} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
 )}
 {/* Footer */}
           <footer className="relative overflow-hidden border-t-4 border-double border-[#9A7837]/35 bg-[#CDBD9C] px-6 py-16 text-center">

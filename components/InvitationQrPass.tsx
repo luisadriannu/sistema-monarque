@@ -51,15 +51,18 @@ export default function InvitationQrPass({
         // Conserva el pase y reintenta ante una interrupción temporal de red.
       } finally { inFlight = false; }
     };
-    void check();
-    const timer = window.setInterval(check, 60000);
+    // La página del servidor ya entrega el estado actual. Solo pedimos el QR
+    // aquí cuando acaba de confirmarse sin recargar, o al regresar a la pestaña.
+    if (!qrImage) void check();
     const onVisibility = () => { if (document.visibilityState === "visible") void check(); };
+    const onFocus = () => { void check(); };
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
     return () => {
       active = false;
-      window.clearInterval(timer);
       controller?.abort();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
     };
   }, [token, scanned, unavailable, confirmed, qrImage]);
 

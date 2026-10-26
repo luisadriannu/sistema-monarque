@@ -1,7 +1,7 @@
 // Prisma schema for Monarque - Plan Elite
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma-client-v2"
+  output   = "../generated/prisma-client-v3"
 }
 
 datasource db {
@@ -10,16 +10,20 @@ datasource db {
 }
 
 model Usuario {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  nombre       String
-  rol          String    @default("clienta") // "clienta" | "organizador" | "admin"
-  organizacion_id String?
-  organizacion Organizacion? @relation(fields: [organizacion_id], references: [id], onDelete: Cascade)
-  creado_en    DateTime  @default(now())
-  eventos      Evento[]
-  entradas_escaneadas RegistroEntrada[] @relation("EntradasEscaneadas")
+  id                   String                @id @default(uuid())
+  email                String                @unique
+  passwordHash         String
+  nombre               String
+  rol                  String                @default("clienta") // "clienta" | "recepcionista" | "organizador" | "admin"
+  session_version      Int                   @default(0)
+  eliminado_en         DateTime?
+  lector_qr_habilitado Boolean               @default(false)
+  organizacion_id      String?
+  organizacion         Organizacion?         @relation(fields: [organizacion_id], references: [id], onDelete: Cascade)
+  creado_en            DateTime              @default(now())
+  eventos              Evento[]
+  entradas_escaneadas  RegistroEntrada[]     @relation("EntradasEscaneadas")
+  eventos_recepcion    EventoRecepcionista[]
 
   @@index([organizacion_id])
 }
@@ -28,52 +32,93 @@ model Organizacion {
   id                    String    @id @default(uuid())
   nombre                String
   qr_checkin_habilitado Boolean   @default(false)
+  // "elite" conserva las funciones de las organizaciones creadas antes de existir los planes.
+  // Las organizaciones nuevas reciben su plan explícitamente desde la API.
+  plan                  String    @default("elite") // "basico" | "pro" | "elite"
+  estado_servicio       String    @default("activo") // "prueba" | "activo" | "suspendido" | "vencido"
+  servicio_inicia_en    DateTime  @default(now())
+  servicio_vence_en     DateTime?
+  max_clientes          Int       @default(50)
+  max_eventos_activos   Int       @default(50)
+  max_invitados_evento  Int       @default(2000)
+  marca_personalizada   Boolean   @default(true)
+  eliminado_en          DateTime?
+  eliminar_despues_de   DateTime?
   creado_en             DateTime  @default(now())
   actualizado_en        DateTime  @updatedAt
   usuarios              Usuario[]
 }
 
 model Evento {
-  id                     String     @id @default(uuid())
-  usuario_id             String
-  usuario                Usuario    @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
-  slug                   String     @unique
-  nombre                 String
-  anfitriones            String
-  fecha_evento           DateTime
-  lugar                  String
-  capacidad_total        Int?
-  fecha_limite_rsvp      DateTime
-  texto_edad_nino        String     @default("menores de 12 años")
-  configuracion_invitacion Json?    @db.JsonB
-  plantilla_mensaje      String     @default("¡Hola {nombre}! Te invitamos cordialmente a nuestro evento. Tienes {pases} pases reservados. Por favor confirma tu asistencia aquí: {link}")
-  plantilla_recordatorio String     @default("¡Hola {nombre}! Te recordamos que la fecha límite para confirmar tu asistencia a nuestro evento está próxima ({pases} pases). Puedes confirmar aquí: {link}")
-  creado_en              DateTime   @default(now())
-  actualizado_en         DateTime   @updatedAt
-  invitados              Invitado[]
-  registros_entrada      RegistroEntrada[]
+  id                       String                @id @default(uuid())
+  usuario_id               String
+  usuario                  Usuario               @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  slug                     String                @unique
+  nombre                   String
+  anfitriones              String
+  fecha_evento             DateTime
+  lugar                    String
+  estado                   String                @default("publicado") // "borrador" | "publicado" | "recepcion_abierta" | "finalizado" | "cancelado" | "archivado"
+  recepcion_abre_en        DateTime?
+  recepcion_cierra_en      DateTime?
+  modo_ingreso             String                @default("unico") // "unico" | "parcial"
+  capacidad_total          Int?
+  fecha_limite_rsvp        DateTime
+  texto_edad_nino          String                @default("menores de 12 años")
+  configuracion_invitacion Json?                 @db.JsonB
+  plantilla_mensaje        String                @default("¡Hola {nombre}! Te invitamos cordialmente a nuestro evento. Tienes {pases} pases reservados. Por favor confirma tu asistencia aquí: {link}")
+  plantilla_recordatorio   String                @default("¡Hola {nombre}! Te recordamos que la fecha límite para confirmar tu asistencia a nuestro evento está próxima ({pases} pases). Puedes confirmar aquí: {link}")
+  creado_en                DateTime              @default(now())
+  actualizado_en           DateTime              @updatedAt
+  invitados                Invitado[]
+  registros_entrada        RegistroEntrada[]
+  recepcionistas           EventoRecepcionista[]
 
   @@index([usuario_id])
 }
 
+model EventoRecepcionista {
+  usuario_id String
+  evento_id  String
+  usuario    Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  evento     Evento   @relation(fields: [evento_id], references: [id], onDelete: Cascade)
+  creado_en  DateTime @default(now())
+
+  @@id([usuario_id, evento_id])
+  @@index([evento_id])
+}
+
+model LoginIntento {
+  clave             String    @id
+  intentos          Int       @default(0)
+  ventana_inicia_en DateTime  @default(now())
+  bloqueado_hasta   DateTime?
+  actualizado_en    DateTime  @updatedAt
+
+  @@index([actualizado_en])
+}
+
 model Invitado {
-  id                  String    @id @default(uuid())
+  id                  String            @id @default(uuid())
   evento_id           String
-  evento              Evento    @relation(fields: [evento_id], references: [id], onDelete: Cascade)
+  evento              Evento            @relation(fields: [evento_id], references: [id], onDelete: Cascade)
   nombre              String
   grupo               String?
-  pases_asignados     Int       @default(1)
+  pases_asignados     Int               @default(1)
   pases_confirmados   Int?
-  ninos_confirmados   Int       @default(0)
-  estado              String    @default("pendiente") // "pendiente" | "visto" | "confirmado" | "declinado"
-  token               String    @unique
-  codigo_entrada      String    @unique @default(uuid())
-  pases_ingresados    Int       @default(0)
+  ninos_confirmados   Int               @default(0)
+  estado              String            @default("pendiente") // "pendiente" | "visto" | "confirmado" | "declinado"
+  token               String            @unique
+  codigo_entrada      String            @unique @default(uuid())
+  pases_ingresados    Int               @default(0)
   ultima_entrada_en   DateTime?
+  // Campos heredados de la primera versión del lector; se conservan para no perder datos.
+  escaneado_en        DateTime?
+  escaneado_por       String?
   enviado_en          DateTime?
   ultima_respuesta_en DateTime?
-  creado_en           DateTime  @default(now())
-  actualizado_en      DateTime  @updatedAt
+  creado_en           DateTime          @default(now())
+  actualizado_en      DateTime          @updatedAt
   registros_entrada   RegistroEntrada[]
 
   @@index([evento_id])
@@ -82,15 +127,15 @@ model Invitado {
 }
 
 model RegistroEntrada {
-  id                  String    @id @default(uuid())
-  invitado_id         String
-  invitado            Invitado  @relation(fields: [invitado_id], references: [id], onDelete: Cascade)
-  evento_id           String
-  evento              Evento    @relation(fields: [evento_id], references: [id], onDelete: Cascade)
-  escaneado_por_id    String?
-  escaneado_por       Usuario?  @relation("EntradasEscaneadas", fields: [escaneado_por_id], references: [id], onDelete: SetNull)
-  cantidad            Int
-  creado_en           DateTime  @default(now())
+  id               String   @id @default(uuid())
+  invitado_id      String
+  invitado         Invitado @relation(fields: [invitado_id], references: [id], onDelete: Cascade)
+  evento_id        String
+  evento           Evento   @relation(fields: [evento_id], references: [id], onDelete: Cascade)
+  escaneado_por_id String?
+  escaneado_por    Usuario? @relation("EntradasEscaneadas", fields: [escaneado_por_id], references: [id], onDelete: SetNull)
+  cantidad         Int
+  creado_en        DateTime @default(now())
 
   @@index([evento_id, creado_en])
   @@index([invitado_id])
