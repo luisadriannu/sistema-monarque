@@ -51,6 +51,8 @@ interface Invitado {
   token: string;
   enviado_en: string | null;
   ultima_respuesta_en: string | null;
+  pases_ingresados: number;
+  ultima_entrada_en: string | null;
   creado_en: string;
 }
 
@@ -79,6 +81,7 @@ function InvitadosContent() {
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
   const estadoParam = searchParams.get("estado");
+  const entradaParam = searchParams.get("entrada");
   const eventoIdParam = searchParams.get("evento_id");
   const permisoScope = eventoIdParam || "evento-propio";
 
@@ -99,6 +102,8 @@ function InvitadosContent() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filtroEstado, setFiltroEstado] = useState(estadoParam || "todos");
+  const [filtroEntrada, setFiltroEntrada] = useState(entradaParam || "todos");
+  const [qrCheckinEnabled, setQrCheckinEnabled] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [pagination, setPagination] = useState({
@@ -111,8 +116,13 @@ function InvitadosContent() {
 
   useEffect(() => {
     const estado = searchParams.get("estado");
+    const entrada = searchParams.get("entrada");
     if (estado) {
       setFiltroEstado(estado);
+      setPage(1);
+    }
+    if (entrada) {
+      setFiltroEntrada(entrada);
       setPage(1);
     }
   }, [searchParams]);
@@ -193,6 +203,7 @@ function InvitadosContent() {
         page: String(targetPage),
         page_size: String(pageSize),
         estado: filtroEstado,
+        entrada: filtroEntrada,
       });
       if (eventoIdParam) query.set("evento_id", eventoIdParam);
       if (debouncedSearch) query.set("search", debouncedSearch);
@@ -206,6 +217,7 @@ function InvitadosContent() {
         setInvitados(data.invitados || []);
         setSoloLectura(Boolean(data.solo_lectura));
         setVistaAdmin(Boolean(data.vista_admin));
+        setQrCheckinEnabled(Boolean(data.permisos?.qr_checkin_habilitado));
         setPermisoScopeResuelto(permisoScope);
         setPagination(
           data.pagination || {
@@ -226,11 +238,20 @@ function InvitadosContent() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, eventoIdParam, filtroEstado, page, pageSize, permisoScope]);
+  }, [debouncedSearch, eventoIdParam, filtroEntrada, filtroEstado, page, pageSize, permisoScope]);
 
   useEffect(() => {
     fetchInvitados();
   }, [fetchInvitados]);
+
+  useEffect(() => {
+    if (!qrCheckinEnabled) return;
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") void fetchInvitados();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    return () => window.removeEventListener("focus", refreshOnFocus);
+  }, [fetchInvitados, qrCheckinEnabled]);
 
   // Si cambia el evento consultado, ocultamos inmediatamente cualquier acción
   // mutable hasta validar los permisos del nuevo evento.
@@ -1210,6 +1231,30 @@ function InvitadosContent() {
               ♻️ Pases liberados (declinados + parciales)
             </option>
           </select>
+          {qrCheckinEnabled && <select
+            value={filtroEntrada}
+            onChange={(e) => {
+              setFiltroEntrada(e.target.value);
+              setPage(1);
+            }}
+            aria-label="Filtrar por registro de entrada"
+            className="w-full sm:w-auto px-3 py-2 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-xs text-stone-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+          >
+            <option value="todos">Todas las entradas</option>
+            <option value="ingresaron">🟢 Ya ingresaron</option>
+            <option value="sin_ingreso">⚪ Confirmados por llegar</option>
+            <option value="parcial">🟠 Ingreso parcial</option>
+            <option value="completo">✅ Ingreso completo</option>
+          </select>}
+          {qrCheckinEnabled && <button
+            type="button"
+            onClick={() => void fetchInvitados()}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Actualizar entradas
+          </button>}
           <select
             value={pageSize}
             onChange={(e) => {
@@ -1236,6 +1281,7 @@ function InvitadosContent() {
                 <th className="py-3.5 px-4 text-center">Envío</th>
                 <th className="py-3.5 px-4 text-center">Estado</th>
                 <th className="py-3.5 px-4 text-center">Pases</th>
+                {qrCheckinEnabled && <th className="py-3.5 px-4 text-center">Entrada</th>}
                 <th className="py-3.5 px-4">Última Respuesta</th>
                 <th className="py-3.5 px-4 text-right">Compartir</th>
                 <th className="py-3.5 px-4 text-center w-12">Más</th>
@@ -1245,7 +1291,7 @@ function InvitadosContent() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={qrCheckinEnabled ? 8 : 7}
                     className="py-12 text-center text-stone-400 text-xs"
                   >
                     Cargando lista de invitados...
@@ -1254,7 +1300,7 @@ function InvitadosContent() {
               ) : invitados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={qrCheckinEnabled ? 8 : 7}
                     className="py-12 text-center text-stone-400 text-xs"
                   >
                     No se encontraron invitados con los filtros seleccionados.
@@ -1357,6 +1403,24 @@ function InvitadosContent() {
                             </span>
                           )}
                       </td>
+
+                      {qrCheckinEnabled && <td className="py-3.5 px-4 text-center">
+                        {inv.estado !== "confirmado" || (inv.pases_confirmados ?? 0) < 1 ? (
+                          <span className="text-[11px] font-medium text-stone-400">No aplica</span>
+                        ) : inv.pases_ingresados <= 0 ? (
+                          <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600">No ha llegado</span>
+                        ) : inv.pases_ingresados < (inv.pases_confirmados ?? 0) ? (
+                          <div>
+                            <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">Parcial · {inv.pases_ingresados}/{inv.pases_confirmados}</span>
+                            {inv.ultima_entrada_en && <p className="mt-1 whitespace-nowrap text-[10px] text-stone-400">{formatDateTimeMx(inv.ultima_entrada_en)}</p>}
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Completo · {inv.pases_ingresados}/{inv.pases_confirmados}</span>
+                            {inv.ultima_entrada_en && <p className="mt-1 whitespace-nowrap text-[10px] text-stone-400">{formatDateTimeMx(inv.ultima_entrada_en)}</p>}
+                          </div>
+                        )}
+                      </td>}
 
                       {/* Última Respuesta */}
                       <td className="py-3.5 px-4 text-stone-500">

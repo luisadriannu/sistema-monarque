@@ -25,6 +25,7 @@ export async function GET(request: Request) {
   const eventoIdParam = searchParams.get("evento_id");
   const search = searchParams.get("search")?.trim();
   const estado = searchParams.get("estado");
+  const entrada = searchParams.get("entrada");
   const all = searchParams.get("all") === "true";
   const requestedPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const pageSize = Math.min(
@@ -60,7 +61,11 @@ export async function GET(request: Request) {
           total_pendientes: 0,
           pases_liberados: 0,
           total_invitados: 0,
+          total_ingresados: 0,
+          confirmados_pendientes_ingreso: 0,
+          familias_ingresadas: 0,
         },
+        permisos: { qr_checkin_habilitado: Boolean(user.organizacion?.qr_checkin_habilitado) },
       },
       { headers: noStoreHeaders }
     );
@@ -82,6 +87,8 @@ export async function GET(request: Request) {
     select: {
       pases_asignados: true,
       pases_confirmados: true,
+      pases_ingresados: true,
+      ultima_entrada_en: true,
       estado: true,
     },
   });
@@ -92,6 +99,9 @@ export async function GET(request: Request) {
   let total_declinados_pases = 0;
   let total_pendientes_pases = 0;
   let pases_liberados = 0;
+  let total_ingresados = 0;
+  let confirmados_pendientes_ingreso = 0;
+  let familias_ingresadas = 0;
 
   for (const inv of todosInvitados) {
     total_asignados += inv.pases_asignados;
@@ -99,6 +109,10 @@ export async function GET(request: Request) {
     if (inv.estado === "confirmado") {
       const conf = inv.pases_confirmados || 0;
       total_confirmados += conf;
+      const ingresados = Math.min(conf, inv.pases_ingresados || 0);
+      total_ingresados += ingresados;
+      confirmados_pendientes_ingreso += Math.max(0, conf - ingresados);
+      if (ingresados > 0) familias_ingresadas += 1;
       // Pases liberados: si le dieron 4 pero confirmó 2, se liberaron 2
       pases_liberados += Math.max(0, inv.pases_asignados - conf);
     } else if (inv.estado === "declinado") {
@@ -152,6 +166,28 @@ export async function GET(request: Request) {
     }
   }
 
+  if (entrada && entrada !== "todos") {
+    const entryCondition: Prisma.InvitadoWhereInput = entrada === "ingresaron"
+      ? { pases_ingresados: { gt: 0 } }
+      : entrada === "sin_ingreso"
+        ? { estado: "confirmado", pases_confirmados: { gt: 0 }, pases_ingresados: 0 }
+        : entrada === "parcial"
+          ? {
+              estado: "confirmado",
+              pases_ingresados: { gt: 0 },
+              pases_confirmados: { gt: 0 },
+              AND: [{ pases_ingresados: { lt: prisma.invitado.fields.pases_confirmados } }],
+            }
+          : entrada === "completo"
+            ? {
+                estado: "confirmado",
+                pases_confirmados: { gt: 0 },
+                pases_ingresados: { gte: prisma.invitado.fields.pases_confirmados },
+              }
+            : {};
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), entryCondition];
+  }
+
   const total = await prisma.invitado.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(requestedPage, totalPages);
@@ -173,6 +209,9 @@ export async function GET(request: Request) {
       },
       solo_lectura: user.rol === "admin" || isEventFinished(evento.fecha_evento),
       vista_admin: user.rol === "admin",
+      permisos: {
+        qr_checkin_habilitado: Boolean(evento.usuario.organizacion?.qr_checkin_habilitado),
+      },
       kpis: {
         total_asignados,
         total_confirmados,
@@ -180,6 +219,9 @@ export async function GET(request: Request) {
         total_pendientes: total_pendientes_pases,
         pases_liberados,
         total_invitados: todosInvitados.length,
+        total_ingresados,
+        confirmados_pendientes_ingreso,
+        familias_ingresadas,
       },
     },
     { headers: noStoreHeaders }

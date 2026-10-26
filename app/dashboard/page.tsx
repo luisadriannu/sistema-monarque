@@ -12,6 +12,9 @@ import {
   MapPin,
   ArrowRight,
   AlertCircle,
+  DoorOpen,
+  ScanLine,
+  UserCheck,
 } from "lucide-react";
 import { formatDateLongMx, formatDateMx, formatDateTimeMx } from "@/lib/utils";
 import EventTypeIcon from "@/components/EventTypeIcon";
@@ -63,6 +66,9 @@ export default async function DashboardPage() {
   let total_pendientes = 0;
   let total_parciales_count = 0;
   let total_liberados_parciales = 0;
+  let total_ingresados = 0;
+  let confirmados_pendientes_ingreso = 0;
+  let familias_ingresadas = 0;
 
   for (const inv of invitados) {
     total_asignados += inv.pases_asignados;
@@ -70,6 +76,10 @@ export default async function DashboardPage() {
     if (inv.estado === "confirmado") {
       const conf = inv.pases_confirmados || 0;
       total_confirmados += conf;
+      const ingresados = Math.min(conf, inv.pases_ingresados || 0);
+      total_ingresados += ingresados;
+      confirmados_pendientes_ingreso += Math.max(0, conf - ingresados);
+      if (ingresados > 0) familias_ingresadas += 1;
       total_ninos += inv.ninos_confirmados || 0;
       if (conf < inv.pases_asignados) {
         total_parciales_count += 1;
@@ -84,6 +94,7 @@ export default async function DashboardPage() {
 
   const total_adultos = Math.max(0, total_confirmados - total_ninos);
   const total_pases_liberados = total_declinados + total_liberados_parciales;
+  const qrCheckinEnabled = Boolean(user.organizacion?.qr_checkin_habilitado);
 
   const capacidad = evento.capacidad_total || 0;
   // Cupos comprometidos reales: Confirmados + Pendientes (quienes declinaron ya liberaron su lugar)
@@ -459,6 +470,36 @@ export default async function DashboardPage() {
           </LoadingLink>
         </div>
       </div>
+
+      {qrCheckinEnabled && (
+        <section className="rounded-3xl border border-[#d7e8df] bg-[#f7fbf8] p-5 shadow-xs sm:p-6">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[.2em] text-emerald-700">Control de acceso QR</p>
+              <h2 className="mt-1 font-serif text-2xl font-bold text-[#183126]">Asistencia en el evento</h2>
+              <p className="mt-1 text-xs text-stone-500">Se actualiza conforme el equipo de recepción registra las entradas.</p>
+            </div>
+            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-900">Ver entradas <ArrowRight className="h-3.5 w-3.5" /></LoadingLink>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="rounded-2xl border border-emerald-200 bg-white p-4 transition hover:border-emerald-400 hover:shadow-sm">
+              <div className="flex items-center justify-between text-emerald-700"><span className="text-[11px] font-bold uppercase tracking-wider">Ya ingresaron</span><DoorOpen className="h-4 w-4" /></div>
+              <p className="mt-2 font-serif text-3xl font-bold text-emerald-950">{total_ingresados}</p>
+              <p className="mt-1 text-xs text-stone-500">personas registradas</p>
+            </LoadingLink>
+            <LoadingLink href="/dashboard/invitados?entrada=sin_ingreso" className="rounded-2xl border border-amber-200 bg-white p-4 transition hover:border-amber-400 hover:shadow-sm">
+              <div className="flex items-center justify-between text-amber-700"><span className="text-[11px] font-bold uppercase tracking-wider">Pendientes de llegar</span><ScanLine className="h-4 w-4" /></div>
+              <p className="mt-2 font-serif text-3xl font-bold text-amber-950">{confirmados_pendientes_ingreso}</p>
+              <p className="mt-1 text-xs text-stone-500">pases confirmados pendientes</p>
+            </LoadingLink>
+            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="rounded-2xl border border-sky-200 bg-white p-4 transition hover:border-sky-400 hover:shadow-sm">
+              <div className="flex items-center justify-between text-sky-700"><span className="text-[11px] font-bold uppercase tracking-wider">Familias recibidas</span><UserCheck className="h-4 w-4" /></div>
+              <p className="mt-2 font-serif text-3xl font-bold text-sky-950">{familias_ingresadas}</p>
+              <p className="mt-1 text-xs text-stone-500">registros con al menos una entrada</p>
+            </LoadingLink>
+          </div>
+        </section>
+      )}
 
       {/* Actividad Reciente */}
       <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs">

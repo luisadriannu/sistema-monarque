@@ -395,13 +395,13 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-5 pb-24">
         <fieldset
           disabled={eventoFinalizado}
-          className="space-y-8 disabled:[&_button]:cursor-not-allowed disabled:[&_button]:opacity-60 disabled:[&_input]:cursor-not-allowed disabled:[&_textarea]:cursor-not-allowed"
+          className="space-y-5 disabled:[&_button]:cursor-not-allowed disabled:[&_button]:opacity-60 disabled:[&_input]:cursor-not-allowed disabled:[&_textarea]:cursor-not-allowed"
         >
         {/* Parámetros de Asistencia y Capacidad */}
-        <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs space-y-5">
           <div className="flex items-center gap-2.5 pb-4 border-b border-[#f5ede2]">
             <Calendar className="w-5 h-5 text-[#e05a1b]" />
             <h2 className="font-serif text-lg font-bold text-[#2b211b]">
@@ -509,22 +509,25 @@ export default function ConfiguracionPage() {
         </div>
 
         {/* Plantilla de Mensaje para WhatsApp */}
-        <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex items-start gap-3 pb-5 border-b border-[#f5ede2]">
+        <details className="group bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs">
+          <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <MessageSquare className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h2 className="font-serif text-xl font-bold text-[#2b211b]">
                 Mensaje para compartir la invitación
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
-                Escríbelo una sola vez. Cuando pulses WhatsApp desde la lista de
-                invitados, el sistema colocará automáticamente el nombre, los pases
-                y el enlace personal de cada familia.
+                Personaliza el texto de WhatsApp y revisa cómo lo recibirá cada familia.
               </p>
             </div>
-          </div>
+            <span className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-600 group-open:bg-emerald-50 group-open:text-emerald-700">
+              <span className="group-open:hidden">Abrir</span><span className="hidden group-open:inline">Cerrar</span>
+            </span>
+          </summary>
+
+          <div className="mt-6 space-y-6 border-t border-[#f5ede2] pt-6">
 
           <div className="rounded-2xl border border-[#f0ddc9] bg-[#fffaf5] p-4">
             <p className="text-xs font-bold text-[#6e422b]">
@@ -687,18 +690,25 @@ export default function ConfiguracionPage() {
               </p>
             </div>
           </div>
-        </div>
+          </div>
+        </details>
 
         {/* Botón de guardado */}
-        <div className="flex items-center justify-end">
-          <AsyncButton
-            type="submit"
-            disabled={guardando || fechaLimitePosteriorEvento || eventoFinalizado}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-md shadow-orange-500/20 transition-all disabled:opacity-50"
-           loadingText="Guardando…" loading={guardando}>
-            <Save className="w-4 h-4 text-white" />
-            <span>{guardando ? "Guardando cambios..." : "Guardar Configuración"}</span>
-          </AsyncButton>
+        <div className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 lg:left-[calc(16rem+2rem)] lg:right-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] bg-white/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
+            <div className="hidden min-w-0 sm:block">
+              <p className="text-xs font-bold text-[#2b211b]">Configuración del evento</p>
+              <p className="truncate text-[10px] text-stone-500">Guarda juntos todos los cambios realizados en esta página.</p>
+            </div>
+            <AsyncButton
+              type="submit"
+              disabled={guardando || fechaLimitePosteriorEvento || eventoFinalizado}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e05a1b] to-[#ea580c] px-6 py-3 text-xs font-semibold text-white shadow-md shadow-orange-500/20 transition-all hover:from-[#c2410c] hover:to-[#e05a1b] disabled:opacity-50 sm:w-auto"
+             loadingText="Guardando…" loading={guardando}>
+              <Save className="w-4 h-4 text-white" />
+              <span>{guardando ? "Guardando cambios..." : "Guardar configuración"}</span>
+            </AsyncButton>
+          </div>
         </div>
         </fieldset>
       </form>
