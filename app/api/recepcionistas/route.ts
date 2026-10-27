@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isOrganizationServiceActive, organizationBlockMessage } from "@/lib/organization-access";
 
 const headers = { "Cache-Control": "no-store" };
+const organizerNames = { where: { rol: "organizador", eliminado_en: null }, select: { nombre: true }, take: 1 } as const;
 
 async function organizer() {
   const user = await getCurrentUser();
@@ -22,12 +23,12 @@ export async function GET() {
   const [recepcionistas, eventos] = await prisma.$transaction([
     prisma.usuario.findMany({
       where: { ...accountScope(user), rol: "recepcionista" },
-      select: { id: true, nombre: true, email: true, eliminado_en: true, organizacion_id: true, organizacion: { select: { nombre: true } }, eventos_recepcion: { select: { evento: { select: { id: true, nombre: true, fecha_evento: true, estado: true } } } } },
+      select: { id: true, nombre: true, email: true, eliminado_en: true, organizacion_id: true, organizacion: { select: { nombre: true, usuarios: organizerNames } }, eventos_recepcion: { select: { evento: { select: { id: true, nombre: true, fecha_evento: true, estado: true } } } } },
       orderBy: { creado_en: "desc" },
     }),
     prisma.evento.findMany({
       where: { usuario: { ...accountScope(user), eliminado_en: null }, estado: { not: "archivado" } },
-      select: { id: true, nombre: true, fecha_evento: true, estado: true, usuario: { select: { organizacion_id: true, lector_qr_habilitado: true, organizacion: { select: { nombre: true, qr_checkin_habilitado: true } } } } },
+      select: { id: true, nombre: true, fecha_evento: true, estado: true, usuario: { select: { organizacion_id: true, lector_qr_habilitado: true, organizacion: { select: { nombre: true, qr_checkin_habilitado: true, usuarios: organizerNames } } } } },
       orderBy: { fecha_evento: "desc" },
     }),
   ]);
