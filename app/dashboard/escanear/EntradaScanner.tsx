@@ -73,6 +73,7 @@ export default function EntradaScanner({
   const [message, setMessage] = useState("");
   const [entryResult, setEntryResult] = useState<"registered" | "review" | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
+  const [totalIngresados, setTotalIngresados] = useState(0);
   const [attendees, setAttendees] = useState<
     (Guest & { ultima_entrada_en: string })[]
   >([]);
@@ -91,6 +92,7 @@ export default function EntradaScanner({
   const loadLogs = useCallback(async () => {
     if (!selectedEventId) {
       setLogs([]);
+      setTotalIngresados(0);
       setAttendees([]);
       setPagination({ total: 0, total_pages: 1 });
       return;
@@ -104,6 +106,7 @@ export default function EntradaScanner({
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "No se pudo cargar la asistencia.");
       setLogs(d.registros || []);
+      setTotalIngresados(d.total_ingresados ?? 0);
       setAttendees(d.asistentes || []);
       setPagination(d.pagination);
       setLogsError("");
@@ -774,7 +777,7 @@ export default function EntradaScanner({
       </section>
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-2xl font-bold">Ingresos recientes</h2>
+          <div><h2 className="font-serif text-2xl font-bold">Ingresos recientes</h2><p className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"><Users className="h-4 w-4"/>Total: {logsLoading ? "…" : totalIngresados.toLocaleString("es-MX")} personas ingresadas</p></div>
           <AsyncButton
             loading={logsLoading}
             onClick={loadLogs}

@@ -70,8 +70,15 @@ interface UsuarioCliente {
   creado_en: string;
   eliminado_en: string | null;
   organizacion_id: string | null;
-  organizacion: { nombre: string; usuarios: { nombre: string }[] } | null;
+  organizacion: { nombre: string; max_invitados_evento: number; usuarios: { nombre: string }[] } | null;
   eventos: EventoCliente[];
+}
+
+function clientPassLimit(usuario: UsuarioCliente, evento: EventoCliente) {
+  const direct = !usuario.organizacion_id || usuario.organizacion_id === DIRECT_ORGANIZATION_ID;
+  const limits = [evento.limite_pases, direct ? null : usuario.organizacion?.max_invitados_evento]
+    .filter((value): value is number => typeof value === "number" && value > 0);
+  return limits.length ? Math.min(...limits) : null;
 }
 
 interface FormState {
@@ -577,7 +584,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                         <span className="rounded-full bg-[#f6efe7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9a653f]">
                           {evento._count.invitados} invitados
                         </span>
-                        {isDirect && evento.limite_pases && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Límite: {evento.limite_pases} pases</span>}
+                        {clientPassLimit(usuario, evento) !== null && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Límite: {clientPassLimit(usuario, evento)} pases</span>}
                       </div>
                     </div>
                     <p className="flex items-start gap-2">

@@ -123,6 +123,7 @@ function InvitadosContent() {
   const [limiteInvitados, setLimiteInvitados] = useState<number | null>(null);
   const [totalInvitadosEvento, setTotalInvitadosEvento] = useState(0);
   const [limitePases, setLimitePases] = useState<number | null>(null);
+  const [pasesContratados, setPasesContratados] = useState<number | null>(null);
   const limiteInvitadosAlcanzado =
     (limiteInvitados !== null && totalInvitadosEvento >= limiteInvitados) ||
     (limitePases !== null && totalPasesAsignados >= limitePases);
@@ -237,6 +238,7 @@ function InvitadosContent() {
               ? data.permisos.limite_invitados
               : null,
           );
+          setPasesContratados(data.permisos?.limite_pases_contratados ?? data.permisos?.limite_pases ?? null);
           setLimitePases(
             typeof data.permisos?.limite_pases === "number"
               ? data.permisos.limite_pases
@@ -1316,10 +1318,10 @@ function InvitadosContent() {
         </div>
       )}
 
-      {puedeModificar && limitePases !== null && (
-        <div className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${totalPasesAsignados >= limitePases ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
-          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs">{totalPasesAsignados} de {limitePases} pases asignados · quedan {Math.max(0, limitePases - totalPasesAsignados)}.</p></div>
-          {totalPasesAsignados >= limitePases && <span className="rounded-full bg-amber-200 px-3 py-1 text-[10px] font-bold uppercase">Límite alcanzado</span>}
+      {permisosResueltos && pasesContratados !== null && (
+        <div className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${totalPasesAsignados >= pasesContratados ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs">{totalPasesAsignados} de {pasesContratados} pases asignados · quedan {Math.max(0, pasesContratados - totalPasesAsignados)}.</p></div>
+          {totalPasesAsignados >= pasesContratados && <span className="rounded-full bg-amber-200 px-3 py-1 text-[10px] font-bold uppercase">Límite alcanzado</span>}
         </div>
       )}
 

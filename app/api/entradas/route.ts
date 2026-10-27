@@ -124,7 +124,11 @@ export async function GET(request: Request) {
     include: { invitado: { select: { nombre: true, grupo: true } }, evento: { select: { nombre: true } } },
     orderBy: { creado_en: "desc" }, take: 100,
   });
-  return NextResponse.json({ registros, asistentes, pagination: { page, total, total_pages: totalPages } }, { headers });
+  const ingresados = await prisma.invitado.aggregate({
+    where: { evento_id: eventoActivo.id },
+    _sum: { pases_ingresados: true },
+  });
+  return NextResponse.json({ registros, asistentes, total_ingresados: ingresados._sum.pases_ingresados ?? 0, pagination: { page, total, total_pages: totalPages } }, { headers });
 }
 
 export async function POST(request: Request) {

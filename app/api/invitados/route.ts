@@ -218,6 +218,11 @@ export async function GET(request: Request) {
         qr_checkin_habilitado: hasClientQr(evento.usuario),
         limite_invitados: user.rol === "admin" || evento.usuario.organizacion_id === DIRECT_ORGANIZATION_ID ? null : evento.usuario.organizacion?.max_invitados_evento ?? null,
         limite_pases: user.rol === "admin" ? null : evento.limite_pases ?? null,
+        limite_pases_contratados: (() => {
+          const limits = [evento.limite_pases, evento.usuario.organizacion_id === DIRECT_ORGANIZATION_ID ? null : evento.usuario.organizacion?.max_invitados_evento]
+            .filter((value): value is number => typeof value === "number" && value > 0);
+          return limits.length ? Math.min(...limits) : null;
+        })(),
       },
       kpis: {
         total_asignados,
