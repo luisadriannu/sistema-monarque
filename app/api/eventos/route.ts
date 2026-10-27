@@ -1,4 +1,11 @@
 import { isValidName, NAME_ERROR } from "@/lib/names";
+import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
+
+function effectivePassLimit(eventLimit: number | null, user: { organizacion_id: string | null; organizacion: { max_invitados_evento: number } | null }) {
+  const organizationLimit = user.organizacion_id !== DIRECT_ORGANIZATION_ID ? user.organizacion?.max_invitados_evento : null;
+  const limits = [eventLimit, organizationLimit].filter((value): value is number => typeof value === "number" && value > 0);
+  return limits.length ? Math.min(...limits) : null;
+}
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -25,7 +32,7 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json({
-    eventos,
+    eventos: user.rol === "admin" ? eventos : eventos.map(event => ({ ...event, limite_pases: effectivePassLimit(event.limite_pases, user) })),
     permisos: {
       qr_checkin_habilitado: user.rol === "admin" || Boolean(user.organizacion?.qr_checkin_habilitado),
       administrador: user.rol === "admin",
@@ -162,8 +169,9 @@ export async function PUT(request: Request) {
     if (requestedCapacity !== null && (!Number.isInteger(requestedCapacity) || requestedCapacity < 1)) {
       return NextResponse.json({ error: "La capacidad del evento debe ser un número entero mayor a cero." }, { status: 400 });
     }
-    if (user.rol !== "admin" && existing.limite_pases && requestedCapacity !== null && requestedCapacity > existing.limite_pases) {
-      return NextResponse.json({ error: `Tu evento tiene un límite contratado de ${existing.limite_pases} pases.` }, { status: 403 });
+    const passLimit = effectivePassLimit(existing.limite_pases, user);
+    if (user.rol !== "admin" && passLimit !== null && requestedCapacity !== null && requestedCapacity > passLimit) {
+      return NextResponse.json({ error: `Tu evento tiene un límite contratado de ${passLimit} pases.` }, { status: 403 });
     }
 
     const updated = await prisma.evento.update({
