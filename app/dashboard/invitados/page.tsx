@@ -9,7 +9,7 @@ import AsyncButton from "@/components/AsyncButton";
 import FloatingMenu from "@/components/FloatingMenu";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
@@ -83,6 +83,7 @@ type Toast = {
 };
 
 function InvitadosContent() {
+  const router = useRouter();
   const { confirmDialog, notify, dialog } = usePanelDialog();
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
@@ -404,7 +405,7 @@ function InvitadosContent() {
     try {
       if (
         !(await confirmDialog(
-          `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`,
+          `¿Regenerar el enlace de ${invitado.nombre}? El enlace y QR anteriores dejarán de funcionar. Su estado volverá a Pendiente, se borrará su confirmación y tendrás que compartir el nuevo enlace. Los ingresos registrados en recepción se conservarán.`,
         ))
       )
         return;

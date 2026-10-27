@@ -94,17 +94,28 @@ function ConfiguracionContent() {
   const [recepcionCierraEn, setRecepcionCierraEn] = useState("");
   const [modoIngreso, setModoIngreso] = useState("parcial");
   const [minReceptionDate, setMinReceptionDate] = useState("");
+  const [minDeadlineDate, setMinDeadlineDate] = useState("");
   const [qrCheckinEnabled, setQrCheckinEnabled] = useState(false);
   const mensajeRef = useRef<HTMLTextAreaElement>(null);
   const plantillaMensajeRef = useRef("");
   const cursorMensajeRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const updateMinimum = () => setMinReceptionDate(toDateTimeInputValue(new Date(Math.floor(Date.now() / 60000) * 60000 + 60000)));
+    const updateMinimum = () => {
+      setMinReceptionDate(
+        toDateTimeInputValue(
+          new Date(Math.floor(Date.now() / 60000) * 60000 + 60000),
+        ),
+      );
+      setMinDeadlineDate(toDateInputValue(new Date()));
+    };
     updateMinimum();
     const interval = window.setInterval(updateMinimum, 30000);
     window.addEventListener("focus", updateMinimum);
-    return () => { window.clearInterval(interval); window.removeEventListener("focus", updateMinimum); };
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", updateMinimum);
+    };
   }, []);
 
   useEffect(() => {
@@ -117,10 +128,14 @@ function ConfiguracionContent() {
       setLoading(true);
       setEvento(null);
       try {
-        const res = await fetch(`/api/eventos${eventId ? `?evento_id=${encodeURIComponent(eventId)}` : ""}`, { cache: "no-store" });
+        const res = await fetch(
+          `/api/eventos${eventId ? `?evento_id=${encodeURIComponent(eventId)}` : ""}`,
+          { cache: "no-store" },
+        );
         const data = await res.json();
         if (!active) return;
-        if (!res.ok) throw new Error(data.error || "No se pudo cargar el evento.");
+        if (!res.ok)
+          throw new Error(data.error || "No se pudo cargar el evento.");
         setIsAdmin(Boolean(data.permisos?.administrador));
         if (data.permisos?.administrador && !eventId) return;
         setQrCheckinEnabled(Boolean(data.permisos?.qr_checkin_habilitado));
@@ -130,45 +145,59 @@ function ConfiguracionContent() {
           setCapacidadTotal(
             ev.capacidad_total !== null && ev.capacidad_total !== undefined
               ? String(ev.capacidad_total)
-              : ""
+              : "",
           );
           setTextoEdadNino(ev.texto_edad_nino || "menores de 12 años");
           setFechaLimiteRsvp(toDateInputValue(ev.fecha_limite_rsvp));
           setPlantillaMensaje(
             ev.plantilla_mensaje ||
-              "¡Hola {nombre}! Te invitamos con mucho cariño a nuestro evento. Tienes {pases} pases reservados. Por favor confírmanos tu asistencia aquí: {link}"
+              "¡Hola {nombre}! Te invitamos con mucho cariño a nuestro evento. Tienes {pases} pases reservados. Por favor confírmanos tu asistencia aquí: {link}",
           );
           setEstadoEvento(ev.estado || "publicado");
-          setRecepcionAbreEn(ev.recepcion_abre_en ? toDateTimeInputValue(ev.recepcion_abre_en) : "");
-          setRecepcionCierraEn(ev.recepcion_cierra_en ? toDateTimeInputValue(ev.recepcion_cierra_en) : "");
-          setModoIngreso(data.permisos?.administrador ? ev.modo_ingreso || "parcial" : "parcial");
+          setRecepcionAbreEn(
+            ev.recepcion_abre_en
+              ? toDateTimeInputValue(ev.recepcion_abre_en)
+              : "",
+          );
+          setRecepcionCierraEn(
+            ev.recepcion_cierra_en
+              ? toDateTimeInputValue(ev.recepcion_cierra_en)
+              : "",
+          );
+          setModoIngreso(
+            data.permisos?.administrador
+              ? ev.modo_ingreso || "parcial"
+              : "parcial",
+          );
         }
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "No se pudo cargar el evento.");
+        if (active)
+          setError(
+            e instanceof Error ? e.message : "No se pudo cargar el evento.",
+          );
       } finally {
         if (active) setLoading(false);
       }
     }
 
     loadEvento();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [eventId]);
 
-  const fechaEventoMaxima = evento
-    ? toDateInputValue(evento.fecha_evento)
-    : "";
-  const fechaMinimaRsvp = toDateInputValue(new Date());
-  const fechaLimiteAnteriorHoy = Boolean(
-    fechaLimiteRsvp && fechaLimiteRsvp < fechaMinimaRsvp,
-  );
+  const fechaEventoMaxima = evento ? toDateInputValue(evento.fecha_evento) : "";
+  const fechaMinimaRsvp = minDeadlineDate || toDateInputValue(new Date());
   const fechaLimitePosteriorEvento = Boolean(
-    fechaLimiteRsvp &&
-      fechaEventoMaxima &&
-      fechaLimiteRsvp > fechaEventoMaxima,
+    fechaLimiteRsvp && fechaEventoMaxima && fechaLimiteRsvp > fechaEventoMaxima,
   );
-  const eventoFinalizado = evento && !isAdmin
-    ? isEventFinished(evento.fecha_evento)
-    : false;
+  const fechaLimiteAnteriorHoy = Boolean(
+    fechaLimiteRsvp && minDeadlineDate && fechaLimiteRsvp < minDeadlineDate,
+  );
+  const fechaLimiteInvalida =
+    fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento;
+  const eventoFinalizado =
+    evento && !isAdmin ? isEventFinished(evento.fecha_evento) : false;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +213,12 @@ function ConfiguracionContent() {
       return;
     }
 
+    if (fechaLimiteRsvp && fechaLimiteRsvp < toDateInputValue(new Date())) {
+      setError(
+        "La fecha límite de confirmación no puede ser anterior a hoy (horario de Ciudad de México).",
+      );
+      return;
+    }
     if (fechaLimitePosteriorEvento) {
       setError(
         `La fecha límite de confirmación no puede ser posterior al día del evento (${formatDateMx(evento.fecha_evento)}).`,
@@ -191,12 +226,20 @@ function ConfiguracionContent() {
       return;
     }
     if (fechaLimiteAnteriorHoy) {
-      setError("La fecha límite de confirmación debe ser hoy o una fecha futura.");
+      setError(
+        "La fecha límite de confirmación debe ser hoy o una fecha futura.",
+      );
       return;
     }
 
-    if (evento.limite_pases && capacidadTotal.trim() && Number(capacidadTotal) > evento.limite_pases) {
-      setError(`Tu evento tiene un límite contratado de ${evento.limite_pases} pases.`);
+    if (
+      evento.limite_pases &&
+      capacidadTotal.trim() &&
+      Number(capacidadTotal) > evento.limite_pases
+    ) {
+      setError(
+        `Tu evento tiene un límite contratado de ${evento.limite_pases} pases.`,
+      );
       return;
     }
 
@@ -204,13 +247,25 @@ function ConfiguracionContent() {
       [recepcionAbreEn, evento.recepcion_abre_en, "apertura"],
       [recepcionCierraEn, evento.recepcion_cierra_en, "cierre"],
     ]) {
-      if (value && value !== toDateTimeInputValue(original) && new Date(`${value}:00-06:00`).getTime() <= Date.now()) {
-        setError(`La fecha y hora de ${label} programado deben ser futuras (horario de Ciudad de México).`);
+      if (
+        value &&
+        value !== toDateTimeInputValue(original) &&
+        new Date(`${value}:00-06:00`).getTime() <= Date.now()
+      ) {
+        setError(
+          `La fecha y hora de ${label} programado deben ser futuras (horario de Ciudad de México).`,
+        );
         return;
       }
     }
-    if (recepcionAbreEn && recepcionCierraEn && recepcionCierraEn <= recepcionAbreEn) {
-      setError("La hora de cierre debe ser posterior a la apertura de recepción.");
+    if (
+      recepcionAbreEn &&
+      recepcionCierraEn &&
+      recepcionCierraEn <= recepcionAbreEn
+    ) {
+      setError(
+        "La hora de cierre debe ser posterior a la apertura de recepción.",
+      );
       return;
     }
 
@@ -225,14 +280,20 @@ function ConfiguracionContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: evento.id,
-          capacidad_total: capacidadTotal.trim() ? parseInt(capacidadTotal, 10) : null,
+          capacidad_total: capacidadTotal.trim()
+            ? parseInt(capacidadTotal, 10)
+            : null,
           fecha_limite_rsvp: fechaLimiteEndOfDay.toISOString(),
           texto_edad_nino: textoEdadNino.trim() || "menores de 12 años",
           plantilla_mensaje: plantillaMensaje,
           estado: estadoEvento,
           ...(isAdmin && {
-            recepcion_abre_en: recepcionAbreEn ? new Date(`${recepcionAbreEn}:00-06:00`).toISOString() : null,
-            recepcion_cierra_en: recepcionCierraEn ? new Date(`${recepcionCierraEn}:00-06:00`).toISOString() : null,
+            recepcion_abre_en: recepcionAbreEn
+              ? new Date(`${recepcionAbreEn}:00-06:00`).toISOString()
+              : null,
+            recepcion_cierra_en: recepcionCierraEn
+              ? new Date(`${recepcionCierraEn}:00-06:00`).toISOString()
+              : null,
           }),
           modo_ingreso: modoIngreso,
         }),
@@ -263,7 +324,7 @@ function ConfiguracionContent() {
     .replace(/{fecha_limite}/g, formatDateMx(fechaLimiteRsvp))
     .replace(
       /{link}/g,
-      `https://tudominio.com/${evento?.slug || "evento"}?id=x7k2p9qa`
+      `https://tudominio.com/${evento?.slug || "evento"}?id=x7k2p9qa`,
     );
 
   const variablesObligatoriasFaltantes = variablesMensaje.filter(
@@ -290,19 +351,22 @@ function ConfiguracionContent() {
     }
 
     const inicio = Math.min(
-      cursorMensajeRef.current ?? textarea?.selectionStart ?? mensajeActual.length,
+      cursorMensajeRef.current ??
+        textarea?.selectionStart ??
+        mensajeActual.length,
       mensajeActual.length,
     );
-    const fin = Math.min(textarea?.selectionEnd ?? inicio, mensajeActual.length);
+    const fin = Math.min(
+      textarea?.selectionEnd ?? inicio,
+      mensajeActual.length,
+    );
     const necesitaEspacioAntes =
       inicio > 0 && !/\s/.test(mensajeActual.charAt(inicio - 1));
     const necesitaEspacioDespues =
       fin < mensajeActual.length && !/\s/.test(mensajeActual.charAt(fin));
     const insercion = `${necesitaEspacioAntes ? " " : ""}${token}${necesitaEspacioDespues ? " " : ""}`;
     const nuevoMensaje =
-      mensajeActual.slice(0, inicio) +
-      insercion +
-      mensajeActual.slice(fin);
+      mensajeActual.slice(0, inicio) + insercion + mensajeActual.slice(fin);
     const nuevaPosicion = inicio + insercion.length;
 
     plantillaMensajeRef.current = nuevoMensaje;
@@ -372,51 +436,53 @@ function ConfiguracionContent() {
         <AnimatePresence>
           {(mensajeExito || error) && (
             <motion.div
-            key={error ? "configuration-error" : "configuration-success"}
-            role={error ? "alert" : "status"}
-            aria-live={error ? "assertive" : "polite"}
-            initial={{ opacity: 0, y: -18, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border p-4 shadow-[0_18px_55px_rgba(43,33,27,.22)] backdrop-blur-md ${
-              error
-                ? "border-rose-200 bg-rose-50/95 text-rose-800"
-                : "border-emerald-200 bg-emerald-50/95 text-emerald-900"
-            }`}
-          >
-            <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+              key={error ? "configuration-error" : "configuration-success"}
+              role={error ? "alert" : "status"}
+              aria-live={error ? "assertive" : "polite"}
+              initial={{ opacity: 0, y: -18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border p-4 shadow-[0_18px_55px_rgba(43,33,27,.22)] backdrop-blur-md ${
                 error
-                  ? "bg-rose-100 text-rose-600"
-                  : "bg-emerald-100 text-emerald-600"
+                  ? "border-rose-200 bg-rose-50/95 text-rose-800"
+                  : "border-emerald-200 bg-emerald-50/95 text-emerald-900"
               }`}
             >
-              {error ? (
-                <AlertCircle className="h-5 w-5" />
-              ) : (
-                <CheckCircle className="h-5 w-5" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold">
-                {error ? "No se guardaron los cambios" : "Configuración guardada"}
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed opacity-80">
-                {error || "Los cambios se actualizaron correctamente."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setMensajeExito(false);
-                setError(null);
-              }}
-              aria-label="Cerrar notificación"
-              className="shrink-0 rounded-lg p-1 opacity-55 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
-            >
-              <X className="h-4 w-4" />
-            </button>
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                  error
+                    ? "bg-rose-100 text-rose-600"
+                    : "bg-emerald-100 text-emerald-600"
+                }`}
+              >
+                {error ? (
+                  <AlertCircle className="h-5 w-5" />
+                ) : (
+                  <CheckCircle className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold">
+                  {error
+                    ? "No se guardaron los cambios"
+                    : "Configuración guardada"}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed opacity-80">
+                  {error || "Los cambios se actualizaron correctamente."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMensajeExito(false);
+                  setError(null);
+                }}
+                aria-label="Cerrar notificación"
+                className="shrink-0 rounded-lg p-1 opacity-55 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -434,7 +500,8 @@ function ConfiguracionContent() {
             Configuración
           </h1>
           <p className="text-xs text-stone-500 mt-1">
-            Gestiona la fecha límite de confirmación, la capacidad de tu evento y el mensaje de invitación por WhatsApp
+            Gestiona la fecha límite de confirmación, la capacidad de tu evento
+            y el mensaje de invitación por WhatsApp
           </p>
         </div>
       </div>
@@ -443,9 +510,12 @@ function ConfiguracionContent() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div>
-            <p className="text-sm font-bold">Evento finalizado · Solo lectura</p>
+            <p className="text-sm font-bold">
+              Evento finalizado · Solo lectura
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-amber-800/80">
-              Puedes consultar estos ajustes, pero ya no es posible modificarlos después del día del evento.
+              Puedes consultar estos ajustes, pero ya no es posible modificarlos
+              después del día del evento.
             </p>
           </div>
         </div>
@@ -456,330 +526,455 @@ function ConfiguracionContent() {
           disabled={eventoFinalizado}
           className="space-y-5 disabled:[&_button]:cursor-not-allowed disabled:[&_button]:opacity-60 disabled:[&_input]:cursor-not-allowed disabled:[&_textarea]:cursor-not-allowed"
         >
-        {/* Parámetros de Asistencia y Capacidad */}
-        <div className="bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs space-y-5">
-          <div className="flex items-center gap-2.5 pb-4 border-b border-[#f5ede2]">
-            <Calendar className="w-5 h-5 text-[#e05a1b]" />
-            <h2 className="font-serif text-lg font-bold text-[#2b211b]">
-              Control de Asistencia y Capacidad
-            </h2>
-          </div>
-
-          <div className="rounded-2xl border border-[#ebd9c4] bg-[#fffaf5] p-5">
-            <div className="flex items-start gap-3"><CalendarClock className="mt-0.5 h-5 w-5 text-[#e05a1b]"/><div><h3 className="font-serif text-lg font-bold">{qrCheckinEnabled && isAdmin ? "Publicación y recepción" : "Publicación de la invitación"}</h3><p className="mt-1 text-[11px] leading-relaxed text-stone-500">{qrCheckinEnabled && isAdmin ? "Controla si la invitación es visible y programa la ventana de recepción QR." : "Controla si la invitación pública se encuentra disponible para tus invitados."}</p></div></div>
-            <div className={`mt-4 grid gap-4 md:grid-cols-2 ${qrCheckinEnabled ? isAdmin ? "xl:grid-cols-4" : "xl:grid-cols-3" : "xl:grid-cols-1"}`}>
-              <label className="text-xs font-bold uppercase tracking-wider">Estado público<select value={estadoEvento} onChange={event => setEstadoEvento(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"><option value="borrador">Borrador · no visible</option><option value="publicado">Publicado</option><option value="cancelado">Cancelado · no visible</option><option value="archivado">Archivado · no visible</option></select></label>
-              {qrCheckinEnabled && isAdmin && <>
-                <label className="text-xs font-bold uppercase tracking-wider">Apertura programada<input type="datetime-local" value={recepcionAbreEn} min={recepcionAbreEn && recepcionAbreEn === toDateTimeInputValue(evento.recepcion_abre_en) ? recepcionAbreEn : minReceptionDate} onChange={event => setRecepcionAbreEn(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"/><span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">Horario de Ciudad de México.</span></label>
-                <label className="text-xs font-bold uppercase tracking-wider">Cierre programado<input type="datetime-local" value={recepcionCierraEn} min={recepcionCierraEn && recepcionCierraEn === toDateTimeInputValue(evento.recepcion_cierra_en) ? recepcionCierraEn : [recepcionAbreEn, minReceptionDate].sort().at(-1)} onChange={event => setRecepcionCierraEn(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"/></label>
-                {isAdmin && <label className="text-xs font-bold uppercase tracking-wider">Uso del QR<select value={modoIngreso} onChange={event => setModoIngreso(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"><option value="unico">Una sola llegada</option><option value="parcial">Llegadas separadas</option></select><span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">En modo parcial, la familia puede usar el QR hasta completar sus pases.</span></label>}
-              </>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Fecha Límite de Confirmación */}
-            <div className="min-w-0 overflow-hidden bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
-              <div className="min-w-0">
-                <label className="mb-2 flex min-w-0 flex-col items-start gap-1.5 text-xs font-bold uppercase tracking-wider text-stone-900 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="min-w-0">Fecha Límite de Confirmación (RSVP)</span>
-                  <span className="shrink-0 text-[10px] font-semibold lowercase tracking-normal text-[#e05a1b]">
-                    cierre 23:59 hrs
-                  </span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  min={fechaMinimaRsvp}
-                  max={fechaEventoMaxima}
-                  value={fechaLimiteRsvp}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value && value < fechaMinimaRsvp) {
-                      setError("La fecha límite de confirmación no puede ser anterior a hoy.");
-                      return;
-                    }
-                    if (value && fechaEventoMaxima && value > fechaEventoMaxima) {
-                      setError(`La fecha límite no puede ser posterior al evento (${formatDateMx(evento.fecha_evento)}).`);
-                      return;
-                    }
-                    setFechaLimiteRsvp(value);
-                    setError(null);
-                  }}
-                  aria-invalid={fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento}
-                  aria-describedby="fecha-limite-ayuda"
-                  className={`block min-w-0 max-w-full w-full appearance-none box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
-                    fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento
-                      ? "border-rose-400 focus:ring-rose-400"
-                      : "border-[#dec0a2] focus:ring-[#e05a1b]"
-                  }`}
-                />
-              </div>
-              <p
-                id="fecha-limite-ayuda"
-                className={`text-[11px] mt-3 leading-relaxed ${
-                  fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento ? "font-medium text-rose-600" : "text-stone-600"
-                }`}
-              >
-                {fechaLimiteAnteriorHoy
-                  ? "Selecciona la fecha de hoy o una fecha futura."
-                  : fechaLimitePosteriorEvento
-                  ? `Selecciona una fecha igual o anterior al día del evento (${formatDateMx(evento.fecha_evento)}).`
-                  : "Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante."}
-              </p>
-            </div>
-
-            {/* Capacidad / Cupo Total del Evento */}
-            <div className="min-w-0 overflow-hidden bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
-              <div className="min-w-0">
-                <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-                  <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
-                    Capacidad del Evento (Cupo de asientos)
-                  </label>
-                  <span className="shrink-0 text-[11px] text-[#e05a1b] font-semibold">
-                    Opcional
-                  </span>
-                </div>
-                <input
-                  type="number"
-                  min="1"
-                  max={evento.limite_pases || undefined}
-                  value={capacidadTotal}
-                  onWheel={(event) => event.currentTarget.blur()}
-                  onChange={(e) => setCapacidadTotal(e.target.value)}
-                  placeholder="ej. 100"
-                  className="block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-              </div>
-              <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
-                {evento.limite_pases ? `Tu contratación permite hasta ${evento.limite_pases} pases. ` : ""}Si defines un cupo máximo, verás en tu Resumen una barra de control que te indica cuántos cupos te quedan disponibles. Si lo dejas vacío, no se mostrará.
-              </p>
-            </div>
-
-            {/* Definición de Niño */}
-            <div className="md:col-span-2 bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4]">
-              <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5">
-                Definición de Niño para tu Evento
-              </label>
-              <div className="max-w-md">
-                <input
-                  type="text"
-                  required
-                  value={textoEdadNino}
-                  onChange={(e) => setTextoEdadNino(e.target.value)}
-                  placeholder="ej. menores de 12 años"
-                  className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
-                />
-              </div>
-              <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
-                Este texto aparecerá en la invitación cuando el invitado indique cuántos de sus asistentes son niños (ej. &quot;¿Cuántos de ellos son niños? (menores de 12 años)&quot;).
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Plantilla de Mensaje para WhatsApp */}
-        <details className="group bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs">
-          <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-serif text-xl font-bold text-[#2b211b]">
-                Mensaje para compartir la invitación
+          {/* Parámetros de Asistencia y Capacidad */}
+          <div className="bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs space-y-5">
+            <div className="flex items-center gap-2.5 pb-4 border-b border-[#f5ede2]">
+              <Calendar className="w-5 h-5 text-[#e05a1b]" />
+              <h2 className="font-serif text-lg font-bold text-[#2b211b]">
+                Control de Asistencia y Capacidad
               </h2>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
-                Personaliza el texto de WhatsApp y revisa cómo lo recibirá cada familia.
-              </p>
             </div>
-            <span className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-600 group-open:bg-emerald-50 group-open:text-emerald-700">
-              <span className="group-open:hidden">Abrir</span><span className="hidden group-open:inline">Cerrar</span>
-            </span>
-          </summary>
 
-          <div className="mt-6 space-y-6 border-t border-[#f5ede2] pt-6">
-
-          <div className="rounded-2xl border border-[#f0ddc9] bg-[#fffaf5] p-4">
-            <p className="text-xs font-bold text-[#6e422b]">
-              1. Inserta los datos personalizados
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-              Coloca el cursor en el mensaje y presiona uno de estos botones. No
-              necesitas escribir las llaves manualmente.
-            </p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {variablesMensaje.map((variable) => {
-                const Icon = variable.icon;
-                const incluida = plantillaMensaje.includes(variable.token);
-                return (
-                  <button
-                    key={variable.token}
-                    type="button"
-                    onClick={() => insertarVariable(variable.token)}
-                    title={
-                      incluida
-                        ? "Ya está incluida. Presiona para localizarla en el mensaje."
-                        : `Insertar ${variable.label.toLowerCase()}`
-                    }
-                    className="group flex items-center gap-3 rounded-xl border border-[#ead7c4] bg-white px-3.5 py-3 text-left transition hover:border-[#e05a1b] hover:shadow-sm"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#fbf3eb] text-[#d65318]">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
-                        {variable.label}
-                        {variable.required && (
-                          <span className="text-[9px] font-bold uppercase text-[#e05a1b]">
-                            Necesario
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-0.5 block truncate font-mono text-[10px] text-stone-400">
-                        {incluida
-                          ? `${variable.token} · Ya incluida`
-                          : `${variable.token} → ${variable.example}`}
-                      </span>
-                    </span>
-                    {incluida && (
-                      <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_.95fr]">
-            <div className="space-y-3">
-              <div className="flex items-end justify-between gap-3">
+            <div className="rounded-2xl border border-[#ebd9c4] bg-[#fffaf5] p-5">
+              <div className="flex items-start gap-3">
+                <CalendarClock className="mt-0.5 h-5 w-5 text-[#e05a1b]" />
                 <div>
-                  <label
-                    htmlFor="plantilla-whatsapp"
-                    className="block text-xs font-bold text-stone-800"
-                  >
-                    2. Escribe tu mensaje
-                  </label>
-                  <p className="mt-1 text-[11px] text-stone-500">
-                    Puedes agregar emojis, saltos de línea y el texto que prefieras.
+                  <h3 className="font-serif text-lg font-bold">
+                    {qrCheckinEnabled && isAdmin
+                      ? "Publicación y recepción"
+                      : "Publicación de la invitación"}
+                  </h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+                    {qrCheckinEnabled && isAdmin
+                      ? "Controla si la invitación es visible y programa la ventana de recepción QR."
+                      : "Controla si la invitación pública se encuentra disponible para tus invitados."}
                   </p>
                 </div>
-                <span className="shrink-0 text-[10px] text-stone-400">
-                  {plantillaMensaje.length} caracteres
-                </span>
               </div>
-              <textarea
-                ref={mensajeRef}
-                id="plantilla-whatsapp"
-                rows={10}
-                required
-                value={plantillaMensaje}
-                onChange={(e) => {
-                  plantillaMensajeRef.current = e.target.value;
-                  cursorMensajeRef.current = e.target.selectionStart;
-                  setPlantillaMensaje(e.target.value);
-                }}
-                onSelect={(e) => {
-                  cursorMensajeRef.current = e.currentTarget.selectionStart;
-                }}
-                placeholder="Ejemplo: ¡Hola {nombre}! Nos dará mucho gusto celebrar contigo..."
-                className="w-full resize-y rounded-2xl border border-[#dec0a2] bg-[#fffdfb] p-4 text-sm leading-relaxed text-stone-800 outline-none transition focus:border-[#e05a1b] focus:ring-2 focus:ring-orange-100"
-              />
-
-              {variablesDuplicadas.length > 0 && (
-                <div className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-[11px] leading-relaxed text-rose-800 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    Hay variables repetidas accidentalmente en el mensaje.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={limpiarVariablesDuplicadas}
-                    className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-700 transition hover:bg-rose-100"
+              <div
+                className={`mt-4 grid gap-4 md:grid-cols-2 ${qrCheckinEnabled ? (isAdmin ? "xl:grid-cols-4" : "xl:grid-cols-3") : "xl:grid-cols-1"}`}
+              >
+                <label className="text-xs font-bold uppercase tracking-wider">
+                  Estado público
+                  <select
+                    value={estadoEvento}
+                    onChange={(event) => setEstadoEvento(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"
                   >
-                    Quitar duplicados
-                  </button>
-                </div>
-              )}
-
-              {variablesObligatoriasFaltantes.length > 0 ? (
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] leading-relaxed text-amber-800">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    Te falta incluir:{" "}
-                    <strong>
-                      {variablesObligatoriasFaltantes
-                        .map((variable) => variable.label.toLowerCase())
-                        .join(", ")}
-                    </strong>
-                    . Puedes guardar, pero el mensaje no tendrá esos datos personalizados.
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[11px] text-emerald-800">
-                  <CheckCircle className="h-4 w-4 shrink-0" />
-                  El mensaje contiene todos los datos necesarios.
-                </div>
-              )}
+                    <option value="borrador">Borrador · no visible</option>
+                    <option value="publicado">Publicado</option>
+                    <option value="cancelado">Cancelado · no visible</option>
+                    <option value="archivado">Archivado · no visible</option>
+                  </select>
+                </label>
+                {qrCheckinEnabled && isAdmin && (
+                  <>
+                    <label className="text-xs font-bold uppercase tracking-wider">
+                      Apertura programada
+                      <input
+                        type="datetime-local"
+                        value={recepcionAbreEn}
+                        min={
+                          recepcionAbreEn &&
+                          recepcionAbreEn ===
+                            toDateTimeInputValue(evento.recepcion_abre_en)
+                            ? recepcionAbreEn
+                            : minReceptionDate
+                        }
+                        onChange={(event) =>
+                          setRecepcionAbreEn(event.target.value)
+                        }
+                        className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"
+                      />
+                      <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">
+                        Horario de Ciudad de México.
+                      </span>
+                    </label>
+                    <label className="text-xs font-bold uppercase tracking-wider">
+                      Cierre programado
+                      <input
+                        type="datetime-local"
+                        value={recepcionCierraEn}
+                        min={
+                          recepcionCierraEn &&
+                          recepcionCierraEn ===
+                            toDateTimeInputValue(evento.recepcion_cierra_en)
+                            ? recepcionCierraEn
+                            : [recepcionAbreEn, minReceptionDate].sort().at(-1)
+                        }
+                        onChange={(event) =>
+                          setRecepcionCierraEn(event.target.value)
+                        }
+                        className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"
+                      />
+                    </label>
+                    {isAdmin && (
+                      <label className="text-xs font-bold uppercase tracking-wider">
+                        Uso del QR
+                        <select
+                          value={modoIngreso}
+                          onChange={(event) =>
+                            setModoIngreso(event.target.value)
+                          }
+                          className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"
+                        >
+                          <option value="unico">Una sola llegada</option>
+                          <option value="parcial">Llegadas separadas</option>
+                        </select>
+                        <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">
+                          En modo parcial, la familia puede usar el QR hasta
+                          completar sus pases.
+                        </span>
+                      </label>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs font-bold text-stone-800">
-                  3. Revisa el resultado
-                </p>
-                <p className="mt-1 text-[11px] text-stone-500">
-                  Esta simulación usa una familia de ejemplo. Cada invitado recibirá sus propios datos.
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Fecha Límite de Confirmación */}
+              <div className="min-w-0 overflow-hidden bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
+                <div className="min-w-0">
+                  <label className="mb-2 flex min-w-0 flex-col items-start gap-1.5 text-xs font-bold uppercase tracking-wider text-stone-900 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="min-w-0">
+                      Fecha Límite de Confirmación (RSVP)
+                    </span>
+                    <span className="shrink-0 text-[10px] font-semibold lowercase tracking-normal text-[#e05a1b]">
+                      cierre 23:59 hrs
+                    </span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    max={fechaEventoMaxima}
+                    value={fechaLimiteRsvp}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value && value < fechaMinimaRsvp) {
+                        setError(
+                          "La fecha límite de confirmación no puede ser anterior a hoy.",
+                        );
+                        return;
+                      }
+                      if (
+                        value &&
+                        fechaEventoMaxima &&
+                        value > fechaEventoMaxima
+                      ) {
+                        setError(
+                          `La fecha límite no puede ser posterior al evento (${formatDateMx(evento.fecha_evento)}).`,
+                        );
+                        return;
+                      }
+                      setFechaLimiteRsvp(value);
+                      setError(null);
+                    }}
+                    aria-invalid={fechaLimitePosteriorEvento}
+                    aria-describedby="fecha-limite-ayuda"
+                    className={`block min-w-0 max-w-full w-full appearance-none box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                      fechaLimitePosteriorEvento
+                        ? "border-rose-400 focus:ring-rose-400"
+                        : "border-[#dec0a2] focus:ring-[#e05a1b]"
+                    }`}
+                  />
+                </div>
+                <p
+                  id="fecha-limite-ayuda"
+                  className={`text-[11px] mt-3 leading-relaxed ${
+                    fechaLimitePosteriorEvento
+                      ? "font-medium text-rose-600"
+                      : "text-stone-600"
+                  }`}
+                >
+                  {fechaLimitePosteriorEvento
+                    ? `Selecciona una fecha igual o anterior al día del evento (${formatDateMx(evento.fecha_evento)}).`
+                    : "Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante."}
                 </p>
               </div>
-              <div className="overflow-hidden rounded-2xl border border-[#d6d7d1] bg-[#e9e4dc] shadow-inner">
-                <div className="flex items-center gap-3 bg-[#f7f7f5] px-4 py-3 border-b border-stone-200">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e05a1b] text-xs font-bold text-white">
-                    M
+
+              {/* Capacidad / Cupo Total del Evento */}
+              <div className="min-w-0 overflow-hidden bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] flex flex-col justify-between">
+                <div className="min-w-0">
+                  <div className="mb-2 flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                    <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
+                      Capacidad del Evento (Cupo de asientos)
+                    </label>
+                    <span className="shrink-0 text-[11px] text-[#e05a1b] font-semibold">
+                      Opcional
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-stone-800">Monarque</p>
-                    <p className="text-[9px] text-stone-400">Vista previa de WhatsApp</p>
-                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max={evento.limite_pases || undefined}
+                    value={capacidadTotal}
+                    onWheel={(event) => event.currentTarget.blur()}
+                    onChange={(e) => setCapacidadTotal(e.target.value)}
+                    placeholder="ej. 100"
+                    className="block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
                 </div>
-                <div className="min-h-[18rem] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.7),transparent_35%)] p-4">
-                  <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-[#d9fdd3] px-4 py-3 shadow-sm">
-                    <p className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-stone-800">
-                      {previewMensaje || "Tu mensaje aparecerá aquí mientras escribes."}
+                <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
+                  {evento.limite_pases
+                    ? `Tu contratación permite hasta ${evento.limite_pases} pases. `
+                    : ""}
+                  Si defines un cupo máximo, verás en tu Resumen una barra de
+                  control que te indica cuántos cupos te quedan disponibles. Si
+                  lo dejas vacío, no se mostrará.
+                </p>
+              </div>
+
+              {/* Definición de Niño */}
+              <div className="md:col-span-2 bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4]">
+                <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider mb-1.5">
+                  Definición de Niño para tu Evento
+                </label>
+                <div className="max-w-md">
+                  <input
+                    type="text"
+                    required
+                    value={textoEdadNino}
+                    onChange={(e) => setTextoEdadNino(e.target.value)}
+                    placeholder="ej. menores de 12 años"
+                    className="w-full px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                  />
+                </div>
+                <p className="text-[11px] text-stone-600 mt-2 leading-relaxed">
+                  Este texto aparecerá en la invitación cuando el invitado
+                  indique cuántos de sus asistentes son niños (ej.
+                  &quot;¿Cuántos de ellos son niños? (menores de 12
+                  años)&quot;).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Plantilla de Mensaje para WhatsApp */}
+          <details className="group bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs">
+            <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-serif text-xl font-bold text-[#2b211b]">
+                  Mensaje para compartir la invitación
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
+                  Personaliza el texto de WhatsApp y revisa cómo lo recibirá
+                  cada familia.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-600 group-open:bg-emerald-50 group-open:text-emerald-700">
+                <span className="group-open:hidden">Abrir</span>
+                <span className="hidden group-open:inline">Cerrar</span>
+              </span>
+            </summary>
+
+            <div className="mt-6 space-y-6 border-t border-[#f5ede2] pt-6">
+              <div className="rounded-2xl border border-[#f0ddc9] bg-[#fffaf5] p-4">
+                <p className="text-xs font-bold text-[#6e422b]">
+                  1. Inserta los datos personalizados
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+                  Coloca el cursor en el mensaje y presiona uno de estos
+                  botones. No necesitas escribir las llaves manualmente.
+                </p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {variablesMensaje.map((variable) => {
+                    const Icon = variable.icon;
+                    const incluida = plantillaMensaje.includes(variable.token);
+                    return (
+                      <button
+                        key={variable.token}
+                        type="button"
+                        onClick={() => insertarVariable(variable.token)}
+                        title={
+                          incluida
+                            ? "Ya está incluida. Presiona para localizarla en el mensaje."
+                            : `Insertar ${variable.label.toLowerCase()}`
+                        }
+                        className="group flex items-center gap-3 rounded-xl border border-[#ead7c4] bg-white px-3.5 py-3 text-left transition hover:border-[#e05a1b] hover:shadow-sm"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#fbf3eb] text-[#d65318]">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
+                            {variable.label}
+                            {variable.required && (
+                              <span className="text-[9px] font-bold uppercase text-[#e05a1b]">
+                                Necesario
+                              </span>
+                            )}
+                          </span>
+                          <span className="mt-0.5 block truncate font-mono text-[10px] text-stone-400">
+                            {incluida
+                              ? `${variable.token} · Ya incluida`
+                              : `${variable.token} → ${variable.example}`}
+                          </span>
+                        </span>
+                        {incluida && (
+                          <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_.95fr]">
+                <div className="space-y-3">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <label
+                        htmlFor="plantilla-whatsapp"
+                        className="block text-xs font-bold text-stone-800"
+                      >
+                        2. Escribe tu mensaje
+                      </label>
+                      <p className="mt-1 text-[11px] text-stone-500">
+                        Puedes agregar emojis, saltos de línea y el texto que
+                        prefieras.
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-stone-400">
+                      {plantillaMensaje.length} caracteres
+                    </span>
+                  </div>
+                  <textarea
+                    ref={mensajeRef}
+                    id="plantilla-whatsapp"
+                    rows={10}
+                    required
+                    value={plantillaMensaje}
+                    onChange={(e) => {
+                      plantillaMensajeRef.current = e.target.value;
+                      cursorMensajeRef.current = e.target.selectionStart;
+                      setPlantillaMensaje(e.target.value);
+                    }}
+                    onSelect={(e) => {
+                      cursorMensajeRef.current = e.currentTarget.selectionStart;
+                    }}
+                    placeholder="Ejemplo: ¡Hola {nombre}! Nos dará mucho gusto celebrar contigo..."
+                    className="w-full resize-y rounded-2xl border border-[#dec0a2] bg-[#fffdfb] p-4 text-sm leading-relaxed text-stone-800 outline-none transition focus:border-[#e05a1b] focus:ring-2 focus:ring-orange-100"
+                  />
+
+                  {variablesDuplicadas.length > 0 && (
+                    <div className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-[11px] leading-relaxed text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        Hay variables repetidas accidentalmente en el mensaje.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={limpiarVariablesDuplicadas}
+                        className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        Quitar duplicados
+                      </button>
+                    </div>
+                  )}
+
+                  {variablesObligatoriasFaltantes.length > 0 ? (
+                    <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] leading-relaxed text-amber-800">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>
+                        Te falta incluir:{" "}
+                        <strong>
+                          {variablesObligatoriasFaltantes
+                            .map((variable) => variable.label.toLowerCase())
+                            .join(", ")}
+                        </strong>
+                        . Puedes guardar, pero el mensaje no tendrá esos datos
+                        personalizados.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[11px] text-emerald-800">
+                      <CheckCircle className="h-4 w-4 shrink-0" />
+                      El mensaje contiene todos los datos necesarios.
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-stone-800">
+                      3. Revisa el resultado
                     </p>
-                    <div className="mt-2 flex items-center justify-end gap-1 text-[9px] text-stone-500">
-                      <span>10:30 a. m.</span>
-                      <span className="font-bold text-sky-500">✓✓</span>
+                    <p className="mt-1 text-[11px] text-stone-500">
+                      Esta simulación usa una familia de ejemplo. Cada invitado
+                      recibirá sus propios datos.
+                    </p>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-[#d6d7d1] bg-[#e9e4dc] shadow-inner">
+                    <div className="flex items-center gap-3 bg-[#f7f7f5] px-4 py-3 border-b border-stone-200">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e05a1b] text-xs font-bold text-white">
+                        M
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-stone-800">
+                          Monarque
+                        </p>
+                        <p className="text-[9px] text-stone-400">
+                          Vista previa de WhatsApp
+                        </p>
+                      </div>
+                    </div>
+                    <div className="min-h-[18rem] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.7),transparent_35%)] p-4">
+                      <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-[#d9fdd3] px-4 py-3 shadow-sm">
+                        <p className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-stone-800">
+                          {previewMensaje ||
+                            "Tu mensaje aparecerá aquí mientras escribes."}
+                        </p>
+                        <div className="mt-2 flex items-center justify-end gap-1 text-[9px] text-stone-500">
+                          <span>10:30 a. m.</span>
+                          <span className="font-bold text-sky-500">✓✓</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  <p className="flex items-start gap-2 text-[10px] leading-relaxed text-stone-500">
+                    <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e05a1b]" />
+                    El enlace mostrado es solo un ejemplo. En Invitados se
+                    genera un enlace único y privado para cada registro.
+                  </p>
                 </div>
               </div>
-              <p className="flex items-start gap-2 text-[10px] leading-relaxed text-stone-500">
-                <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e05a1b]" />
-                El enlace mostrado es solo un ejemplo. En Invitados se genera un enlace único y privado para cada registro.
-              </p>
             </div>
-          </div>
-          </div>
-        </details>
+          </details>
 
-        {/* Botón de guardado */}
-        <div className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 lg:left-[calc(16rem+2rem)] lg:right-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] bg-white/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
-            <div className="hidden min-w-0 sm:block">
-              <p className="text-xs font-bold text-[#2b211b]">Configuración del evento</p>
-              <p className="truncate text-[10px] text-stone-500">Guarda juntos todos los cambios realizados en esta página.</p>
+          {/* Botón de guardado */}
+          <div className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 lg:left-[calc(16rem+2rem)] lg:right-8">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] bg-white/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
+              <div className="hidden min-w-0 sm:block">
+                <p className="text-xs font-bold text-[#2b211b]">
+                  Configuración del evento
+                </p>
+                <p className="truncate text-[10px] text-stone-500">
+                  Guarda juntos todos los cambios realizados en esta página.
+                </p>
+              </div>
+              <AsyncButton
+                type="submit"
+                disabled={
+                  guardando ||
+                  fechaLimiteAnteriorHoy ||
+                  fechaLimitePosteriorEvento ||
+                  eventoFinalizado
+                }
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e05a1b] to-[#ea580c] px-6 py-3 text-xs font-semibold text-white shadow-md shadow-orange-500/20 transition-all hover:from-[#c2410c] hover:to-[#e05a1b] disabled:opacity-50 sm:w-auto"
+                loadingText="Guardando…"
+                loading={guardando}
+              >
+                <Save className="w-4 h-4 text-white" />
+                <span>
+                  {guardando ? "Guardando cambios..." : "Guardar configuración"}
+                </span>
+              </AsyncButton>
             </div>
-            <AsyncButton
-              type="submit"
-              disabled={guardando || fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento || eventoFinalizado}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e05a1b] to-[#ea580c] px-6 py-3 text-xs font-semibold text-white shadow-md shadow-orange-500/20 transition-all hover:from-[#c2410c] hover:to-[#e05a1b] disabled:opacity-50 sm:w-auto"
-             loadingText="Guardando…" loading={guardando}>
-              <Save className="w-4 h-4 text-white" />
-              <span>{guardando ? "Guardando cambios..." : "Guardar configuración"}</span>
-            </AsyncButton>
           </div>
-        </div>
         </fieldset>
       </form>
     </div>
@@ -787,5 +982,9 @@ function ConfiguracionContent() {
 }
 
 export default function ConfiguracionPage() {
-  return <Suspense fallback={<DashboardLoader label="Cargando configuración" />}><ConfiguracionContent /></Suspense>;
+  return (
+    <Suspense fallback={<DashboardLoader label="Cargando configuración" />}>
+      <ConfiguracionContent />
+    </Suspense>
+  );
 }

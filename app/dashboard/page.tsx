@@ -474,14 +474,16 @@ export default async function DashboardPage() {
 
       {qrCheckinEnabled && (
         <section className="rounded-3xl border border-[#d7e8df] bg-[#f7fbf8] p-5 shadow-xs sm:p-6">
-          <AttendanceRefresh />
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[.2em] text-emerald-700">Control de acceso QR</p>
               <h2 className="mt-1 font-serif text-2xl font-bold text-[#183126]">Asistencia en el evento</h2>
-              <p className="mt-1 text-xs text-stone-500">Se actualiza cada 15 segundos y al volver a esta pestaña.</p>
+              <p className="mt-1 text-xs text-stone-500">Pulsa Actualizar asistencia para consultar las últimas entradas.</p>
             </div>
-            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-900">Ver entradas <ArrowRight className="h-3.5 w-3.5" /></LoadingLink>
+            <div className="flex flex-wrap items-center gap-3">
+              <AttendanceRefresh />
+              <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-900">Ver entradas <ArrowRight className="h-3.5 w-3.5" /></LoadingLink>
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="rounded-2xl border border-emerald-200 bg-white p-4 transition hover:border-emerald-400 hover:shadow-sm">

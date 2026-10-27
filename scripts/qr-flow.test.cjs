@@ -71,6 +71,131 @@ const request = (body, method = "POST") => new Request("http://localhost/api/ent
   body: JSON.stringify(body && typeof body === "object" ? { evento_id: "event-a", ...body } : body),
 });
 
+test("Tras registrar 2 de 4 el escáner retira Confirmar y requiere otra consulta, incluso ante doble clic o respuesta perdida", async () => {
+  for (const loseFirstResponse of [false, true]) {
+    const f = fixture();
+    f.event.modo_ingreso = "parcial";
+    Object.assign(f.guest, { pases_asignados: 4, pases_confirmados: 4 });
+    f.prisma.invitado.findUnique = async ({ where }) => where.id === f.guest.id || where.codigo_entrada === f.guest.codigo_entrada ? { ...f.guest } : null;
+    f.prisma.registroEntrada.findMany = async () => f.logs.map((log, index) => ({ ...log, id: String(index), creado_en: new Date(), invitado: { nombre: f.guest.nombre, grupo: f.guest.grupo }, evento: { nombre: f.event.nombre } }));
+    const api = loadSource("app/api/entradas/route.ts", f.mocks);
+    const states = [], refs = [], effects = [];
+    let stateIndex = 0, refIndex = 0, posts = 0;
+    const react = {
+      useState: initial => {
+        const index = stateIndex++;
+        if (!(index in states)) states[index] = initial;
+        return [states[index], value => { states[index] = typeof value === "function" ? value(states[index]) : value; }];
+      },
+      useRef: initial => { const index = refIndex++; return refs[index] ||= { current: initial }; },
+      useEffect: callback => effects.push(callback),
+      useCallback: callback => callback,
+    };
+    const controls = { stop() {} };
+    const Scanner = loadSource("app/dashboard/escanear/EntradaScanner.tsx", {
+      react,
+      "@/components/AsyncButton": "button",
+      "@zxing/browser": { BrowserQRCodeReader: class {
+        async decodeFromConstraints(_constraints, _video, callback) {
+          callback({ getText: () => "monarque:entrada:code-a" }, null, controls);
+          return controls;
+        }
+      } },
+    }, {
+      navigator: { onLine: true },
+      window: { addEventListener() {}, removeEventListener() {} },
+      fetch: async (url, options) => {
+        if (options?.method === "POST") {
+          posts++;
+          const result = await api.POST(new Request("http://localhost" + url, options));
+          if (loseFirstResponse && posts === 1) throw new Error("Se perdió la respuesta después de guardar");
+          return result;
+        }
+        return api.GET(new Request("http://localhost" + url));
+      },
+    }).default;
+    const render = () => { stateIndex = 0; refIndex = 0; return Scanner({ canManageReception: true }); };
+    const text = node => Array.isArray(node) ? node.map(text).join("") : node && typeof node === "object" ? text(node.props?.children) : typeof node === "string" ? node : "";
+    const find = (node, predicate) => {
+      if (!node) return null;
+      if (Array.isArray(node)) return node.map(child => find(child, predicate)).find(Boolean) || null;
+      if (typeof node !== "object") return null;
+      return predicate(node) ? node : find(node.props?.children, predicate);
+    };
+    const button = label => find(render(), node => node.type === "button" && text(node).includes(label));
+    render();
+    effects.splice(0).forEach(callback => callback());
+    await new Promise(setImmediate);
+    await button("Abrir cámara").props.onClick();
+    await new Promise(setImmediate);
+    find(render(), node => node.type === "select" && node.props.value === 4).props.onChange({ target: { value: "2" } });
+    const confirm = button("Confirmar entrada").props.onClick;
+    const first = confirm();
+    await confirm(); // Segundo clic antes de que React actualice la pantalla.
+    await first;
+    await confirm(); // Un callback antiguo tampoco puede repetir el registro.
+    assert.equal(posts, 1);
+    assert.equal(f.guest.pases_ingresados, 2);
+    assert.equal(button("Confirmar entrada"), null);
+    assert.ok(button("Volver a escanear"));
+    if (!loseFirstResponse) {
+      assert.equal(find(render(), node => node.props?.label === "Ingresaron").props.value, 2);
+      assert.equal(find(render(), node => node.props?.label === "Disponibles").props.value, 2);
+    }
+    await button("Volver a escanear").props.onClick();
+    await new Promise(setImmediate);
+    assert.ok(button("Confirmar entrada"));
+    assert.equal(find(render(), node => node.props?.label === "Disponibles").props.value, 2);
+    await button("Confirmar entrada").props.onClick();
+    assert.equal(posts, 2);
+    assert.equal(f.guest.pases_ingresados, 4);
+    assert.equal(button("Confirmar entrada"), null);
+    assert.deepEqual(f.logs.map(log => log.cantidad), [2, 2]);
+  }
+});
+
+test("Regenerar enlace reinicia la respuesta y el envío, invalida las credenciales y conserva los ingresos", async () => {
+  for (const estado of ["pendiente", "visto", "confirmado", "declinado"]) {
+    const f = fixture();
+    const scannedAt = new Date("2026-10-23T20:00:00Z");
+    Object.assign(f.guest, { token: "token-anterior", estado, pases_ingresados: 2, ninos_confirmados: 1,
+      ultima_entrada_en: scannedAt, escaneado_en: scannedAt, escaneado_por: "organizer",
+      ultima_respuesta_en: scannedAt, enviado_en: scannedAt });
+    f.guest.evento.usuario.organizacion = f.organization;
+    f.prisma.invitado.findUnique = async ({ where }) =>
+      where.id === f.guest.id || where.token === f.guest.token || where.codigo_entrada === f.guest.codigo_entrada ? { ...f.guest } : null;
+    f.prisma.invitado.update = async ({ data }) => Object.assign(f.guest, data);
+    f.setUser({ id: "client", rol: "clienta" });
+    f.event.usuario_id = "client";
+    const mocks = { ...f.mocks,
+      "@/lib/utils": { isEventFinished: () => false },
+      "@/lib/tokens": { generateInvitationToken: size => size ? "qr-nuevo" : "token-nuevo" },
+    };
+    const edit = loadSource("app/api/invitados/[id]/route.ts", mocks);
+    const response = await edit.PUT(request({ action: "regenerar_link" }, "PUT"), { params: Promise.resolve({ id: f.guest.id }) });
+    assert.equal(response.status, 200);
+    assert.equal(f.guest.estado, "pendiente");
+    assert.equal(f.guest.pases_confirmados, null);
+    assert.equal(f.guest.ninos_confirmados, 0);
+    assert.equal(f.guest.ultima_respuesta_en, null);
+    assert.equal(f.guest.enviado_en, null);
+    assert.equal(f.guest.token, "token-nuevo");
+    assert.equal(f.guest.codigo_entrada, "qr-nuevo");
+    assert.equal(f.guest.escaneado_en, null);
+    assert.equal(f.guest.pases_asignados, 3);
+    assert.equal(f.guest.pases_ingresados, 2);
+    assert.equal(f.guest.ultima_entrada_en, scannedAt);
+    const qr = loadSource("app/api/invitacion/entrada/route.ts", { ...mocks,
+      "@/lib/ratelimit": { checkRateLimit: () => true },
+      qrcode: { toDataURL: async () => { throw new Error("No debe generar QR sin confirmar"); } },
+    });
+    assert.equal((await qr.GET(new Request("http://localhost/api/invitacion/entrada?token=token-anterior"))).status, 404);
+    const pass = await (await qr.GET(new Request("http://localhost/api/invitacion/entrada?token=token-nuevo&qr=1"))).json();
+    assert.equal(pass.confirmado, false);
+    assert.equal(pass.qrImage, undefined);
+  }
+});
+
 test("La clienta amplía de 10 a 15 después del ingreso y el nuevo QR suma solo 5", async () => {
   const f = fixture();
   Object.assign(f.guest, { pases_asignados: 10, pases_confirmados: 10, ninos_confirmados: 2 });
@@ -145,43 +270,31 @@ test("Ampliar cupo antes del ingreso conserva la confirmación y después suma s
   }
 });
 
-test("El panel refresca cada 15 segundos, al volver y limpia sus suscripciones", () => {
-  const effects = [], windowListeners = {}, documentListeners = {};
-  let tick, delay, refreshes = 0, cleared;
-  const doc = { visibilityState: "visible", addEventListener: (name, fn) => { documentListeners[name] = fn; }, removeEventListener: name => { delete documentListeners[name]; } };
+test("La asistencia solo se actualiza al pulsar el botón, sin intervalos ni eventos de foco", () => {
+  let refreshes = 0, pending = false;
   const component = loadSource("components/AttendanceRefresh.tsx", {
-    react: { useEffect: fn => effects.push(fn), useTransition: () => [false, fn => fn()] },
+    react: { useTransition: () => [pending, fn => fn()] },
     "next/navigation": { useRouter: () => ({ refresh: () => refreshes++ }) },
-  }, { document: doc, window: {
-    setInterval: (fn, ms) => { tick = fn; delay = ms; return 12; },
-    clearInterval: id => { cleared = id; },
-    addEventListener: (name, fn) => { windowListeners[name] = fn; },
-    removeEventListener: name => { delete windowListeners[name]; },
-  } });
-  component.default();
-  const cleanup = effects[0]();
-  assert.equal(delay, 15000);
-  tick();
+  }, {
+    window: { setInterval: () => assert.fail("No debe programar consultas"), addEventListener: () => assert.fail("No debe escuchar el foco") },
+    document: { addEventListener: () => assert.fail("No debe escuchar la visibilidad") },
+  }).default;
+  const button = component();
+  assert.equal(refreshes, 0);
+  assert.equal(button.props.disabled, false);
+  button.props.onClick();
   assert.equal(refreshes, 1);
-  doc.visibilityState = "hidden";
-  tick();
-  assert.equal(refreshes, 1);
-  doc.visibilityState = "visible";
-  documentListeners.visibilitychange();
-  windowListeners.focus();
-  assert.equal(refreshes, 3);
-  cleanup();
-  assert.equal(cleared, 12);
-  assert.equal(windowListeners.focus, undefined);
-  assert.equal(documentListeners.visibilitychange, undefined);
+  pending = true;
+  assert.equal(component().props.disabled, true);
 });
 
-test("El menú de una sesión abierta muestra y retira el escáner al cambiar premium", async () => {
+test("El menú actualiza permisos al navegar sin suscribirse al foco ni a la visibilidad", async () => {
   const states = [];
   const effects = [];
   const listeners = {};
   let cursor = 0;
   let premium = false;
+  let pathname = "/dashboard/usuarios";
   const react = {
     useState: initial => {
       const index = cursor++;
@@ -195,7 +308,7 @@ test("El menú de una sesión abierta muestra y retira el escáner al cambiar pr
     "next/link": "a",
     "@/components/LoadingLink": "a",
     "next/image": "img",
-    "next/navigation": { usePathname: () => "/dashboard/usuarios" },
+    "next/navigation": { usePathname: () => pathname },
     "motion/react": { useReducedMotion: () => true, AnimatePresence: "div", motion: { span: "span", div: "div" } },
     "@/components/EventTypeIcon": "span",
   }, {
@@ -214,12 +327,20 @@ test("El menú de una sesión abierta muestra y retira el escáner al cambiar pr
   };
   assert.equal(contains(render(), "Escanear invitación"), false);
   effects.splice(0).forEach(effect => effect());
-  await listeners.focus();
+  await new Promise(setImmediate);
+  assert.equal(listeners.focus, undefined);
+  assert.equal(listeners.visibilitychange, undefined);
   premium = true;
-  await listeners.focus();
+  pathname = "/dashboard/equipo";
+  render();
+  effects.splice(0).forEach(effect => effect());
+  await new Promise(setImmediate);
   assert.equal(contains(render(), "Escanear invitación"), true);
   premium = false;
-  await listeners.visibilitychange();
+  pathname = "/dashboard/usuarios";
+  render();
+  effects.splice(0).forEach(effect => effect());
+  await new Promise(setImmediate);
   assert.equal(contains(render(), "Escanear invitación"), false);
 });
 
@@ -389,9 +510,9 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
   assert.equal((await read("token-a")).status, 404);
  });
 
- test("El pase no hace sondeo periódico y solo comprueba al volver a la pestaña", async () => {
-  const states = [], effects = [], cleanups = [], listeners = {};
-  let cursor = 0, requests = 0, scanned = false;
+ test("El pase QR ya cargado no consulta al cambiar de pestaña o de aplicación", async () => {
+  const states = [], effects = [], listeners = {};
+  let cursor = 0, requests = 0;
   const doc = { visibilityState: "visible", addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: name => { delete listeners[name]; } };
   const component = loadSource("components/InvitationQrPass.tsx", {
     "next/image": "img",
@@ -402,29 +523,22 @@ test("Invitación premium genera QR único en ambas plantillas, incluidos invita
   }, {
     document: doc, AbortController,
     window: { addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: name => { delete listeners[name]; } },
-    fetch: async () => { requests++; return Response.json({ escaneado: scanned, confirmado: true }); },
+    fetch: async () => { requests++; return Response.json({ escaneado: false, confirmado: true }); },
   }).default;
-  const render = () => { cursor = 0; return component({ image: "data:image/png;base64,test", token: "token-a", guestName: "Prueba", passes: 2, confirmed: true }); };
-  const contains = (node, value) => node === value || (Array.isArray(node) ? node.some(child => contains(child, value)) : node && typeof node === "object" ? Object.values(node.props || {}).some(child => contains(child, value)) : false);
-  assert.equal(contains(render(), "data:image/png;base64,test"), true);
-  effects.splice(0).forEach(fn => cleanups.push(fn()));
-  assert.equal(requests, 0);
-  doc.visibilityState = "hidden";
-  listeners.visibilitychange();
-  assert.equal(requests, 0);
-  doc.visibilityState = "visible";
-  listeners.visibilitychange();
+  component({ image: "data:image/png;base64,test", token: "token-a", guestName: "Prueba", passes: 2, confirmed: true });
+  const cleanups = effects.splice(0).map(fn => fn());
+  for (let index = 0; index < 5; index++) {
+    doc.visibilityState = "hidden";
+    listeners.visibilitychange?.();
+    doc.visibilityState = "visible";
+    listeners.visibilitychange?.();
+    listeners.focus?.();
+  }
   await new Promise(setImmediate);
-  assert.equal(requests, 1);
-  scanned = true;
-  await listeners.focus();
-  await new Promise(setImmediate);
-  assert.equal(contains(render(), "data:image/png;base64,test"), false);
-  assert.equal(contains(render(), "Tu entrada ya fue escaneada"), true);
-  cleanups.forEach(fn => fn?.());
-  effects.splice(0).forEach(fn => fn());
+  assert.equal(requests, 0);
   assert.equal(listeners.visibilitychange, undefined);
   assert.equal(listeners.focus, undefined);
+  cleanups.forEach(fn => fn?.());
  });
 
  test("El escáner rechaza pendientes, vistos y confirmaciones sin pases sin registrar ingresos", async () => {

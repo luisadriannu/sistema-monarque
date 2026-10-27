@@ -93,6 +93,13 @@ test("Guardar la fecha límite renueva la caché del resumen únicamente si el s
     effects.splice(0).forEach(callback => callback());
     await new Promise(setImmediate);
     const date = find(render(), node => node.type === "input" && node.props.type === "date");
+    assert.equal(date.props.min, load("lib/utils.ts").toDateInputValue(new Date()));
+    assert.equal(date.props.max, "2099-01-01");
+    date.props.onChange({ target: { value: "1980-01-01" } });
+    await find(render(), node => node.type === "form").props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted, undefined);
+    assert.equal(refreshes, 0);
+    assert.equal(states.some(value => typeof value === "string" && value.includes("no puede ser anterior a hoy")), true);
     date.props.onChange({ target: { value: "2098-12-30" } });
     await find(render(), node => node.type === "form").props.onSubmit({ preventDefault() {} });
     assert.equal(submitted.fecha_limite_rsvp, "2098-12-31T05:59:59.999Z");
@@ -177,6 +184,7 @@ test("Ver invitados navega una sola vez, indica carga y vuelve a habilitarse al 
   const h = harness("components/LoadingLink.tsx");
   const props = { href: "/dashboard/invitados?evento_id=prueba", children: "Ver invitados" };
   const link = h.render(props); h.effects();
+  assert.equal(link.props.prefetch, false);
   link.props.onClick(event()); link.props.onClick(event());
   assert.deepEqual(h.pushes, [props.href]);
   assert.equal(h.render(props).props["aria-busy"], true);

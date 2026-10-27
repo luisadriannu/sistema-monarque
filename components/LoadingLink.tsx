@@ -26,7 +26,7 @@ export default function LoadingLink({ href, loadingText = "Cargando…", childre
     catch (error) { locked.current = false; throw error; }
   };
 
-  return <Link {...props} href={href} target={target} onClick={navigate} aria-busy={pending} aria-disabled={pending} className={`${className} ${pending ? "cursor-wait opacity-70" : ""}`}>
+  return <Link {...props} prefetch={false} href={href} target={target} onClick={navigate} aria-busy={pending} aria-disabled={pending} className={`${className} ${pending ? "cursor-wait opacity-70" : ""}`}>
     {pending ? <span className="inline-flex items-center gap-2" role="status"><LoaderCircle aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin" />{loadingText}</span> : children}
   </Link>;
 }

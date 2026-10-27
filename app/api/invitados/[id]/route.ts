@@ -49,16 +49,17 @@ export async function PUT(
     if (body.action === "regenerar_link") {
       const nuevoToken = generateInvitationToken();
       const nuevoCodigoEntrada = generateInvitationToken(32);
-      const pasesDisponibles = Math.max(
-        0,
-        (invitado.pases_confirmados ?? 0) - invitado.pases_ingresados,
-      );
       const actualizado = await prisma.invitado.update({
         where: { id },
         data: {
           token: nuevoToken,
+          estado: "pendiente",
+          pases_confirmados: null,
+          ninos_confirmados: 0,
+          ultima_respuesta_en: null,
+          enviado_en: null,
           // El enlace nuevo también invalida cualquier captura del QR anterior.
-          // Los ingresos históricos se conservan; solo se renueva la credencial.
+          // Los ingresos históricos se conservan aunque se solicite una respuesta nueva.
           codigo_entrada: nuevoCodigoEntrada,
           escaneado_en: null,
           escaneado_por: null,
@@ -66,9 +67,7 @@ export async function PUT(
       });
       return NextResponse.json({
         ok: true,
-        message: pasesDisponibles > 0
-          ? `Enlace y QR renovados. El nuevo código permitirá registrar ${pasesDisponibles} ${pasesDisponibles === 1 ? "pase pendiente" : "pases pendientes"}.`
-          : "Enlace renovado. El QR anterior quedó invalidado; aparecerá uno nuevo si se confirman pases adicionales.",
+        message: "Enlace regenerado. El estado volvió a Pendiente y se reinició la confirmación. Comparte el nuevo enlace para que el invitado responda de nuevo. Los ingresos registrados se conservaron.",
         token: nuevoToken,
         invitado: actualizado,
       });
