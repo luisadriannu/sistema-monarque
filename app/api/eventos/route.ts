@@ -97,6 +97,18 @@ export async function PUT(request: Request) {
     const targetDeadline = fecha_limite_rsvp
       ? new Date(fecha_limite_rsvp)
       : existing.fecha_limite_rsvp;
+    if (fecha_limite_rsvp !== undefined) {
+      if (!fecha_limite_rsvp || Number.isNaN(targetDeadline.getTime())) {
+        return NextResponse.json({ error: "La fecha límite de confirmación no es válida." }, { status: 400 });
+      }
+      const deadlineDay = toDateInputValue(targetDeadline);
+      if (deadlineDay < toDateInputValue(new Date()) && deadlineDay !== toDateInputValue(existing.fecha_limite_rsvp)) {
+        return NextResponse.json(
+          { error: "La fecha límite de confirmación no puede ser anterior a hoy (horario de Ciudad de México).", code: "RSVP_DATE_PAST" },
+          { status: 400 },
+        );
+      }
+    }
 
     const allowedClientStates = ["borrador", "publicado", "cancelado", "archivado"];
     const nextState = estado && allowedClientStates.includes(estado) ? estado : undefined;

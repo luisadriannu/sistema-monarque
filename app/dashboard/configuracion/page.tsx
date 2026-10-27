@@ -93,13 +93,17 @@ function ConfiguracionContent() {
   const [recepcionCierraEn, setRecepcionCierraEn] = useState("");
   const [modoIngreso, setModoIngreso] = useState("parcial");
   const [minReceptionDate, setMinReceptionDate] = useState("");
+  const [minDeadlineDate, setMinDeadlineDate] = useState("");
   const [qrCheckinEnabled, setQrCheckinEnabled] = useState(false);
   const mensajeRef = useRef<HTMLTextAreaElement>(null);
   const plantillaMensajeRef = useRef("");
   const cursorMensajeRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const updateMinimum = () => setMinReceptionDate(toDateTimeInputValue(new Date(Math.floor(Date.now() / 60000) * 60000 + 60000)));
+    const updateMinimum = () => {
+      setMinReceptionDate(toDateTimeInputValue(new Date(Math.floor(Date.now() / 60000) * 60000 + 60000)));
+      setMinDeadlineDate(toDateInputValue(new Date()));
+    };
     updateMinimum();
     const interval = window.setInterval(updateMinimum, 30000);
     window.addEventListener("focus", updateMinimum);
@@ -161,6 +165,8 @@ function ConfiguracionContent() {
       fechaEventoMaxima &&
       fechaLimiteRsvp > fechaEventoMaxima,
   );
+  const fechaLimiteAnteriorHoy = Boolean(fechaLimiteRsvp && minDeadlineDate && fechaLimiteRsvp < minDeadlineDate);
+  const fechaLimiteInvalida = fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento;
   const eventoFinalizado = evento && !isAdmin
     ? isEventFinished(evento.fecha_evento)
     : false;
@@ -179,6 +185,10 @@ function ConfiguracionContent() {
       return;
     }
 
+    if (fechaLimiteRsvp && fechaLimiteRsvp < toDateInputValue(new Date())) {
+      setError("La fecha límite de confirmación no puede ser anterior a hoy (horario de Ciudad de México).");
+      return;
+    }
     if (fechaLimitePosteriorEvento) {
       setError(
         `La fecha límite de confirmación no puede ser posterior al día del evento (${formatDateMx(evento.fecha_evento)}).`,
@@ -474,16 +484,17 @@ function ConfiguracionContent() {
                 <input
                   type="date"
                   required
+                  min={minDeadlineDate}
                   max={fechaEventoMaxima}
                   value={fechaLimiteRsvp}
                   onChange={(e) => {
                     setFechaLimiteRsvp(e.target.value);
                     setError(null);
                   }}
-                  aria-invalid={fechaLimitePosteriorEvento}
+                  aria-invalid={fechaLimiteInvalida}
                   aria-describedby="fecha-limite-ayuda"
                   className={`block min-w-0 max-w-full w-full appearance-none box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
-                    fechaLimitePosteriorEvento
+                    fechaLimiteInvalida
                       ? "border-rose-400 focus:ring-rose-400"
                       : "border-[#dec0a2] focus:ring-[#e05a1b]"
                   }`}
@@ -492,10 +503,12 @@ function ConfiguracionContent() {
               <p
                 id="fecha-limite-ayuda"
                 className={`text-[11px] mt-3 leading-relaxed ${
-                  fechaLimitePosteriorEvento ? "font-medium text-rose-600" : "text-stone-600"
+                  fechaLimiteInvalida ? "font-medium text-rose-600" : "text-stone-600"
                 }`}
               >
-                {fechaLimitePosteriorEvento
+                {fechaLimiteAnteriorHoy
+                  ? "La fecha límite ya venció. Selecciona hoy o una fecha posterior, sin superar el día del evento. Horario de Ciudad de México."
+                  : fechaLimitePosteriorEvento
                   ? `Selecciona una fecha igual o anterior al día del evento (${formatDateMx(evento.fecha_evento)}).`
                   : "Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante."}
               </p>

@@ -6,12 +6,12 @@ const path = require("node:path");
 const vm = require("node:vm");
 const ts = require("typescript");
 
-function load(file, mocks) {
+function load(file, mocks, globals = {}) {
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), {
     compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText;
-  vm.runInNewContext(code, { exports, URL, Date, console,
+  vm.runInNewContext(code, { exports, URL, Date, console, ...globals,
     require: name => Object.hasOwn(mocks, name) ? mocks[name] : name.startsWith("@/lib/") ? load(name.slice(2) + ".ts", mocks) : require(name),
   }, { filename: file });
   return exports;
@@ -25,7 +25,7 @@ const context = id => ({ params: Promise.resolve({ id }) });
 const clientBody = { nombre: "Laura", email: "laura@example.com", password: "example-password", evento: {
   id: "event-b", nombre: "Boda Laura", anfitriones: "Laura y Miguel", slug: "boda-laura", lugar: "Salón", fecha_evento: "2099-01-01T18:00:00Z",
 } };
-function fixture(prisma, initial = admin) {
+function fixture(prisma, initial = admin, globals = {}) {
   let user = initial;
   const mocks = {
     "next/server": { NextResponse: { json: (data, init) => Response.json(data, init) } },
@@ -35,7 +35,7 @@ function fixture(prisma, initial = admin) {
     "@/generated/prisma-client-v3": { Prisma: { PrismaClientKnownRequestError: class extends Error {} } },
     "@/lib/tokens": { generateInvitationToken: () => "token" },
   };
-  return { route: file => load(file, mocks), setUser: value => { user = value; } };
+  return { route: file => load(file, mocks, globals), setUser: value => { user = value; } };
 }
 
 test("Admin crea una clienta directa sin organizador; el organizador no puede cambiar de organización", async () => {
@@ -273,4 +273,32 @@ test("La clienta guarda QR múltiple y solo puede programar nuevos horarios futu
   event.recepcion_abre_en = new Date(Math.floor((now - 3600000) / 60000) * 60000);
   assert.equal((await save({ recepcion_abre_en: event.recepcion_abre_en.toISOString(), capacidad_total: 150 })).status, 200);
   assert.equal((await save({ recepcion_abre_en: new Date(now - 1800000).toISOString() })).status, 400);
+});
+
+test("La fecha límite acepta hoy en México y días futuros hasta el evento, pero rechaza cambios a días antiguos", async () => {
+  // En UTC ya es día 20; en Ciudad de México todavía es día 19.
+  const fixedNow = new Date("2090-05-20T03:00:00Z").getTime();
+  class FixedDate extends Date {
+    constructor(value) { super(value === undefined ? fixedNow : value); }
+    static now() { return fixedNow; }
+  }
+  let writes = 0;
+  const event = { id: "event", usuario_id: "client", fecha_evento: new Date("2099-01-01T18:00:00Z"), fecha_limite_rsvp: new Date("2080-01-01T23:59:59-06:00") };
+  const f = fixture({ evento: {
+    findUnique: async () => event,
+    update: async ({ data }) => { writes++; return { ...event, ...data }; },
+  } }, { ...organizer, id: "client", rol: "clienta" }, { Date: FixedDate });
+  const route = f.route("app/api/eventos/route.ts");
+  const save = deadline => route.PUT(request({ id: "event", fecha_limite_rsvp: deadline }, "PUT"));
+  for (const date of ["1980-01-01T23:59:59-06:00", "2090-05-18T23:59:59-06:00"]) {
+    const response = await save(date);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).code, "RSVP_DATE_PAST");
+  }
+  assert.equal(writes, 0);
+  for (const date of [null, "", "fecha inválida", "2099-01-02T23:59:59-06:00"]) assert.equal((await save(date)).status, 400);
+  assert.equal((await save("2090-05-19T23:59:59-06:00")).status, 200);
+  assert.equal((await save("2090-05-25T23:59:59-06:00")).status, 200);
+  // Un valor histórico sin modificar puede conservarse para cambios administrativos.
+  assert.equal((await save(event.fecha_limite_rsvp.toISOString())).status, 200);
 });

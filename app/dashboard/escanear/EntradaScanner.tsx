@@ -55,12 +55,14 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
   const videoRef = useRef<HTMLVideoElement>(null);
   const controls = useRef<IScannerControls | null>(null);
   const processingScan = useRef(false);
+  const confirmationLocked = useRef(false);
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [guest, setGuest] = useState<Guest | null>(null);
   const [code, setCode] = useState("");
   const [amount, setAmount] = useState(1);
   const [message, setMessage] = useState("");
+  const [entryResult, setEntryResult] = useState<"registered" | "review" | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [attendees, setAttendees] = useState<(Guest & { ultima_entrada_en: string })[]>([]);
   const [page, setPage] = useState(1);
@@ -136,6 +138,7 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     setBusy(true);
     setMessage("");
     setGuest(null);
+    setEntryResult(null);
     const normalized = raw.replace(/^monarque:entrada:/, "").trim();
     try {
       const r = await fetch(`/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&codigo=${encodeURIComponent(normalized)}`);
@@ -146,6 +149,7 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       }
       setCode(normalized);
       setGuest(d.invitado);
+      confirmationLocked.current = false;
       const guestLimit = d.invitado.pases_confirmados ?? d.invitado.pases_asignados;
       setAmount(Math.max(1, guestLimit - d.invitado.pases_ingresados));
     } catch {
@@ -165,6 +169,7 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       return;
     }
     setGuest(null);
+    setEntryResult(null);
     setMessage("");
     setScanning(true);
     processingScan.current = false;
@@ -191,7 +196,10 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     }
   }
   async function confirm() {
-    if (!guest || busy || alreadyScanned) return;
+    if (!guest || busy || alreadyScanned || confirmationLocked.current) return;
+    // Una selección permite un solo registro, incluso antes del siguiente render.
+    // Solo una nueva consulta del QR o selección manual habilita otra llegada.
+    confirmationLocked.current = true;
     setBusy(true);
     setMessage("");
     try {
@@ -201,17 +209,20 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       body: JSON.stringify({ codigo: code, invitado_id: guest.id, cantidad: amount, evento_id: selectedEventId }),
     });
     const d = await r.json();
-    setBusy(false);
     if (!r.ok) {
+      setEntryResult("review");
       if (d.code === "ALREADY_SCANNED" && d.invitado) setGuest(d.invitado);
       if (d.code === "NOT_CONFIRMED") setGuest(null);
       return setMessage(d.error);
     }
     setGuest(d.invitado);
+    setEntryResult("registered");
+    setManualResults([]);
     setMessage(d.message || `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`);
     void loadLogs();
     } catch {
-      setMessage("No se pudo confirmar la entrada. Consulta el pase antes de reintentar.");
+      setEntryResult("review");
+      setMessage("No se pudo verificar el resultado de la entrada. Vuelve a consultar el pase antes de registrar otra llegada.");
     } finally {
       setBusy(false);
     }
@@ -230,6 +241,9 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     } finally { setSearching(false); }
   }
   function chooseManualGuest(item: Guest) {
+    if (busy) return;
+    confirmationLocked.current = false;
+    setEntryResult(null);
     setGuest(item); setCode(item.codigo_entrada); setAmount(1); setManualResults([]); setMessage("");
   }
   async function undoEntry(item: Guest) {
@@ -249,6 +263,7 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     setSelectedEventId(eventId);
     setGuest(null);
     setCode("");
+    setEntryResult(null);
     setMessage("");
     setPage(1);
   }
@@ -392,7 +407,20 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
                 <Stat value={guest.pases_ingresados} label="Ingresaron" />
                 <Stat value={remaining} label="Disponibles" />
               </div>
-              {alreadyScanned ? (
+              {entryResult ? (
+                <div role="status" className="mt-6 rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700">
+                  <p className="font-bold">{entryResult === "registered" ? "Registro completado" : "Consulta el pase nuevamente"}</p>
+                  <p className="mt-2">{entryResult === "registered"
+                    ? remaining > 0
+                      ? `Quedan ${remaining} pases disponibles. Para registrar otra llegada, vuelve a escanear el QR o busca y selecciona nuevamente al invitado.`
+                      : "Ya no quedan pases disponibles para este QR. Puedes continuar con el siguiente invitado."
+                    : "Antes de volver a confirmar, escanea el QR o busca y selecciona nuevamente al invitado para consultar sus ingresos actuales."}</p>
+                  <button type="button" onClick={start} disabled={busy || scanning || !online || selectedEvent?.estado !== "recepcion_abierta"}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#2b211b] px-4 py-3 font-semibold text-white disabled:opacity-50">
+                    <Camera className="h-4 w-4" /> Volver a escanear
+                  </button>
+                </div>
+              ) : alreadyScanned ? (
                 <div role="status" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <p className="font-bold">Este código QR ya ha sido utilizado.</p>
                   <p className="mt-2">La entrada está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. Si se autorizaron pases adicionales, utiliza el nuevo QR generado en la invitación.</p>

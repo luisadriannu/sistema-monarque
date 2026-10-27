@@ -71,6 +71,89 @@ const request = (body, method = "POST") => new Request("http://localhost/api/ent
   body: JSON.stringify(body && typeof body === "object" ? { evento_id: "event-a", ...body } : body),
 });
 
+test("Tras registrar 2 de 4 el escáner retira Confirmar y requiere otra consulta, incluso ante doble clic o respuesta perdida", async () => {
+  for (const loseFirstResponse of [false, true]) {
+    const f = fixture();
+    f.event.modo_ingreso = "parcial";
+    Object.assign(f.guest, { pases_asignados: 4, pases_confirmados: 4 });
+    f.prisma.invitado.findUnique = async ({ where }) => where.id === f.guest.id || where.codigo_entrada === f.guest.codigo_entrada ? { ...f.guest } : null;
+    f.prisma.registroEntrada.findMany = async () => f.logs.map((log, index) => ({ ...log, id: String(index), creado_en: new Date(), invitado: { nombre: f.guest.nombre, grupo: f.guest.grupo }, evento: { nombre: f.event.nombre } }));
+    const api = loadSource("app/api/entradas/route.ts", f.mocks);
+    const states = [], refs = [], effects = [];
+    let stateIndex = 0, refIndex = 0, posts = 0;
+    const react = {
+      useState: initial => {
+        const index = stateIndex++;
+        if (!(index in states)) states[index] = initial;
+        return [states[index], value => { states[index] = typeof value === "function" ? value(states[index]) : value; }];
+      },
+      useRef: initial => { const index = refIndex++; return refs[index] ||= { current: initial }; },
+      useEffect: callback => effects.push(callback),
+      useCallback: callback => callback,
+    };
+    const controls = { stop() {} };
+    const Scanner = loadSource("app/dashboard/escanear/EntradaScanner.tsx", {
+      react,
+      "@/components/AsyncButton": "button",
+      "@zxing/browser": { BrowserQRCodeReader: class {
+        async decodeFromConstraints(_constraints, _video, callback) {
+          callback({ getText: () => "monarque:entrada:code-a" }, null, controls);
+          return controls;
+        }
+      } },
+    }, {
+      navigator: { onLine: true },
+      window: { addEventListener() {}, removeEventListener() {} },
+      fetch: async (url, options) => {
+        if (options?.method === "POST") {
+          posts++;
+          const result = await api.POST(new Request("http://localhost" + url, options));
+          if (loseFirstResponse && posts === 1) throw new Error("Se perdió la respuesta después de guardar");
+          return result;
+        }
+        return api.GET(new Request("http://localhost" + url));
+      },
+    }).default;
+    const render = () => { stateIndex = 0; refIndex = 0; return Scanner({ canManageReception: true }); };
+    const text = node => Array.isArray(node) ? node.map(text).join("") : node && typeof node === "object" ? text(node.props?.children) : typeof node === "string" ? node : "";
+    const find = (node, predicate) => {
+      if (!node) return null;
+      if (Array.isArray(node)) return node.map(child => find(child, predicate)).find(Boolean) || null;
+      if (typeof node !== "object") return null;
+      return predicate(node) ? node : find(node.props?.children, predicate);
+    };
+    const button = label => find(render(), node => node.type === "button" && text(node).includes(label));
+    render();
+    effects.splice(0).forEach(callback => callback());
+    await new Promise(setImmediate);
+    await button("Abrir cámara").props.onClick();
+    await new Promise(setImmediate);
+    find(render(), node => node.type === "select" && node.props.value === 4).props.onChange({ target: { value: "2" } });
+    const confirm = button("Confirmar entrada").props.onClick;
+    const first = confirm();
+    await confirm(); // Segundo clic antes de que React actualice la pantalla.
+    await first;
+    await confirm(); // Un callback antiguo tampoco puede repetir el registro.
+    assert.equal(posts, 1);
+    assert.equal(f.guest.pases_ingresados, 2);
+    assert.equal(button("Confirmar entrada"), null);
+    assert.ok(button("Volver a escanear"));
+    if (!loseFirstResponse) {
+      assert.equal(find(render(), node => node.props?.label === "Ingresaron").props.value, 2);
+      assert.equal(find(render(), node => node.props?.label === "Disponibles").props.value, 2);
+    }
+    await button("Volver a escanear").props.onClick();
+    await new Promise(setImmediate);
+    assert.ok(button("Confirmar entrada"));
+    assert.equal(find(render(), node => node.props?.label === "Disponibles").props.value, 2);
+    await button("Confirmar entrada").props.onClick();
+    assert.equal(posts, 2);
+    assert.equal(f.guest.pases_ingresados, 4);
+    assert.equal(button("Confirmar entrada"), null);
+    assert.deepEqual(f.logs.map(log => log.cantidad), [2, 2]);
+  }
+});
+
 test("Regenerar enlace reinicia la respuesta y el envío, invalida las credenciales y conserva los ingresos", async () => {
   for (const estado of ["pendiente", "visto", "confirmado", "declinado"]) {
     const f = fixture();
