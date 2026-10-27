@@ -32,6 +32,7 @@ interface EventoConfig {
   fecha_evento: string;
   lugar: string;
   capacidad_total?: number | null;
+  limite_pases?: number | null;
   fecha_limite_rsvp: string;
   texto_edad_nino?: string;
   plantilla_mensaje: string;
@@ -156,6 +157,10 @@ function ConfiguracionContent() {
   const fechaEventoMaxima = evento
     ? toDateInputValue(evento.fecha_evento)
     : "";
+  const fechaMinimaRsvp = toDateInputValue(new Date());
+  const fechaLimiteAnteriorHoy = Boolean(
+    fechaLimiteRsvp && fechaLimiteRsvp < fechaMinimaRsvp,
+  );
   const fechaLimitePosteriorEvento = Boolean(
     fechaLimiteRsvp &&
       fechaEventoMaxima &&
@@ -183,6 +188,15 @@ function ConfiguracionContent() {
       setError(
         `La fecha límite de confirmación no puede ser posterior al día del evento (${formatDateMx(evento.fecha_evento)}).`,
       );
+      return;
+    }
+    if (fechaLimiteAnteriorHoy) {
+      setError("La fecha límite de confirmación debe ser hoy o una fecha futura.");
+      return;
+    }
+
+    if (evento.limite_pases && capacidadTotal.trim() && Number(capacidadTotal) > evento.limite_pases) {
+      setError(`Tu evento tiene un límite contratado de ${evento.limite_pases} pases.`);
       return;
     }
 
@@ -216,8 +230,10 @@ function ConfiguracionContent() {
           texto_edad_nino: textoEdadNino.trim() || "menores de 12 años",
           plantilla_mensaje: plantillaMensaje,
           estado: estadoEvento,
-          recepcion_abre_en: recepcionAbreEn ? new Date(`${recepcionAbreEn}:00-06:00`).toISOString() : null,
-          recepcion_cierra_en: recepcionCierraEn ? new Date(`${recepcionCierraEn}:00-06:00`).toISOString() : null,
+          ...(isAdmin && {
+            recepcion_abre_en: recepcionAbreEn ? new Date(`${recepcionAbreEn}:00-06:00`).toISOString() : null,
+            recepcion_cierra_en: recepcionCierraEn ? new Date(`${recepcionCierraEn}:00-06:00`).toISOString() : null,
+          }),
           modo_ingreso: modoIngreso,
         }),
       });
@@ -450,10 +466,10 @@ function ConfiguracionContent() {
           </div>
 
           <div className="rounded-2xl border border-[#ebd9c4] bg-[#fffaf5] p-5">
-            <div className="flex items-start gap-3"><CalendarClock className="mt-0.5 h-5 w-5 text-[#e05a1b]"/><div><h3 className="font-serif text-lg font-bold">{qrCheckinEnabled ? "Publicación y recepción" : "Publicación de la invitación"}</h3><p className="mt-1 text-[11px] leading-relaxed text-stone-500">{qrCheckinEnabled ? "Controla si la invitación es visible y programa la ventana en la que el organizador podrá abrir el escáner." : "Controla si la invitación pública se encuentra disponible para tus invitados."}</p></div></div>
+            <div className="flex items-start gap-3"><CalendarClock className="mt-0.5 h-5 w-5 text-[#e05a1b]"/><div><h3 className="font-serif text-lg font-bold">{qrCheckinEnabled && isAdmin ? "Publicación y recepción" : "Publicación de la invitación"}</h3><p className="mt-1 text-[11px] leading-relaxed text-stone-500">{qrCheckinEnabled && isAdmin ? "Controla si la invitación es visible y programa la ventana de recepción QR." : "Controla si la invitación pública se encuentra disponible para tus invitados."}</p></div></div>
             <div className={`mt-4 grid gap-4 md:grid-cols-2 ${qrCheckinEnabled ? isAdmin ? "xl:grid-cols-4" : "xl:grid-cols-3" : "xl:grid-cols-1"}`}>
               <label className="text-xs font-bold uppercase tracking-wider">Estado público<select value={estadoEvento} onChange={event => setEstadoEvento(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"><option value="borrador">Borrador · no visible</option><option value="publicado">Publicado</option><option value="cancelado">Cancelado · no visible</option><option value="archivado">Archivado · no visible</option></select></label>
-              {qrCheckinEnabled && <>
+              {qrCheckinEnabled && isAdmin && <>
                 <label className="text-xs font-bold uppercase tracking-wider">Apertura programada<input type="datetime-local" value={recepcionAbreEn} min={recepcionAbreEn && recepcionAbreEn === toDateTimeInputValue(evento.recepcion_abre_en) ? recepcionAbreEn : minReceptionDate} onChange={event => setRecepcionAbreEn(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"/><span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">Horario de Ciudad de México.</span></label>
                 <label className="text-xs font-bold uppercase tracking-wider">Cierre programado<input type="datetime-local" value={recepcionCierraEn} min={recepcionCierraEn && recepcionCierraEn === toDateTimeInputValue(evento.recepcion_cierra_en) ? recepcionCierraEn : [recepcionAbreEn, minReceptionDate].sort().at(-1)} onChange={event => setRecepcionCierraEn(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"/></label>
                 {isAdmin && <label className="text-xs font-bold uppercase tracking-wider">Uso del QR<select value={modoIngreso} onChange={event => setModoIngreso(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"><option value="unico">Una sola llegada</option><option value="parcial">Llegadas separadas</option></select><span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-stone-500">En modo parcial, la familia puede usar el QR hasta completar sus pases.</span></label>}
@@ -474,16 +490,26 @@ function ConfiguracionContent() {
                 <input
                   type="date"
                   required
+                  min={fechaMinimaRsvp}
                   max={fechaEventoMaxima}
                   value={fechaLimiteRsvp}
                   onChange={(e) => {
-                    setFechaLimiteRsvp(e.target.value);
+                    const value = e.target.value;
+                    if (value && value < fechaMinimaRsvp) {
+                      setError("La fecha límite de confirmación no puede ser anterior a hoy.");
+                      return;
+                    }
+                    if (value && fechaEventoMaxima && value > fechaEventoMaxima) {
+                      setError(`La fecha límite no puede ser posterior al evento (${formatDateMx(evento.fecha_evento)}).`);
+                      return;
+                    }
+                    setFechaLimiteRsvp(value);
                     setError(null);
                   }}
-                  aria-invalid={fechaLimitePosteriorEvento}
+                  aria-invalid={fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento}
                   aria-describedby="fecha-limite-ayuda"
                   className={`block min-w-0 max-w-full w-full appearance-none box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
-                    fechaLimitePosteriorEvento
+                    fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento
                       ? "border-rose-400 focus:ring-rose-400"
                       : "border-[#dec0a2] focus:ring-[#e05a1b]"
                   }`}
@@ -492,10 +518,12 @@ function ConfiguracionContent() {
               <p
                 id="fecha-limite-ayuda"
                 className={`text-[11px] mt-3 leading-relaxed ${
-                  fechaLimitePosteriorEvento ? "font-medium text-rose-600" : "text-stone-600"
+                  fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento ? "font-medium text-rose-600" : "text-stone-600"
                 }`}
               >
-                {fechaLimitePosteriorEvento
+                {fechaLimiteAnteriorHoy
+                  ? "Selecciona la fecha de hoy o una fecha futura."
+                  : fechaLimitePosteriorEvento
                   ? `Selecciona una fecha igual o anterior al día del evento (${formatDateMx(evento.fecha_evento)}).`
                   : "Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante."}
               </p>
@@ -515,14 +543,16 @@ function ConfiguracionContent() {
                 <input
                   type="number"
                   min="1"
+                  max={evento.limite_pases || undefined}
                   value={capacidadTotal}
+                  onWheel={(event) => event.currentTarget.blur()}
                   onChange={(e) => setCapacidadTotal(e.target.value)}
                   placeholder="ej. 100"
                   className="block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                 />
               </div>
               <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
-                Si defines un cupo máximo, verás en tu Resumen una barra de control que te indica cuántos cupos te quedan disponibles (ej. &quot;71 de 100 cupos asignados • Te quedan 29 disponibles&quot;). Si lo dejas vacío, no se mostrará.
+                {evento.limite_pases ? `Tu contratación permite hasta ${evento.limite_pases} pases. ` : ""}Si defines un cupo máximo, verás en tu Resumen una barra de control que te indica cuántos cupos te quedan disponibles. Si lo dejas vacío, no se mostrará.
               </p>
             </div>
 
@@ -742,7 +772,7 @@ function ConfiguracionContent() {
             </div>
             <AsyncButton
               type="submit"
-              disabled={guardando || fechaLimitePosteriorEvento || eventoFinalizado}
+              disabled={guardando || fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento || eventoFinalizado}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e05a1b] to-[#ea580c] px-6 py-3 text-xs font-semibold text-white shadow-md shadow-orange-500/20 transition-all hover:from-[#c2410c] hover:to-[#e05a1b] disabled:opacity-50 sm:w-auto"
              loadingText="Guardando…" loading={guardando}>
               <Save className="w-4 h-4 text-white" />

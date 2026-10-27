@@ -1,0 +1,1 @@
+-- Línea base: estas estructuras ya existían antes de adoptar Prisma Migrate.

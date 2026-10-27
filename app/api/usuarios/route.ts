@@ -100,8 +100,18 @@ export async function GET() {
       rol: true,
       creado_en: true,
       eliminado_en: true,
+      lector_qr_habilitado: true,
       organizacion_id: true,
-      organizacion: { select: { nombre: true } },
+      organizacion: {
+        select: {
+          nombre: true,
+          usuarios: {
+            where: { rol: "organizador", eliminado_en: null },
+            select: { nombre: true },
+            take: 1,
+          },
+        },
+      },
       eventos: {
         select: {
           id: true,
@@ -111,7 +121,9 @@ export async function GET() {
           fecha_evento: true,
           lugar: true,
           capacidad_total: true,
+          limite_pases: true,
           fecha_limite_rsvp: true,
+          estado: true,
           configuracion_invitacion: true,
           _count: { select: { invitados: true } },
         },
@@ -121,9 +133,21 @@ export async function GET() {
     orderBy: { creado_en: "desc" },
   });
 
+  const usuariosActivos = all.filter(item => !item.eliminado_en);
+  const eventosActivos = usuariosActivos.reduce(
+    (total, item) => total + (item.eventos || []).filter(evento => !["finalizado", "cancelado", "archivado"].includes(evento.estado)).length,
+    0,
+  );
+
   return NextResponse.json({
-    usuarios: all.filter(item => !item.eliminado_en),
+    usuarios: usuariosActivos,
     eliminados: all.filter(item => Boolean(item.eliminado_en)),
+    limites: organizer.rol === "admin" ? null : {
+      clientes_usados: usuariosActivos.length,
+      clientes_maximos: organizer.organizacion!.max_clientes,
+      eventos_usados: eventosActivos,
+      eventos_maximos: organizer.organizacion!.max_eventos_activos,
+    },
   }, { headers: noStoreHeaders });
 }
 
@@ -163,6 +187,10 @@ export async function POST(request: Request) {
     }
     const fechaLimite = endOfDayMexicoDate(toDateInputValue(fechaEvento));
     const eventType = normalizeEventType(evento.tipo_evento);
+    const directPassLimit = organizer.rol === "admin" ? Number(evento.limite_pases || 200) : null;
+    if (directPassLimit !== null && (!Number.isInteger(directPassLimit) || directPassLimit < 1)) {
+      return NextResponse.json({ error: "El límite contratado debe ser un número entero mayor a cero." }, { status: 400, headers: noStoreHeaders });
+    }
 
     if (organizer.rol !== "admin") {
     const [clientCount, activeEventCount] = await prisma.$transaction([
@@ -170,10 +198,10 @@ export async function POST(request: Request) {
       prisma.evento.count({ where: { usuario: { organizacion_id: organizer.organizacion_id, eliminado_en: null }, estado: { notIn: ["finalizado", "cancelado", "archivado"] } } }),
     ]);
     if (clientCount >= organizer.organizacion!.max_clientes) {
-      return NextResponse.json({ error: `Tu plan permite hasta ${organizer.organizacion!.max_clientes} clientes activos.` }, { status: 403, headers: noStoreHeaders });
+      return NextResponse.json({ error: `Tu capacidad contratada permite hasta ${organizer.organizacion!.max_clientes} clientes activos.` }, { status: 403, headers: noStoreHeaders });
     }
     if (activeEventCount >= organizer.organizacion!.max_eventos_activos) {
-      return NextResponse.json({ error: `Tu plan permite hasta ${organizer.organizacion!.max_eventos_activos} eventos activos.` }, { status: 403, headers: noStoreHeaders });
+      return NextResponse.json({ error: `Tu capacidad contratada permite hasta ${organizer.organizacion!.max_eventos_activos} eventos activos.` }, { status: 403, headers: noStoreHeaders });
     }
 
     }
@@ -208,7 +236,7 @@ export async function POST(request: Request) {
         await tx.organizacion.upsert({ where: { id: DIRECT_ORGANIZATION_ID }, create: directOrganizationData, update: {} });
       }
       const usuario = await tx.usuario.create({
-        data: { nombre, email, passwordHash, rol: "clienta", organizacion_id: organizer.rol === "admin" ? DIRECT_ORGANIZATION_ID : organizer.organizacion_id },
+        data: { nombre, email, passwordHash, rol: "clienta", lector_qr_habilitado: organizer.rol === "admin" && body.qr_checkin_habilitado === true, organizacion_id: organizer.rol === "admin" ? DIRECT_ORGANIZATION_ID : organizer.organizacion_id },
         select: { id: true, nombre: true, email: true, rol: true },
       });
       const nuevoEvento = await tx.evento.create({
@@ -221,6 +249,7 @@ export async function POST(request: Request) {
           fecha_evento: fechaEvento,
           lugar,
           capacidad_total: null,
+          limite_pases: directPassLimit,
           fecha_limite_rsvp: fechaLimite,
           configuracion_invitacion: invitationConfig({
             anfitriones,

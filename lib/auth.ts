@@ -100,6 +100,9 @@ export async function getCurrentUser() {
     if (!user || user.eliminado_en || user.organizacion?.eliminado_en) return null;
     if (user.organizacion && !isOrganizationServiceActive(user.organizacion)) return null;
     if ((session.sessionVersion ?? 0) !== user.session_version) return null;
+    if (user.rol === "clienta" && user.organizacion_id === "monarque-clientes-directos" && user.organizacion) {
+      user.organizacion.qr_checkin_habilitado = user.lector_qr_habilitado;
+    }
     return user;
   } catch {
     return null;

@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma-client-v3";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { normalizePlan, planPresets } from "@/lib/organization-access";
+import { normalizeAvailablePlan, planPresets } from "@/lib/organization-access";
+import { endOfDayMexicoDate, toDateInputValue } from "@/lib/utils";
 
 const headers = { "Cache-Control": "no-store" };
 
@@ -41,9 +42,13 @@ export async function POST(request: Request) {
     const negocio = String(body.negocio || nombre).trim();
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
-    const plan = normalizePlan(body.plan);
+    const plan = normalizeAvailablePlan(body.plan);
     const preset = planPresets[plan];
-    const expiresAt = body.servicio_vence_en ? new Date(body.servicio_vence_en) : null;
+    const expiryInput = String(body.servicio_vence_en || "");
+    if (expiryInput && expiryInput < toDateInputValue(new Date())) {
+      return NextResponse.json({ error: "El vencimiento de la licencia debe ser hoy o una fecha futura." }, { status: 400, headers });
+    }
+    const expiresAt = expiryInput ? endOfDayMexicoDate(expiryInput) : null;
     if (!nombre || !negocio || !email.includes("@")) {
       return NextResponse.json({ error: "Completa el nombre, negocio y correo." }, { status: 400, headers });
     }
@@ -56,12 +61,12 @@ export async function POST(request: Request) {
       data: {
         nombre: negocio,
         plan,
-        estado_servicio: body.estado_servicio === "prueba" ? "prueba" : "activo",
+        estado_servicio: "activo",
         servicio_vence_en: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
         max_clientes: preset.maxClientes,
         max_eventos_activos: preset.maxEventos,
         max_invitados_evento: preset.maxInvitados,
-        qr_checkin_habilitado: preset.qr && Boolean(body.qr_checkin_habilitado ?? preset.qr),
+        qr_checkin_habilitado: Boolean(body.qr_checkin_habilitado),
         marca_personalizada: preset.marca,
         usuarios: { create: { nombre, email, passwordHash, rol: "organizador" } },
       },

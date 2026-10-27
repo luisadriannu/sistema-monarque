@@ -1,13 +1,18 @@
 export const planPresets = {
-  basico: { label: "Básico", maxClientes: 3, maxEventos: 3, maxInvitados: 200, qr: false, marca: false },
-  pro: { label: "Pro", maxClientes: 10, maxEventos: 10, maxInvitados: 500, qr: true, marca: false },
-  elite: { label: "Elite", maxClientes: 50, maxEventos: 50, maxInvitados: 2000, qr: true, marca: true },
+  basico: { label: "Inicial", maxClientes: 2, maxEventos: 2, maxInvitados: 200, qr: true, marca: false },
+  pro: { label: "Profesional", maxClientes: 5, maxEventos: 5, maxInvitados: 300, qr: true, marca: false },
+  // Se conserva para reconocer cuentas antiguas, pero ya no se ofrece en nuevas altas.
+  elite: { label: "Agencia", maxClientes: 50, maxEventos: 50, maxInvitados: 2000, qr: true, marca: true },
 } as const;
 
 export type PlanName = keyof typeof planPresets;
 
 export function normalizePlan(value: unknown): PlanName {
   return value === "pro" || value === "elite" ? value : "basico";
+}
+
+export function normalizeAvailablePlan(value: unknown): Exclude<PlanName, "elite"> {
+  return value === "pro" ? "pro" : "basico";
 }
 
 export function isOrganizationServiceActive(

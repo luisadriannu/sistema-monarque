@@ -1,5 +1,10 @@
 "use client";
-import { isValidName, lettersOnly, nameInputProps, NAME_ERROR } from "@/lib/names";
+import {
+  isValidName,
+  lettersOnly,
+  nameInputProps,
+  NAME_ERROR,
+} from "@/lib/names";
 import AsyncButton from "@/components/AsyncButton";
 import FloatingMenu from "@/components/FloatingMenu";
 
@@ -114,6 +119,12 @@ function InvitadosContent() {
     total_pages: 1,
   });
   const [totalPasesAsignados, setTotalPasesAsignados] = useState(0);
+  const [limiteInvitados, setLimiteInvitados] = useState<number | null>(null);
+  const [totalInvitadosEvento, setTotalInvitadosEvento] = useState(0);
+  const [limitePases, setLimitePases] = useState<number | null>(null);
+  const limiteInvitadosAlcanzado =
+    (limiteInvitados !== null && totalInvitadosEvento >= limiteInvitados) ||
+    (limitePases !== null && totalPasesAsignados >= limitePases);
 
   useEffect(() => {
     const estado = searchParams.get("estado");
@@ -220,6 +231,16 @@ function InvitadosContent() {
           setSoloLectura(Boolean(data.solo_lectura));
           setVistaAdmin(Boolean(data.vista_admin));
           setQrCheckinEnabled(Boolean(data.permisos?.qr_checkin_habilitado));
+          setLimiteInvitados(
+            typeof data.permisos?.limite_invitados === "number"
+              ? data.permisos.limite_invitados
+              : null,
+          );
+          setLimitePases(
+            typeof data.permisos?.limite_pases === "number"
+              ? data.permisos.limite_pases
+              : null,
+          );
           setPermisoScopeResuelto(permisoScope);
           setPagination(
             data.pagination || {
@@ -231,9 +252,9 @@ function InvitadosContent() {
           );
           setPage(data.pagination?.page || 1);
           setTotalPasesAsignados(
-            (data.kpis?.total_confirmados || 0) +
-              (data.kpis?.total_pendientes || 0),
+            data.kpis?.total_asignados || 0,
           );
+          setTotalInvitadosEvento(data.kpis?.total_invitados || 0);
         }
       } catch (e) {
         console.error("Error al cargar invitados", e);
@@ -256,10 +277,14 @@ function InvitadosContent() {
     fetchInvitados();
   }, [fetchInvitados]);
 
+  const focusRefresh = useRef({ last: 0, pending: false });
   useEffect(() => {
     if (!qrCheckinEnabled) return;
     const refreshOnFocus = () => {
-      if (document.visibilityState === "visible") void fetchInvitados();
+      if (document.visibilityState !== "visible" || focusRefresh.current.pending || Date.now() - focusRefresh.current.last < 15000) return;
+      focusRefresh.current.last = Date.now();
+      focusRefresh.current.pending = true;
+      void fetchInvitados().finally(() => { focusRefresh.current.pending = false; });
     };
     window.addEventListener("focus", refreshOnFocus);
     return () => window.removeEventListener("focus", refreshOnFocus);
@@ -392,7 +417,10 @@ function InvitadosContent() {
       if (!response.ok)
         throw new Error(data.error || "No se pudo regenerar el enlace.");
       await fetchInvitados();
-      notify(data.message || "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.");
+      notify(
+        data.message ||
+          "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.",
+      );
     } catch (error) {
       setToast({
         type: "error",
@@ -412,12 +440,24 @@ function InvitadosContent() {
       setModalAgregar(false);
       return;
     }
+    if (limiteInvitadosAlcanzado) {
+      setFormError(
+        limitePases !== null && totalPasesAsignados >= limitePases
+          ? `Alcanzaste el límite contratado de ${limitePases} pases.`
+          : `Alcanzaste el límite de ${limiteInvitados} invitaciones para este evento.`,
+      );
+      return;
+    }
     setFormError(null);
 
     if (!formPasesValido) {
       setFormError(
         "Los pases asignados deben ser un número mayor o igual a 1.",
       );
+      return;
+    }
+    if (limitePases !== null && totalPasesAsignados + formPasesNumero > limitePases) {
+      setFormError(`Solo quedan ${Math.max(0, limitePases - totalPasesAsignados)} pases disponibles.`);
       return;
     }
 
@@ -710,6 +750,20 @@ function InvitadosContent() {
     }
     if (!evento || !resumenImportacion || resumenImportacion.validos === 0)
       return;
+    if (
+      limiteInvitados !== null &&
+      totalInvitadosEvento + resumenImportacion.validos > limiteInvitados
+    ) {
+      setArchivoError(
+        `No puedes importar ${resumenImportacion.validos} registros: quedan ${Math.max(0, limiteInvitados - totalInvitadosEvento)} espacios disponibles.`,
+      );
+      return;
+    }
+    const pasesImportados = filasImportadas.filter((fila) => fila.valido).reduce((total, fila) => total + fila.pases_asignados, 0);
+    if (limitePases !== null && totalPasesAsignados + pasesImportados > limitePases) {
+      setArchivoError(`La importación supera el límite contratado. Quedan ${Math.max(0, limitePases - totalPasesAsignados)} pases disponibles.`);
+      return;
+    }
     setImportando(true);
 
     try {
@@ -724,7 +778,10 @@ function InvitadosContent() {
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+      if (!res.ok) {
+        setArchivoError(data.error || "No se pudieron importar los invitados.");
+      } else {
         setModalImportar(false);
         setFilasImportadas([]);
         setResumenImportacion(null);
@@ -1180,18 +1237,30 @@ function InvitadosContent() {
             <>
               {/* Importar y Agregar */}
               <button
+                disabled={limiteInvitadosAlcanzado}
+                title={
+                  limiteInvitadosAlcanzado
+                    ? "Límite de invitaciones alcanzado"
+                    : undefined
+                }
                 onClick={() => {
                   setArchivoError(null);
                   setNombreArchivo(null);
                   setModalImportar(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#ebd9c4] hover:bg-[#fbf8f4] text-stone-800 text-xs font-semibold rounded-xl transition-all shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#ebd9c4] hover:bg-[#fbf8f4] text-stone-800 text-xs font-semibold rounded-xl transition-all shadow-xs disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
               >
                 <Upload className="w-3.5 h-3.5 text-[#e05a1b]" />
                 <span>Importar Excel / CSV</span>
               </button>
 
               <button
+                disabled={limiteInvitadosAlcanzado}
+                title={
+                  limiteInvitadosAlcanzado
+                    ? "Límite de invitaciones alcanzado"
+                    : undefined
+                }
                 onClick={() => {
                   setFormNombre("");
                   setFormGrupo("");
@@ -1199,7 +1268,7 @@ function InvitadosContent() {
                   setFormError(null);
                   setModalAgregar(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-orange-500/20"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-orange-500/20 disabled:cursor-not-allowed disabled:from-stone-300 disabled:to-stone-300 disabled:shadow-none"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>+ Agregar Invitado</span>
@@ -1224,6 +1293,32 @@ function InvitadosContent() {
                 : "Puedes consultar y exportar la información, pero ya no es posible agregar, editar, eliminar o compartir invitaciones."}
             </p>
           </div>
+        </div>
+      )}
+
+      {puedeModificar && limiteInvitados !== null && (
+        <div
+          className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${limiteInvitadosAlcanzado ? "border-amber-200 bg-amber-50 text-amber-900" : "border-[#eadbca] bg-white text-stone-600"}`}
+        >
+          <div>
+            <p className="text-sm font-bold">Capacidad de invitaciones</p>
+            <p className="mt-1 text-xs">
+              {totalInvitadosEvento} de {limiteInvitados} registros utilizados
+              en este evento.
+            </p>
+          </div>
+          {limiteInvitadosAlcanzado && (
+            <span className="rounded-full bg-amber-200 px-3 py-1 text-[10px] font-bold uppercase">
+              Límite alcanzado
+            </span>
+          )}
+        </div>
+      )}
+
+      {puedeModificar && limitePases !== null && (
+        <div className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${totalPasesAsignados >= limitePases ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs">{totalPasesAsignados} de {limitePases} pases asignados · quedan {Math.max(0, limitePases - totalPasesAsignados)}.</p></div>
+          {totalPasesAsignados >= limitePases && <span className="rounded-full bg-amber-200 px-3 py-1 text-[10px] font-bold uppercase">Límite alcanzado</span>}
         </div>
       )}
 
@@ -1696,16 +1791,13 @@ function InvitadosContent() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-end">
+                <button type="button" aria-label="Cerrar" onClick={() => setModalAgregar(false)} className="pointer-events-auto flex h-10 w-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white p-0 text-stone-500 shadow-lg hover:bg-stone-100 hover:text-stone-800"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="mb-4 pr-12">
                 <h3 className="font-serif text-xl font-bold text-stone-900">
                   + Agregar Nuevo Invitado
                 </h3>
-                <button
-                  onClick={() => setModalAgregar(false)}
-                  className="text-stone-400 hover:text-stone-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
               {formError && (
@@ -1839,16 +1931,13 @@ function InvitadosContent() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-end">
+                <button type="button" aria-label="Cerrar" onClick={() => setModalEditar(null)} className="pointer-events-auto flex h-10 w-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white p-0 text-stone-500 shadow-lg hover:bg-stone-100 hover:text-stone-800"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="mb-4 pr-12">
                 <h3 className="font-serif text-xl font-bold text-stone-900">
                   Editar Invitado
                 </h3>
-                <button
-                  onClick={() => setModalEditar(null)}
-                  className="text-stone-400 hover:text-stone-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
               {formError && (
@@ -1910,11 +1999,19 @@ function InvitadosContent() {
                     </p>
                   )}
 
-                  {modalEditar.estado === "confirmado" && modalEditar.pases_ingresados > 0 && formPasesValido && formPasesNumero > modalEditar.pases_asignados && (
-                    <p className="mt-2 text-xs text-emerald-700">
-                      Se autorizarán {formPasesNumero - modalEditar.pases_asignados} pases adicionales y se generará un nuevo QR. Los {modalEditar.pases_ingresados} ingresos anteriores se conservarán. Abre de nuevo la invitación para obtener el QR actualizado.
-                    </p>
-                  )}
+                  {modalEditar.estado === "confirmado" &&
+                    modalEditar.pases_ingresados > 0 &&
+                    formPasesValido &&
+                    formPasesNumero > modalEditar.pases_asignados && (
+                      <p className="mt-2 text-xs text-emerald-700">
+                        Se autorizarán{" "}
+                        {formPasesNumero - modalEditar.pases_asignados} pases
+                        adicionales y se generará un nuevo QR. Los{" "}
+                        {modalEditar.pases_ingresados} ingresos anteriores se
+                        conservarán. Abre de nuevo la invitación para obtener el
+                        QR actualizado.
+                      </p>
+                    )}
 
                   {/* Aviso informativo de cupo (sin bloquear) */}
                   {evento?.capacidad_total &&
@@ -2307,7 +2404,14 @@ function InvitadosContent() {
                       Cancelar
                     </button>
                     <AsyncButton
-                      disabled={resumenImportacion.validos === 0 || importando}
+                      disabled={
+                        resumenImportacion.validos === 0 ||
+                        importando ||
+                        (limiteInvitados !== null &&
+                          totalInvitadosEvento + resumenImportacion.validos >
+                            limiteInvitados) ||
+                        (limitePases !== null && totalPasesAsignados + filasImportadas.filter((fila) => fila.valido).reduce((total, fila) => total + fila.pases_asignados, 0) > limitePases)
+                      }
                       onClick={handleGuardarImportacion}
                       className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl transition-all shadow-sm disabled:opacity-50"
                       loadingText="Importando…"

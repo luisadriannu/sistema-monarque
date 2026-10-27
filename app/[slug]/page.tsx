@@ -41,7 +41,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   const evento = await prisma.evento.findUnique({
     where: { slug },
-    include: { usuario: { select: { organizacion: true } } },
+    include: { usuario: { select: { organizacion: true, organizacion_id: true, lector_qr_habilitado: true } } },
   });
   if (!evento) return <InvitacionNoDisponible />;
   if (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) return <InvitacionNoDisponible />;
@@ -166,7 +166,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     previewMode: isPreview,
   };
 
-  const qrEnabled = Boolean(evento.usuario.organizacion?.qr_checkin_habilitado);
+  const qrEnabled = hasClientQr(evento.usuario);
   const qrLimit = invitado.pases_confirmados ?? 0;
   const qrUsed = qrLimit < 1 || invitado.pases_ingresados >= qrLimit || (
     evento.modo_ingreso === "unico" && Boolean(invitado.escaneado_en)
@@ -203,3 +203,4 @@ function InvitacionNoDisponible() {
     </main>
   );
 }
+import { hasClientQr } from "@/lib/qr-access";

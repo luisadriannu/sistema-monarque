@@ -1,4 +1,5 @@
 import { isValidName, NAME_ERROR } from "@/lib/names";
+import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -39,13 +40,13 @@ export async function GET(request: Request) {
   if (eventoIdParam) {
     evento = await prisma.evento.findUnique({
       where: { id: eventoIdParam },
-      include: { usuario: { select: { organizacion_id: true, organizacion: true } } },
+      include: { usuario: { select: { organizacion_id: true, organizacion: true, lector_qr_habilitado: true } } },
     });
   } else {
     evento = await prisma.evento.findFirst({
       where: user.rol === "admin" ? {} : { usuario_id: user.id },
       orderBy: { creado_en: "desc" },
-      include: { usuario: { select: { organizacion_id: true, organizacion: true } } },
+      include: { usuario: { select: { organizacion_id: true, organizacion: true, lector_qr_habilitado: true } } },
     });
   }
 
@@ -66,7 +67,11 @@ export async function GET(request: Request) {
           confirmados_pendientes_ingreso: 0,
           familias_ingresadas: 0,
         },
-        permisos: { qr_checkin_habilitado: Boolean(user.organizacion?.qr_checkin_habilitado) },
+        permisos: {
+          qr_checkin_habilitado: Boolean(user.organizacion?.qr_checkin_habilitado),
+          limite_invitados: user.rol === "admin" || user.organizacion_id === DIRECT_ORGANIZATION_ID ? null : user.organizacion?.max_invitados_evento ?? null,
+          limite_pases: null,
+        },
       },
       { headers: noStoreHeaders }
     );
@@ -210,7 +215,9 @@ export async function GET(request: Request) {
       solo_lectura: user.rol !== "admin" && isEventFinished(evento.fecha_evento),
       vista_admin: user.rol === "admin",
       permisos: {
-        qr_checkin_habilitado: Boolean(evento.usuario.organizacion?.qr_checkin_habilitado),
+        qr_checkin_habilitado: hasClientQr(evento.usuario),
+        limite_invitados: user.rol === "admin" || evento.usuario.organizacion_id === DIRECT_ORGANIZATION_ID ? null : evento.usuario.organizacion?.max_invitados_evento ?? null,
+        limite_pases: user.rol === "admin" ? null : evento.limite_pases ?? null,
       },
       kpis: {
         total_asignados,
@@ -275,13 +282,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const incomingPasses = bulk && Array.isArray(invitados)
+      ? invitados.reduce((total, item) => total + Number(item?.pases_asignados ?? item?.pases ?? 1), 0)
+      : Number(pases_asignados);
+    if (!Number.isInteger(incomingPasses) || incomingPasses < 1) {
+      return NextResponse.json({ error: "Los pases a registrar deben ser números enteros mayores a cero." }, { status: 400 });
+    }
+    if (user.rol !== "admin" && evento.limite_pases) {
+      const assigned = await prisma.invitado.aggregate({ where: { evento_id: evento.id }, _sum: { pases_asignados: true } });
+      const currentPasses = assigned._sum.pases_asignados || 0;
+      if (currentPasses + incomingPasses > evento.limite_pases) {
+        return NextResponse.json({ error: `No puedes asignar esos pases. El límite contratado es ${evento.limite_pases} y quedan ${Math.max(0, evento.limite_pases - currentPasses)} disponibles.` }, { status: 403 });
+      }
+    }
+
     const currentGuestCount = await prisma.invitado.count({ where: { evento_id: evento.id } });
     const incomingCount = bulk && Array.isArray(invitados)
       ? invitados.filter(item => String(item?.nombre || "").trim()).length
       : 1;
     const guestLimit = evento.usuario.organizacion?.max_invitados_evento;
     if (user.rol !== "admin" && guestLimit && currentGuestCount + incomingCount > guestLimit) {
-      return NextResponse.json({ error: `El plan permite hasta ${guestLimit} invitados por evento. Actualmente hay ${currentGuestCount}.` }, { status: 403 });
+      return NextResponse.json({ error: `La capacidad contratada permite hasta ${guestLimit} invitaciones por evento. Actualmente hay ${currentGuestCount}.` }, { status: 403 });
     }
 
     // Manejo de importación masiva (RF-10)
@@ -357,3 +378,4 @@ export async function POST(request: Request) {
     );
   }
 }
+import { hasClientQr } from "@/lib/qr-access";

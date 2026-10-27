@@ -50,7 +50,7 @@ export async function PUT(
         organizacion_id: true,
         eliminado_en: true,
         eventos: {
-          select: { id: true, configuracion_invitacion: true },
+          select: { id: true, configuracion_invitacion: true, limite_pases: true },
         },
       },
     });
@@ -143,6 +143,18 @@ export async function PUT(
       },
     } as Prisma.InputJsonValue;
 
+    let limitePases: number | null | undefined;
+    if (organizer.rol === "admin" && existing.organizacion_id === "monarque-clientes-directos") {
+      limitePases = Number(evento.limite_pases || existingEvent.limite_pases || 200);
+      if (!Number.isInteger(limitePases) || limitePases < 1) {
+        return NextResponse.json({ error: "El límite contratado debe ser un número entero mayor a cero." }, { status: 400, headers: noStoreHeaders });
+      }
+      const assigned = await prisma.invitado.aggregate({ where: { evento_id: eventId }, _sum: { pases_asignados: true } });
+      if ((assigned._sum.pases_asignados || 0) > limitePases) {
+        return NextResponse.json({ error: `No puedes reducir el límite a ${limitePases}; ya hay ${assigned._sum.pases_asignados || 0} pases asignados.` }, { status: 400, headers: noStoreHeaders });
+      }
+    }
+
     await prisma.$transaction([
       prisma.usuario.update({
         where: { id },
@@ -150,6 +162,7 @@ export async function PUT(
           nombre,
           email,
           ...(passwordHash ? { passwordHash } : {}),
+          ...(organizer.rol === "admin" && existing.organizacion_id === "monarque-clientes-directos" && typeof body.qr_checkin_habilitado === "boolean" ? { lector_qr_habilitado: body.qr_checkin_habilitado } : {}),
         },
       }),
       prisma.evento.update({
@@ -160,6 +173,7 @@ export async function PUT(
           slug,
           lugar,
           fecha_evento: fechaEvento,
+          ...(limitePases !== undefined ? { limite_pases: limitePases } : {}),
           configuracion_invitacion: updatedConfig,
         },
       }),

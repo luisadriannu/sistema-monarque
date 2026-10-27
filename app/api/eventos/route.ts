@@ -101,6 +101,9 @@ export async function PUT(request: Request) {
     const allowedClientStates = ["borrador", "publicado", "cancelado", "archivado"];
     const nextState = estado && allowedClientStates.includes(estado) ? estado : undefined;
     const nextEntryMode = user.rol === "clienta" ? "parcial" : modo_ingreso === "parcial" ? "parcial" : modo_ingreso === "unico" ? "unico" : undefined;
+    if (user.rol === "clienta" && (recepcion_abre_en !== undefined || recepcion_cierra_en !== undefined)) {
+      return NextResponse.json({ error: "Solo el administrador o el organizador pueden configurar la recepción." }, { status: 403 });
+    }
     const receptionOpens = recepcion_abre_en ? new Date(recepcion_abre_en) : recepcion_abre_en === null ? null : undefined;
     const receptionCloses = recepcion_cierra_en ? new Date(recepcion_cierra_en) : recepcion_cierra_en === null ? null : undefined;
     if (receptionOpens instanceof Date && Number.isNaN(receptionOpens.getTime()) || receptionCloses instanceof Date && Number.isNaN(receptionCloses.getTime())) {
@@ -132,6 +135,24 @@ export async function PUT(request: Request) {
         { status: 400 },
       );
     }
+    const targetDeadlineKey = toDateInputValue(targetDeadline);
+    const existingDeadlineKey = toDateInputValue(existing.fecha_limite_rsvp);
+    if (targetDeadlineKey < toDateInputValue(new Date()) && targetDeadlineKey !== existingDeadlineKey) {
+      return NextResponse.json(
+        { error: "La fecha límite de confirmación debe ser hoy o una fecha futura." },
+        { status: 400 },
+      );
+    }
+
+    const requestedCapacity = capacidad_total === null || capacidad_total === "" || capacidad_total === undefined
+      ? null
+      : Number(capacidad_total);
+    if (requestedCapacity !== null && (!Number.isInteger(requestedCapacity) || requestedCapacity < 1)) {
+      return NextResponse.json({ error: "La capacidad del evento debe ser un número entero mayor a cero." }, { status: 400 });
+    }
+    if (user.rol !== "admin" && existing.limite_pases && requestedCapacity !== null && requestedCapacity > existing.limite_pases) {
+      return NextResponse.json({ error: `Tu evento tiene un límite contratado de ${existing.limite_pases} pases.` }, { status: 403 });
+    }
 
     const updated = await prisma.evento.update({
       where: { id },
@@ -144,7 +165,7 @@ export async function PUT(request: Request) {
           capacidad_total:
             capacidad_total === null || capacidad_total === ""
               ? null
-              : parseInt(String(capacidad_total), 10) || null,
+              : requestedCapacity,
         }),
         ...(fecha_limite_rsvp && { fecha_limite_rsvp: new Date(fecha_limite_rsvp) }),
         ...(texto_edad_nino !== undefined && { texto_edad_nino: String(texto_edad_nino).trim() }),

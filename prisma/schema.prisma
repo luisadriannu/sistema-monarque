@@ -35,7 +35,7 @@ model Organizacion {
   // "elite" conserva las funciones de las organizaciones creadas antes de existir los planes.
   // Las organizaciones nuevas reciben su plan explícitamente desde la API.
   plan                  String    @default("elite") // "basico" | "pro" | "elite"
-  estado_servicio       String    @default("activo") // "prueba" | "activo" | "suspendido" | "vencido"
+  estado_servicio       String    @default("activo") // "activo" | "suspendido" | "vencido"
   servicio_inicia_en    DateTime  @default(now())
   servicio_vence_en     DateTime?
   max_clientes          Int       @default(50)
@@ -63,6 +63,7 @@ model Evento {
   recepcion_cierra_en      DateTime?
   modo_ingreso             String                @default("unico") // "unico" | "parcial"
   capacidad_total          Int?
+  limite_pases             Int?                  // Límite contractual; solo lo administra Monarque.
   fecha_limite_rsvp        DateTime
   texto_edad_nino          String                @default("menores de 12 años")
   configuracion_invitacion Json?                 @db.JsonB

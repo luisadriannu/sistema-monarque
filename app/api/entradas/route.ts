@@ -22,10 +22,14 @@ async function authorizedScanner() {
 }
 
 function eventScope(user: { id: string; rol: string; organizacion_id: string | null }) {
-  if (user.rol === "admin") return {};
+  const enabledClient = { OR: [
+    { usuario: { organizacion_id: "monarque-clientes-directos", lector_qr_habilitado: true } },
+    { usuario: { organizacion_id: { not: "monarque-clientes-directos" }, organizacion: { qr_checkin_habilitado: true } } },
+  ] };
+  if (user.rol === "admin") return enabledClient;
   return user.rol === "recepcionista"
-    ? { usuario: { organizacion_id: user.organizacion_id! }, recepcionistas: { some: { usuario_id: user.id } } }
-    : { usuario: { organizacion_id: user.organizacion_id! } };
+    ? { ...enabledClient, usuario: { organizacion_id: user.organizacion_id! }, recepcionistas: { some: { usuario_id: user.id } } }
+    : { ...enabledClient, usuario: { organizacion_id: user.organizacion_id! } };
 }
 
 const guestSelect = {

@@ -10,8 +10,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (user.rol !== "admin" && (!user.organizacion || !isOrganizationServiceActive(user.organizacion))) return NextResponse.json({ error: organizationBlockMessage(user.organizacion!) }, { status: 403 });
   if (user.rol !== "admin" && !user.organizacion?.qr_checkin_habilitado) return NextResponse.json({ error: "El acceso QR no está habilitado." }, { status: 403 });
   const { id } = await params;
-  const event = await prisma.evento.findFirst({ where: { id, usuario: { ...accountScope(user), eliminado_en: null } } });
+  const event = await prisma.evento.findFirst({ where: { id, usuario: { ...accountScope(user), eliminado_en: null } }, include: { usuario: { include: { organizacion: true } } } });
   if (!event) return NextResponse.json({ error: "Evento no encontrado." }, { status: 404 });
+  if (!hasClientQr(event.usuario)) return NextResponse.json({ error: "El acceso QR no está habilitado para esta clienta." }, { status: 403 });
   const body = await request.json().catch(() => null);
   const action = body?.action;
   const now = new Date();
@@ -28,3 +29,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   return NextResponse.json({ error: "Acción no válida." }, { status: 400 });
 }
+import { hasClientQr } from "@/lib/qr-access";

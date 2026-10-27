@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 export default function InvitationQrPass({
@@ -20,6 +20,7 @@ export default function InvitationQrPass({
   confirmed: boolean;
 }) {
   const [scanned, setScanned] = useState(initialScanned);
+  const lastCheck = useRef(0);
   const [unavailable, setUnavailable] = useState(false);
   const [qrImage, setQrImage] = useState(image);
   const [serverConfirmed, setServerConfirmed] = useState(confirmed);
@@ -33,7 +34,8 @@ export default function InvitationQrPass({
     let inFlight = false;
     let controller: AbortController | null = null;
     const check = async () => {
-      if (!active || inFlight || document.visibilityState !== "visible") return;
+      if (!active || inFlight || document.visibilityState !== "visible" || Date.now() - lastCheck.current < 15000) return;
+      lastCheck.current = Date.now();
       inFlight = true;
       controller = new AbortController();
       try {

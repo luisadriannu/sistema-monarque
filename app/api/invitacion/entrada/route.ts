@@ -26,14 +26,14 @@ export async function GET(request: Request) {
         estado: true,
         pases_confirmados: true,
         codigo_entrada: true,
-        evento: { select: { estado: true, modo_ingreso: true, usuario: { select: { organizacion: { select: { qr_checkin_habilitado: true, estado_servicio: true, servicio_vence_en: true, eliminado_en: true } } } } } },
+        evento: { select: { estado: true, modo_ingreso: true, usuario: { select: { organizacion_id: true, lector_qr_habilitado: true, organizacion: { select: { qr_checkin_habilitado: true, estado_servicio: true, servicio_vence_en: true, eliminado_en: true } } } } } },
       },
     });
     if (!invitado) {
       return NextResponse.json({ error: "Invitación no disponible." }, { status: 404, headers });
     }
     const organization = invitado.evento.usuario.organizacion;
-    if (!organization?.qr_checkin_habilitado || !isOrganizationServiceActive(organization) || ["borrador", "cancelado", "archivado", "finalizado"].includes(invitado.evento.estado)) {
+    if (!organization || !hasClientQr(invitado.evento.usuario) || !isOrganizationServiceActive(organization) || ["borrador", "cancelado", "archivado", "finalizado"].includes(invitado.evento.estado)) {
       return NextResponse.json({ error: "Invitación no disponible." }, { status: 404, headers });
     }
     const limite = invitado.pases_confirmados ?? 0;
@@ -52,3 +52,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No se pudo consultar la entrada." }, { status: 503, headers });
   }
 }
+import { hasClientQr } from "@/lib/qr-access";

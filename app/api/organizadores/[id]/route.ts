@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { normalizePlan, planPresets } from "@/lib/organization-access";
+import { normalizeAvailablePlan, planPresets } from "@/lib/organization-access";
+import { endOfDayMexicoDate, toDateInputValue } from "@/lib/utils";
 
 const headers = { "Cache-Control": "no-store" };
 
@@ -33,7 +34,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!exists) return NextResponse.json({ error: "Organizador no encontrado." }, { status: 404, headers });
     const organizacion = await prisma.organizacion.update({
       where: { id },
-      data: { qr_checkin_habilitado: exists.plan !== "basico" && body.qr_checkin_habilitado },
+      data: { qr_checkin_habilitado: body.qr_checkin_habilitado },
       select: { id: true, qr_checkin_habilitado: true },
     });
     return NextResponse.json({ ok: true, organizacion }, { headers });
@@ -54,11 +55,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const negocio = String(body.negocio || "").trim();
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
-  const plan = normalizePlan(body.plan);
+  const currentOrganization = await prisma.organizacion.findUnique({ where: { id }, select: { plan: true, servicio_vence_en: true } });
+  if (!currentOrganization) return NextResponse.json({ error: "Organizador no encontrado." }, { status: 404, headers });
+  const plan = currentOrganization.plan === "elite" && body.plan === "elite"
+    ? "elite"
+    : normalizeAvailablePlan(body.plan);
   const preset = planPresets[plan];
-  const allowedStates = ["prueba", "activo", "suspendido", "vencido"];
+  const allowedStates = ["activo", "suspendido", "vencido"];
   const estadoServicio = allowedStates.includes(body.estado_servicio) ? body.estado_servicio : "activo";
-  const expiresAt = body.servicio_vence_en ? new Date(body.servicio_vence_en) : null;
+  const expiryInput = String(body.servicio_vence_en || "");
+  const currentExpiryInput = toDateInputValue(currentOrganization.servicio_vence_en);
+  if (expiryInput && expiryInput < toDateInputValue(new Date()) && expiryInput !== currentExpiryInput) {
+    return NextResponse.json({ error: "El vencimiento de la licencia debe ser hoy o una fecha futura." }, { status: 400, headers });
+  }
+  const expiresAt = expiryInput ? endOfDayMexicoDate(expiryInput) : null;
   if (!nombre || !negocio || !email.includes("@")) return NextResponse.json({ error: "Datos incompletos." }, { status: 400, headers });
   if (password && password.length < 10) return NextResponse.json({ error: "La contraseña debe tener al menos 10 caracteres." }, { status: 400, headers });
 
@@ -73,7 +83,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       max_clientes: preset.maxClientes,
       max_eventos_activos: preset.maxEventos,
       max_invitados_evento: preset.maxInvitados,
-      qr_checkin_habilitado: preset.qr && Boolean(body.qr_checkin_habilitado),
+      qr_checkin_habilitado: Boolean(body.qr_checkin_habilitado),
       marca_personalizada: preset.marca,
     } }),
     prisma.usuario.update({ where: { id: organizer.id }, data: { nombre, email, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) } }),

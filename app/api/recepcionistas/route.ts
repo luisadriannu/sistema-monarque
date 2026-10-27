@@ -1,5 +1,6 @@
 import { canManageAccounts, accountScope } from "@/lib/management-access";
 import { receptionOrganization } from "@/lib/reception-access";
+import { hasClientQr } from "@/lib/qr-access";
 import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
@@ -26,11 +27,11 @@ export async function GET() {
     }),
     prisma.evento.findMany({
       where: { usuario: { ...accountScope(user), eliminado_en: null }, estado: { not: "archivado" } },
-      select: { id: true, nombre: true, fecha_evento: true, estado: true, usuario: { select: { organizacion_id: true, organizacion: { select: { nombre: true } } } } },
+      select: { id: true, nombre: true, fecha_evento: true, estado: true, usuario: { select: { organizacion_id: true, lector_qr_habilitado: true, organizacion: { select: { nombre: true, qr_checkin_habilitado: true } } } } },
       orderBy: { fecha_evento: "desc" },
     }),
   ]);
-  return NextResponse.json({ recepcionistas, eventos }, { headers });
+  return NextResponse.json({ recepcionistas, eventos: eventos.filter(event => hasClientQr(event.usuario)) }, { headers });
 }
 
 export async function POST(request: Request) {

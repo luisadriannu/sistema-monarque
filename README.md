@@ -34,7 +34,7 @@ Puedes ingresar directamente con uno de los tokens generados, por ejemplo:
 - Desde `/dashboard/clientes` puede crear una clienta con su evento sin crear una cuenta de organizador. Estas cuentas se agrupan automáticamente en **Clientes directos de Monarque**, con acceso QR habilitado.
 - Puede editar, enviar a papelera y restaurar clientes de cualquier organización, configurar sus eventos y agregar, importar, editar o eliminar invitados, incluso cuando el evento ya terminó.
 - Los recepcionistas se asignan a eventos de una misma administración y únicamente pueden escanear esos eventos. El administrador puede gestionar equipos de todas las organizaciones.
-- Los organizadores mantienen acceso exclusivamente a sus propios clientes y equipos. Los planes y límites comerciales continúan aplicándose a sus cuentas.
+- Los organizadores mantienen acceso exclusivamente a sus propios clientes y equipos. Las capacidades contratadas y sus límites comerciales continúan aplicándose a sus cuentas.
 - No se requiere una migración: el grupo interno de clientes directos se crea dentro de la transacción de la primera alta. Se excluye del catálogo comercial de organizadores.
 - Pruebas de permisos: `npm run test:admin`.
 

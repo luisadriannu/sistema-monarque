@@ -41,7 +41,12 @@ type Guest = {
   escaneado_en: string | null;
   estado: string;
   codigo_entrada: string;
-  evento: { id: string; nombre: string; anfitriones: string; modo_ingreso: string };
+  evento: {
+    id: string;
+    nombre: string;
+    anfitriones: string;
+    modo_ingreso: string;
+  };
 };
 type Log = {
   id: string;
@@ -51,7 +56,11 @@ type Log = {
   evento: { nombre: string };
 };
 
-export default function EntradaScanner({ canManageReception }: { canManageReception: boolean }) {
+export default function EntradaScanner({
+  canManageReception,
+}: {
+  canManageReception: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controls = useRef<IScannerControls | null>(null);
   const processingScan = useRef(false);
@@ -62,7 +71,9 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
   const [amount, setAmount] = useState(1);
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<Log[]>([]);
-  const [attendees, setAttendees] = useState<(Guest & { ultima_entrada_en: string })[]>([]);
+  const [attendees, setAttendees] = useState<
+    (Guest & { ultima_entrada_en: string })[]
+  >([]);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
   const [logsError, setLogsError] = useState("");
@@ -84,7 +95,10 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     }
     setLogsLoading(true);
     try {
-      const r = await fetch(`/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&page=${page}`, { cache: "no-store" });
+      const r = await fetch(
+        `/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&page=${page}`,
+        { cache: "no-store" },
+      );
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "No se pudo cargar la asistencia.");
       setLogs(d.registros || []);
@@ -92,7 +106,11 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       setPagination(d.pagination);
       setLogsError("");
     } catch (error) {
-      setLogsError(error instanceof Error ? error.message : "No se pudo cargar la asistencia.");
+      setLogsError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar la asistencia.",
+      );
     } finally {
       setLogsLoading(false);
     }
@@ -101,14 +119,22 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     async function loadEvents() {
       setEventsLoading(true);
       try {
-        const response = await fetch("/api/entradas?catalogo=1", { cache: "no-store" });
+        const response = await fetch("/api/entradas?catalogo=1", {
+          cache: "no-store",
+        });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "No se pudieron cargar los eventos.");
+        if (!response.ok)
+          throw new Error(data.error || "No se pudieron cargar los eventos.");
         const availableEvents = data.eventos || [];
         setEvents(availableEvents);
-        if (availableEvents.length === 1) setSelectedEventId(availableEvents[0].id);
+        if (availableEvents.length === 1)
+          setSelectedEventId(availableEvents[0].id);
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "No se pudieron cargar los eventos.");
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar los eventos.",
+        );
       } finally {
         setEventsLoading(false);
       }
@@ -138,7 +164,9 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     setGuest(null);
     const normalized = raw.replace(/^monarque:entrada:/, "").trim();
     try {
-      const r = await fetch(`/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&codigo=${encodeURIComponent(normalized)}`);
+      const r = await fetch(
+        `/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&codigo=${encodeURIComponent(normalized)}`,
+      );
       const d = await r.json();
       if (!r.ok) {
         setMessage(d.error || "Código inválido.");
@@ -146,10 +174,13 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       }
       setCode(normalized);
       setGuest(d.invitado);
-      const guestLimit = d.invitado.pases_confirmados ?? d.invitado.pases_asignados;
+      const guestLimit =
+        d.invitado.pases_confirmados ?? d.invitado.pases_asignados;
       setAmount(Math.max(1, guestLimit - d.invitado.pases_ingresados));
     } catch {
-      setMessage("No se pudo consultar el pase. Revisa tu conexión e intenta nuevamente.");
+      setMessage(
+        "No se pudo consultar el pase. Revisa tu conexión e intenta nuevamente.",
+      );
     } finally {
       setBusy(false);
       processingScan.current = false;
@@ -157,11 +188,15 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
   }
   async function start() {
     if (!selectedEventId) {
-      setMessage("Selecciona la fiesta que estás recibiendo antes de abrir la cámara.");
+      setMessage(
+        "Selecciona la fiesta que estás recibiendo antes de abrir la cámara.",
+      );
       return;
     }
     if (selectedEvent?.estado !== "recepcion_abierta") {
-      setMessage("La recepción está cerrada. El organizador debe abrirla antes de escanear.");
+      setMessage(
+        "La recepción está cerrada. El organizador debe abrirla antes de escanear.",
+      );
       return;
     }
     setGuest(null);
@@ -195,23 +230,33 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
     setBusy(true);
     setMessage("");
     try {
-    const r = await fetch("/api/entradas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ codigo: code, invitado_id: guest.id, cantidad: amount, evento_id: selectedEventId }),
-    });
-    const d = await r.json();
-    setBusy(false);
-    if (!r.ok) {
-      if (d.code === "ALREADY_SCANNED" && d.invitado) setGuest(d.invitado);
-      if (d.code === "NOT_CONFIRMED") setGuest(null);
-      return setMessage(d.error);
-    }
-    setGuest(d.invitado);
-    setMessage(d.message || `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`);
-    void loadLogs();
+      const r = await fetch("/api/entradas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          codigo: code,
+          invitado_id: guest.id,
+          cantidad: amount,
+          evento_id: selectedEventId,
+        }),
+      });
+      const d = await r.json();
+      setBusy(false);
+      if (!r.ok) {
+        if (d.code === "ALREADY_SCANNED" && d.invitado) setGuest(d.invitado);
+        if (d.code === "NOT_CONFIRMED") setGuest(null);
+        return setMessage(d.error);
+      }
+      setGuest(d.invitado);
+      setMessage(
+        d.message ||
+          `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`,
+      );
+      void loadLogs();
     } catch {
-      setMessage("No se pudo confirmar la entrada. Consulta el pase antes de reintentar.");
+      setMessage(
+        "No se pudo confirmar la entrada. Consulta el pase antes de reintentar.",
+      );
     } finally {
       setBusy(false);
     }
@@ -219,29 +264,53 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
   async function searchGuest(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedEventId || manualSearch.trim().length < 2) return;
-    setSearching(true); setMessage("");
+    setSearching(true);
+    setMessage("");
     try {
-      const response = await fetch(`/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&buscar=${encodeURIComponent(manualSearch.trim())}`, { cache: "no-store" });
+      const response = await fetch(
+        `/api/entradas?evento_id=${encodeURIComponent(selectedEventId)}&buscar=${encodeURIComponent(manualSearch.trim())}`,
+        { cache: "no-store" },
+      );
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo buscar.");
       setManualResults(data.resultados || []);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo buscar.");
-    } finally { setSearching(false); }
+    } finally {
+      setSearching(false);
+    }
   }
   function chooseManualGuest(item: Guest) {
-    setGuest(item); setCode(item.codigo_entrada); setAmount(1); setManualResults([]); setMessage("");
+    setGuest(item);
+    setCode(item.codigo_entrada);
+    setAmount(1);
+    setManualResults([]);
+    setMessage("");
   }
   async function undoEntry(item: Guest) {
-    if (!canManageReception || !window.confirm(`¿Revertir la entrada de ${item.nombre}?`)) return;
-    const response = await fetch(`/api/entradas/${item.id}`, { method: "DELETE" });
+    if (
+      !canManageReception ||
+      !window.confirm(`¿Revertir la entrada de ${item.nombre}?`)
+    )
+      return;
+    const response = await fetch(`/api/entradas/${item.id}`, {
+      method: "DELETE",
+    });
     const data = await response.json();
     setMessage(data.message || data.error);
-    if (response.ok) { setGuest(null); void loadLogs(); }
+    if (response.ok) {
+      setGuest(null);
+      void loadLogs();
+    }
   }
   const limit = guest ? (guest.pases_confirmados ?? guest.pases_asignados) : 0;
-  const alreadyScanned = Boolean(guest && (guest.pases_ingresados >= limit || (guest.evento.modo_ingreso === "unico" && guest.escaneado_en)));
-  const remaining = guest && !alreadyScanned ? Math.max(0, limit - guest.pases_ingresados) : 0;
+  const alreadyScanned = Boolean(
+    guest &&
+    (guest.pases_ingresados >= limit ||
+      (guest.evento.modo_ingreso === "unico" && guest.escaneado_en)),
+  );
+  const remaining =
+    guest && !alreadyScanned ? Math.max(0, limit - guest.pases_ingresados) : 0;
   const selectedEvent = events.find((event) => event.id === selectedEventId);
   function changeEvent(eventId: string) {
     controls.current?.stop();
@@ -254,28 +323,58 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
   }
   async function changeReception(action: "abrir" | "cerrar") {
     if (!selectedEvent || changingReception) return;
-    setChangingReception(true); setMessage("");
+    setChangingReception(true);
+    setMessage("");
     try {
-      const response = await fetch(`/api/eventos/${selectedEvent.id}/recepcion`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const response = await fetch(
+        `/api/eventos/${selectedEvent.id}/recepcion`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        },
+      );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudo cambiar la recepción.");
-      setEvents(items => items.map(item => item.id === selectedEvent.id ? { ...item, ...data.evento } : item));
-      setGuest(null); setMessage(data.message);
+      if (!response.ok)
+        throw new Error(data.error || "No se pudo cambiar la recepción.");
+      setEvents((items) =>
+        items.map((item) =>
+          item.id === selectedEvent.id ? { ...item, ...data.evento } : item,
+        ),
+      );
+      setGuest(null);
+      setMessage(data.message);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No se pudo cambiar la recepción.");
-    } finally { setChangingReception(false); }
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cambiar la recepción.",
+      );
+    } finally {
+      setChangingReception(false);
+    }
   }
   return (
     <div className="space-y-6">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-xs font-bold uppercase tracking-[.22em] text-[#e05a1b]">Acceso prémium</p>
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${online ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-            {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+          <p className="text-xs font-bold uppercase tracking-[.22em] text-[#e05a1b]">
+            Acceso prémium
+          </p>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${online ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}
+          >
+            {online ? (
+              <Wifi className="h-3.5 w-3.5" />
+            ) : (
+              <WifiOff className="h-3.5 w-3.5" />
+            )}
             {online ? "Con conexión" : "Sin conexión"}
           </span>
         </div>
-        <h1 className="mt-2 font-serif text-4xl font-bold">Escanear invitación</h1>
+        <h1 className="mt-2 font-serif text-4xl font-bold">
+          Escanear invitación
+        </h1>
         <p className="mt-2 text-sm text-stone-500">
           Valida el pase desde la invitación y registra cuántas personas
           ingresan.
@@ -288,9 +387,12 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
               <CalendarDays className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-serif text-xl font-bold">Fiesta que estás recibiendo</h2>
+              <h2 className="font-serif text-xl font-bold">
+                Fiesta que estás recibiendo
+              </h2>
               <p className="mt-1 text-xs leading-relaxed text-stone-500">
-                El escáner solamente aceptará códigos pertenecientes al evento seleccionado.
+                El escáner solamente aceptará códigos pertenecientes al evento
+                seleccionado.
               </p>
             </div>
           </div>
@@ -302,46 +404,136 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
               disabled={eventsLoading || scanning || busy}
               className="w-full rounded-xl border border-[#dec0a2] bg-[#fffdf9] px-4 py-3 text-sm font-semibold text-stone-800 outline-none focus:border-[#e05a1b] focus:ring-2 focus:ring-orange-100 disabled:opacity-60"
             >
-              <option value="">{eventsLoading ? "Cargando eventos…" : "Selecciona un evento"}</option>
+              <option value="">
+                {eventsLoading ? "Cargando eventos…" : "Selecciona un evento"}
+              </option>
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
-                  {event.nombre} · {new Date(event.fecha_evento).toLocaleDateString("es-MX", { timeZone: "America/Mexico_City" })} · {event.estado === "recepcion_abierta" ? "Abierta" : "Cerrada"}
+                  {event.nombre} ·{" "}
+                  {new Date(event.fecha_evento).toLocaleDateString("es-MX", {
+                    timeZone: "America/Mexico_City",
+                  })}{" "}
+                  ·{" "}
+                  {event.estado === "recepcion_abierta" ? "Abierta" : "Cerrada"}
                 </option>
               ))}
             </select>
           </label>
         </div>
         {selectedEvent && (
-          <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${selectedEvent.estado === "recepcion_abierta" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-            <div className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>{selectedEvent.estado === "recepcion_abierta" ? "Recepción abierta:" : "Recepción cerrada:"}</strong> {selectedEvent.estado === "recepcion_abierta" ? `solo se registrarán invitados de ${selectedEvent.nombre}.` : "no se aceptará ningún código hasta que el organizador la abra."}</p></div>
-            {canManageReception && <button disabled={changingReception} onClick={() => changeReception(selectedEvent.estado === "recepcion_abierta" ? "cerrar" : "abrir")} className={`mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${selectedEvent.estado === "recepcion_abierta" ? "bg-rose-600" : "bg-emerald-700"}`}>{changingReception ? "Actualizando…" : selectedEvent.estado === "recepcion_abierta" ? "Cerrar recepción" : "Abrir recepción"}</button>}
+          <div
+            className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${selectedEvent.estado === "recepcion_abierta" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}
+          >
+            <div className="flex items-start gap-2">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>
+                <strong>
+                  {selectedEvent.estado === "recepcion_abierta"
+                    ? "Recepción abierta:"
+                    : "Recepción cerrada:"}
+                </strong>{" "}
+                {selectedEvent.estado === "recepcion_abierta"
+                  ? `solo se registrarán invitados de ${selectedEvent.nombre}.`
+                  : "no se aceptará ningún código hasta que el organizador la abra."}
+              </p>
+            </div>
+            {canManageReception && (
+              <button
+                disabled={changingReception}
+                onClick={() =>
+                  changeReception(
+                    selectedEvent.estado === "recepcion_abierta"
+                      ? "cerrar"
+                      : "abrir",
+                  )
+                }
+                className={`mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${selectedEvent.estado === "recepcion_abierta" ? "bg-rose-600" : "bg-emerald-700"}`}
+              >
+                {changingReception
+                  ? "Actualizando…"
+                  : selectedEvent.estado === "recepcion_abierta"
+                    ? "Cerrar recepción"
+                    : "Abrir recepción"}
+              </button>
+            )}
           </div>
         )}
       </section>
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#e05a1b]"><Search className="h-5 w-5" /></div>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#e05a1b]">
+            <Search className="h-5 w-5" />
+          </div>
           <div>
-            <h2 className="font-serif text-xl font-bold">Búsqueda manual de respaldo</h2>
-            <p className="mt-1 text-xs leading-relaxed text-stone-500">Úsala cuando la cámara no pueda leer el código. Solo muestra invitados confirmados del evento seleccionado.</p>
+            <h2 className="font-serif text-xl font-bold">
+              Búsqueda manual de respaldo
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-stone-500">
+              Úsala cuando la cámara no pueda leer el código. Solo muestra
+              invitados confirmados del evento seleccionado.
+            </p>
           </div>
         </div>
-        <form onSubmit={searchGuest} className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <input value={manualSearch} onChange={(event) => setManualSearch(event.target.value)} disabled={!selectedEventId || !online} minLength={2} placeholder="Nombre del invitado o familia" className="min-w-0 flex-1 rounded-xl border border-[#dec0a2] bg-[#fffdf9] px-4 py-3 text-sm outline-none focus:border-[#e05a1b] focus:ring-2 focus:ring-orange-100 disabled:opacity-50" />
-          <button disabled={!selectedEventId || !online || searching || manualSearch.trim().length < 2} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2b211b] px-5 py-3 text-sm font-bold text-white disabled:opacity-50">
-            {searching ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Buscar
+        <form
+          onSubmit={searchGuest}
+          className="mt-4 flex flex-col gap-2 sm:flex-row"
+        >
+          <input
+            value={manualSearch}
+            onChange={(event) => setManualSearch(event.target.value)}
+            disabled={!selectedEventId || !online}
+            minLength={2}
+            placeholder="Nombre del invitado o familia"
+            className="min-w-0 flex-1 rounded-xl border border-[#dec0a2] bg-[#fffdf9] px-4 py-3 text-sm outline-none focus:border-[#e05a1b] focus:ring-2 focus:ring-orange-100 disabled:opacity-50"
+          />
+          <button
+            disabled={
+              !selectedEventId ||
+              !online ||
+              searching ||
+              manualSearch.trim().length < 2
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2b211b] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {searching ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}{" "}
+            Buscar
           </button>
         </form>
-        {!!manualResults.length && <div className="mt-3 divide-y overflow-hidden rounded-2xl border border-stone-200">
-          {manualResults.map((item) => {
-            const itemLimit = item.pases_confirmados ?? item.pases_asignados;
-            return <button type="button" key={item.id} onClick={() => chooseManualGuest(item)} className="flex w-full items-center justify-between gap-3 bg-white px-4 py-3 text-left transition hover:bg-orange-50">
-              <span><strong className="block text-sm">{item.nombre}</strong><span className="text-xs text-stone-500">{item.grupo || "Sin grupo"}</span></span>
-              <span className="shrink-0 text-xs font-semibold text-stone-600">{item.pases_ingresados}/{itemLimit} ingresos</span>
-            </button>;
-          })}
-        </div>}
-        {!online && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">La confirmación se detiene sin internet para evitar duplicados entre varios dispositivos. Cuando vuelva la conexión podrás continuar.</p>}
+        {!!manualResults.length && (
+          <div className="mt-3 divide-y overflow-hidden rounded-2xl border border-stone-200">
+            {manualResults.map((item) => {
+              const itemLimit = item.pases_confirmados ?? item.pases_asignados;
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => chooseManualGuest(item)}
+                  className="flex w-full items-center justify-between gap-3 bg-white px-4 py-3 text-left transition hover:bg-orange-50"
+                >
+                  <span>
+                    <strong className="block text-sm">{item.nombre}</strong>
+                    <span className="text-xs text-stone-500">
+                      {item.grupo || "Sin grupo"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-stone-600">
+                    {item.pases_ingresados}/{itemLimit} ingresos
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {!online && (
+          <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
+            La confirmación se detiene sin internet para evitar duplicados entre
+            varios dispositivos. Cuando vuelva la conexión podrás continuar.
+          </p>
+        )}
       </section>
       <div className="grid gap-6 xl:grid-cols-[1fr_.9fr]">
         <section className="overflow-hidden rounded-3xl border border-[#ebd9c4] bg-white p-5 shadow-sm">
@@ -355,7 +547,12 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
           </div>
           <button
             onClick={start}
-            disabled={!selectedEventId || selectedEvent?.estado !== "recepcion_abierta" || scanning || busy}
+            disabled={
+              !selectedEventId ||
+              selectedEvent?.estado !== "recepcion_abierta" ||
+              scanning ||
+              busy
+            }
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2b211b] px-4 py-3 font-semibold text-white disabled:opacity-50"
           >
             {scanning ? (
@@ -366,7 +563,11 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
             ) : (
               <>
                 <Camera />
-                {!selectedEventId ? "Selecciona un evento" : selectedEvent?.estado !== "recepcion_abierta" ? "Recepción cerrada" : "Abrir cámara"}
+                {!selectedEventId
+                  ? "Selecciona un evento"
+                  : selectedEvent?.estado !== "recepcion_abierta"
+                    ? "Recepción cerrada"
+                    : "Abrir cámara"}
               </>
             )}
           </button>
@@ -393,15 +594,40 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
                 <Stat value={remaining} label="Disponibles" />
               </div>
               {alreadyScanned ? (
-                <div role="status" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <p className="font-bold">Este código QR ya ha sido utilizado.</p>
-                  <p className="mt-2">La entrada está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. Si se autorizaron pases adicionales, utiliza el nuevo QR generado en la invitación.</p>
-                  {guest.ultima_entrada_en && <p className="mt-2 text-xs">Registrado el {new Date(guest.ultima_entrada_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}.</p>}
+                <div
+                  role="status"
+                  className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                >
+                  <p className="font-bold">
+                    Este código QR ya ha sido utilizado.
+                  </p>
+                  <p className="mt-2">
+                    La entrada está registrada para {guest.pases_ingresados}{" "}
+                    {guest.pases_ingresados === 1 ? "persona" : "personas"}. Si
+                    se autorizaron pases adicionales, utiliza el nuevo QR
+                    generado en la invitación.
+                  </p>
+                  {guest.ultima_entrada_en && (
+                    <p className="mt-2 text-xs">
+                      Registrado el{" "}
+                      {new Date(guest.ultima_entrada_en).toLocaleString(
+                        "es-MX",
+                        { timeZone: "America/Mexico_City" },
+                      )}
+                      .
+                    </p>
+                  )}
                 </div>
               ) : guest.estado === "declinado" ? (
-                <p className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">Este invitado declinó la invitación.</p>
-              ) : guest.estado !== "confirmado" || (guest.pases_confirmados ?? 0) < 1 ? (
-                <p className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">El invitado debe confirmar su asistencia antes de utilizar el pase QR.</p>
+                <p className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">
+                  Este invitado declinó la invitación.
+                </p>
+              ) : guest.estado !== "confirmado" ||
+                (guest.pases_confirmados ?? 0) < 1 ? (
+                <p className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                  El invitado debe confirmar su asistencia antes de utilizar el
+                  pase QR.
+                </p>
               ) : remaining > 0 ? (
                 <>
                   <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
@@ -425,7 +651,8 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
                     onClick={confirm}
                     disabled={busy || !online}
                     className="mt-4 flex w-full justify-center rounded-xl bg-emerald-600 p-3 font-semibold text-white"
-                   loadingText="Registrando…">
+                    loadingText="Registrando…"
+                  >
                     {busy ? (
                       <LoaderCircle className="animate-spin" />
                     ) : (
@@ -451,7 +678,12 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
             <div
               className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${message.startsWith("Entrada") || message.startsWith("Pases adicionales") ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}
             >
-              {message.startsWith("Entrada") || message.startsWith("Pases adicionales") ? <CheckCircle2 /> : <XCircle />}
+              {message.startsWith("Entrada") ||
+              message.startsWith("Pases adicionales") ? (
+                <CheckCircle2 />
+              ) : (
+                <XCircle />
+              )}
               {message}
             </div>
           )}
@@ -459,31 +691,101 @@ export default function EntradaScanner({ canManageReception }: { canManageRecept
       </div>
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="font-serif text-2xl font-bold">Asistencia registrada ({pagination.total})</h2>
-          <AsyncButton loading={logsLoading} onClick={() => loadLogs()} aria-label="Actualizar asistencia" loadingText="Actualizando…"><RefreshCw className="h-4 w-4" /></AsyncButton>
+          <h2 className="font-serif text-2xl font-bold">
+            Asistencia registrada ({pagination.total})
+          </h2>
+          <AsyncButton
+            loading={logsLoading}
+            onClick={() => loadLogs()}
+            aria-label="Actualizar asistencia"
+            loadingText="Actualizando…"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </AsyncButton>
         </div>
-        {logsError && <p role="alert" className="mt-3 text-sm text-rose-700">{logsError}</p>}
+        {logsError && (
+          <p role="alert" className="mt-3 text-sm text-rose-700">
+            {logsError}
+          </p>
+        )}
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-stone-50 text-xs text-stone-500"><tr>
-              <th className="p-3">Invitado</th><th className="p-3">Evento</th><th className="p-3">Grupo</th><th className="p-3">Ingresaron</th><th className="p-3">Permitidos</th><th className="p-3">Último ingreso</th>{canManageReception && <th className="p-3">Acción</th>}
-            </tr></thead>
-            <tbody className="divide-y">{attendees.map(attendee => <tr key={attendee.id}>
-              <td className="p-3 font-semibold">{attendee.nombre}</td><td className="p-3">{attendee.evento.nombre}</td><td className="p-3">{attendee.grupo || "—"}</td><td className="p-3">{attendee.pases_ingresados}</td><td className="p-3">{attendee.pases_confirmados ?? attendee.pases_asignados}</td><td className="whitespace-nowrap p-3">{new Date(attendee.ultima_entrada_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}</td>{canManageReception && <td className="p-3"><button onClick={() => undoEntry(attendee)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50"><Undo2 className="h-3.5 w-3.5" /> Revertir</button></td>}
-            </tr>)}</tbody>
+            <thead className="bg-stone-50 text-xs text-stone-500">
+              <tr>
+                <th className="p-3">Invitado</th>
+                <th className="p-3">Evento</th>
+                <th className="p-3">Grupo</th>
+                <th className="p-3">Ingresaron</th>
+                <th className="p-3">Permitidos</th>
+                <th className="p-3">Último ingreso</th>
+                {canManageReception && <th className="p-3">Acción</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {attendees.map((attendee) => (
+                <tr key={attendee.id}>
+                  <td className="p-3 font-semibold">{attendee.nombre}</td>
+                  <td className="p-3">{attendee.evento.nombre}</td>
+                  <td className="p-3">{attendee.grupo || "—"}</td>
+                  <td className="p-3">{attendee.pases_ingresados}</td>
+                  <td className="p-3">
+                    {attendee.pases_confirmados ?? attendee.pases_asignados}
+                  </td>
+                  <td className="whitespace-nowrap p-3">
+                    {new Date(attendee.ultima_entrada_en).toLocaleString(
+                      "es-MX",
+                      { timeZone: "America/Mexico_City" },
+                    )}
+                  </td>
+                  {canManageReception && (
+                    <td className="p-3">
+                      <button
+                        onClick={() => undoEntry(attendee)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                      >
+                        <Undo2 className="h-3.5 w-3.5" /> Revertir
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
           </table>
-          {!attendees.length && !logsError && <p className="py-8 text-center text-sm text-stone-400">Aún no hay asistentes registrados. Escanea y confirma una entrada para registrarla.</p>}
+          {!attendees.length && !logsError && (
+            <p className="py-8 text-center text-sm text-stone-400">
+              Aún no hay asistentes registrados. Escanea y confirma una entrada
+              para registrarla.
+            </p>
+          )}
         </div>
         <div className="mt-4 flex items-center justify-end gap-4 text-sm">
-          <button disabled={logsLoading || page <= 1} onClick={() => setPage(value => value - 1)} className="disabled:opacity-40">Anterior</button>
-          <span>Página {page} de {pagination.total_pages}</span>
-          <button disabled={logsLoading || page >= pagination.total_pages} onClick={() => setPage(value => value + 1)} className="disabled:opacity-40">Siguiente</button>
+          <button
+            disabled={logsLoading || page <= 1}
+            onClick={() => setPage((value) => value - 1)}
+            className="disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          <span>
+            Página {page} de {pagination.total_pages}
+          </span>
+          <button
+            disabled={logsLoading || page >= pagination.total_pages}
+            onClick={() => setPage((value) => value + 1)}
+            className="disabled:opacity-40"
+          >
+            Siguiente
+          </button>
         </div>
       </section>
       <section className="rounded-3xl border border-[#ebd9c4] bg-white p-6">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl font-bold">Ingresos recientes</h2>
-          <AsyncButton loading={logsLoading} onClick={loadLogs} loadingText="Actualizando…">
+          <AsyncButton
+            loading={logsLoading}
+            onClick={loadLogs}
+            loadingText="Actualizando…"
+          >
             <RefreshCw className="h-4 w-4" />
           </AsyncButton>
         </div>

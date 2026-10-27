@@ -109,6 +109,14 @@ export async function PUT(
         );
       }
 
+      if (user.rol !== "admin" && invitado.evento.limite_pases && nuevoAsignados > invitado.pases_asignados) {
+        const assigned = await prisma.invitado.aggregate({ where: { evento_id: invitado.evento_id }, _sum: { pases_asignados: true } });
+        const nextTotal = (assigned._sum.pases_asignados || 0) - invitado.pases_asignados + nuevoAsignados;
+        if (nextTotal > invitado.evento.limite_pases) {
+          return NextResponse.json({ error: `No puedes aumentar esos pases. El límite contratado es ${invitado.evento.limite_pases}.` }, { status: 403 });
+        }
+      }
+
       updateData.pases_asignados = nuevoAsignados;
 
       // Después del ingreso, la ampliación hecha por la anfitriona autoriza

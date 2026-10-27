@@ -4,18 +4,20 @@ import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
 import AsyncButton from "@/components/AsyncButton";
 import LoadingLink from "@/components/LoadingLink";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, Fragment, useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
+  Crown,
   Edit3,
   ExternalLink,
   KeyRound,
   Mail,
   MapPin,
   LoaderCircle,
+  ListFilter,
   Palette,
   Plus,
   ShieldCheck,
@@ -49,7 +51,9 @@ interface EventoCliente {
   fecha_evento: string;
   lugar: string;
   capacidad_total: number | null;
+  limite_pases: number | null;
   fecha_limite_rsvp: string;
+  estado: string;
   configuracion_invitacion?: {
     tipo?: string;
     system?: { eventType?: string };
@@ -58,6 +62,7 @@ interface EventoCliente {
 }
 
 interface UsuarioCliente {
+  lector_qr_habilitado: boolean;
   id: string;
   nombre: string;
   email: string;
@@ -65,11 +70,12 @@ interface UsuarioCliente {
   creado_en: string;
   eliminado_en: string | null;
   organizacion_id: string | null;
-  organizacion: { nombre: string } | null;
+  organizacion: { nombre: string; usuarios: { nombre: string }[] } | null;
   eventos: EventoCliente[];
 }
 
 interface FormState {
+  qrEnabled: boolean;
   nombre: string;
   email: string;
   password: string;
@@ -80,9 +86,18 @@ interface FormState {
   fechaEvento: string;
   lugar: string;
   tipoEvento: EventType;
+  limitePases: string;
+}
+
+interface LimitesCuenta {
+  clientes_usados: number;
+  clientes_maximos: number;
+  eventos_usados: number;
+  eventos_maximos: number;
 }
 
 const emptyForm: FormState = {
+  qrEnabled: false,
   nombre: "",
   email: "",
   password: "",
@@ -93,6 +108,7 @@ const emptyForm: FormState = {
   fechaEvento: "",
   lugar: "",
   tipoEvento: "boda",
+  limitePases: "200",
 };
 
 function slugify(value: string) {
@@ -118,7 +134,7 @@ function minimumEventDate() {
 export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boolean }) {
   const [usuarios, setUsuarios] = useState<UsuarioCliente[]>([]);
   const [usuariosEliminados, setUsuariosEliminados] = useState<UsuarioCliente[]>([]);
-  const [onlyDirect, setOnlyDirect] = useState(false);
+  const [clientFilter, setClientFilter] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -131,6 +147,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
     useState<UsuarioCliente | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [limites, setLimites] = useState<LimitesCuenta | null>(null);
 
   const loadUsuarios = useCallback(async () => {
     try {
@@ -141,6 +158,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
         throw new Error(data.error || "No se pudieron cargar las cuentas.");
       setUsuarios(data.usuarios || []);
       setUsuariosEliminados(data.eliminados || []);
+      setLimites(data.limites || null);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -187,6 +205,10 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
   }, [clienteEliminar, deleting]);
 
   const openCreate = () => {
+    if (limites && (limites.clientes_usados >= limites.clientes_maximos || limites.eventos_usados >= limites.eventos_maximos)) {
+      setError("Alcanzaste el límite de clientes o eventos de tu capacidad contratada. Archiva uno antes de crear otra cuenta.");
+      return;
+    }
     setEditingId(null);
     const todayInMexico = toDateTimeInputValue(new Date()).slice(0, 10);
     const nextMidnight = new Date(`${todayInMexico}T00:00:00-06:00`);
@@ -214,6 +236,8 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
       fechaEvento: toDateTimeInputValue(evento.fecha_evento),
       lugar: evento.lugar,
       tipoEvento: getEventTypeFromConfig(evento.configuracion_invitacion),
+      limitePases: String(evento.limite_pases || 200),
+      qrEnabled: Boolean(usuario.lector_qr_habilitado),
     });
     setError(null);
     setModalOpen(true);
@@ -246,6 +270,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
 
     try {
       const payload = {
+        ...(isAdmin ? { qr_checkin_habilitado: form.qrEnabled } : {}),
         nombre: form.nombre,
         email: form.email,
         password: form.password,
@@ -257,6 +282,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
           fecha_evento: eventDateToIso(form.fechaEvento),
           lugar: form.lugar,
           tipo_evento: form.tipoEvento,
+          ...(isAdmin ? { limite_pases: Number(form.limitePases) } : {}),
         },
       };
       const response = await fetch(
@@ -341,6 +367,40 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
     );
   }
 
+  const clientGroupKey = (usuario: UsuarioCliente) =>
+    !usuario.organizacion_id || usuario.organizacion_id === DIRECT_ORGANIZATION_ID
+      ? "directos"
+      : usuario.organizacion_id;
+  const organizationLabel = (usuario: UsuarioCliente) => {
+    const company = usuario.organizacion?.nombre || "Sin empresa";
+    const organizer = usuario.organizacion?.usuarios?.[0]?.nombre;
+    return organizer ? `${company} — ${organizer}` : company;
+  };
+  const organizationOptions = Array.from(
+    new Map(
+      usuarios
+        .filter(usuario => clientGroupKey(usuario) !== "directos")
+        .map(usuario => [usuario.organizacion_id!, organizationLabel(usuario)]),
+    ),
+  ).sort((a, b) => a[1].localeCompare(b[1], "es"));
+  const clientesFiltrados = !isAdmin || clientFilter === "todos"
+    ? usuarios
+    : usuarios.filter(usuario => clientGroupKey(usuario) === clientFilter);
+  const clientesOrdenados = isAdmin
+    ? [...clientesFiltrados].sort((a, b) => {
+        const groupA = clientGroupKey(a);
+        const groupB = clientGroupKey(b);
+        if (groupA === "directos" && groupB !== "directos") return -1;
+        if (groupB === "directos" && groupA !== "directos") return 1;
+        return organizationLabel(a).localeCompare(organizationLabel(b), "es");
+      })
+    : clientesFiltrados;
+  const clientesPorGrupo = clientesOrdenados.reduce<Record<string, number>>((counts, usuario) => {
+    const key = clientGroupKey(usuario);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+
   return (
     <div className="space-y-7">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -361,17 +421,36 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e05a1b] px-5 py-3 text-xs font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-[#c94d14]"
+          disabled={Boolean(limites && (limites.clientes_usados >= limites.clientes_maximos || limites.eventos_usados >= limites.eventos_maximos))}
+          title={limites && (limites.clientes_usados >= limites.clientes_maximos || limites.eventos_usados >= limites.eventos_maximos) ? "Límite de capacidad alcanzado" : undefined}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e05a1b] px-5 py-3 text-xs font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-[#c94d14] disabled:cursor-not-allowed disabled:bg-stone-300 disabled:shadow-none"
         >
           <Plus className="h-4 w-4" />
           Nueva clienta
         </button>
       </header>
 
-      {isAdmin && <label className="flex items-center gap-2 text-sm text-stone-600">
-        <input type="checkbox" checked={onlyDirect} onChange={event => setOnlyDirect(event.target.checked)} />
-        Mostrar únicamente clientes directos
-      </label>}
+      {limites && (
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${limites.clientes_usados >= limites.clientes_maximos || limites.eventos_usados >= limites.eventos_maximos ? "border-amber-200 bg-amber-50 text-amber-900" : "border-[#eadbca] bg-white text-stone-600"}`}>
+          <strong className="text-[#2b211b]">Uso de capacidad:</strong>{" "}
+          {limites.clientes_usados} de {limites.clientes_maximos} clientes · {limites.eventos_usados} de {limites.eventos_maximos} eventos activos
+          {(limites.clientes_usados >= limites.clientes_maximos || limites.eventos_usados >= limites.eventos_maximos) && <span className="mt-1 block text-xs">Para crear otra clienta, primero archiva una cuenta o libera un evento activo.</span>}
+        </div>
+      )}
+
+      {isAdmin && usuarios.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-[#eadbca] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6efe7] text-[#d65318]"><ListFilter className="h-4 w-4" /></div>
+            <div><p className="text-sm font-bold text-[#2b211b]">Filtrar clientes</p><p className="text-xs text-stone-500">Muestra únicamente el grupo con el que deseas trabajar.</p></div>
+          </div>
+          <select value={clientFilter} onChange={event => setClientFilter(event.target.value)} className="w-full rounded-xl border border-[#decfbe] bg-[#fbf8f4] px-4 py-2.5 text-sm font-semibold text-stone-700 outline-none focus:ring-2 focus:ring-[#e05a1b] sm:w-72">
+            <option value="todos">Todos los clientes ({usuarios.length})</option>
+            <option value="directos">Clientes directos ({usuarios.filter(usuario => clientGroupKey(usuario) === "directos").length})</option>
+            {organizationOptions.map(([id, name]) => <option key={id} value={id}>{name} ({usuarios.filter(usuario => usuario.organizacion_id === id).length})</option>)}
+          </select>
+        </div>
+      )}
 
       {success && (
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -386,18 +465,18 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
       )}
 
       <section className="grid gap-4 lg:grid-cols-2">
-        {usuarios.length === 0 ? (
+        {clientesOrdenados.length === 0 ? (
           <div className="col-span-full rounded-3xl border border-dashed border-[#dfcbb5] bg-white p-12 text-center">
             <Users className="mx-auto h-10 w-10 text-[#d6ad83]" />
             <h2 className="mt-4 font-serif text-xl font-bold text-[#2b211b]">
-              Aún no hay clientas
+              {usuarios.length === 0 ? "Aún no hay clientas" : "No hay clientes en este grupo"}
             </h2>
             <p className="mt-2 text-sm text-stone-500">
-              Crea la primera cuenta junto con los datos de su evento.
+              {usuarios.length === 0 ? "Crea la primera cuenta junto con los datos de su evento." : "Selecciona otro grupo para consultar sus clientes."}
             </p>
           </div>
         ) : (
-          usuarios.filter(usuario => !onlyDirect || !usuario.organizacion_id || usuario.organizacion_id === DIRECT_ORGANIZATION_ID).map((usuario) => {
+          clientesOrdenados.map((usuario, index) => {
             const evento = usuario.eventos[0];
             const eventType = evento
               ? getEventTypeFromConfig(evento.configuracion_invitacion)
@@ -406,9 +485,23 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
             const eventoFinalizado = evento
               ? isEventFinished(evento.fecha_evento)
               : false;
+            const groupKey = clientGroupKey(usuario);
+            const previousGroupKey = index > 0 ? clientGroupKey(clientesOrdenados[index - 1]) : null;
+            const showGroupHeader = isAdmin && groupKey !== previousGroupKey;
+            const isDirect = groupKey === "directos";
             return (
+              <Fragment key={usuario.id}>
+              {showGroupHeader && (
+                <div className={`col-span-full mt-2 flex flex-col gap-2 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${isDirect ? "border-orange-200 bg-orange-50" : "border-emerald-200 bg-emerald-50"}`}>
+                  <div>
+                    <p className={`text-[10px] font-bold uppercase tracking-[.18em] ${isDirect ? "text-orange-700" : "text-emerald-700"}`}>{isDirect ? "Gestión interna" : "Organizador"}</p>
+                    <h2 className="mt-1 font-serif text-xl font-bold text-[#2b211b]">{isDirect ? "Clientes directos de Monarque" : organizationLabel(usuario)}</h2>
+                    <p className="mt-1 text-xs text-stone-600">{isDirect ? "Cuentas atendidas directamente por la administración de Monarque." : "Clientes administrados por esta empresa organizadora."}</p>
+                  </div>
+                  <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-sm">{clientesPorGrupo[groupKey]} {clientesPorGrupo[groupKey] === 1 ? "cliente" : "clientes"}</span>
+                </div>
+              )}
               <article
-                key={usuario.id}
                 className="overflow-hidden rounded-3xl border border-[#eadbca] bg-white shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4 border-b border-[#f3e9de] p-5">
@@ -427,7 +520,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                       <h2 className="truncate font-serif text-lg font-bold text-[#2b211b]">
                         {usuario.nombre}
                       </h2>
-                      {isAdmin && <p className="mb-1 text-[11px] font-semibold text-emerald-700">{usuario.organizacion?.nombre || "Sin organizador"}</p>}
+                      {isAdmin && <p className={`mb-1 text-[11px] font-semibold ${isDirect ? "text-orange-700" : "text-emerald-700"}`}>{isDirect ? "Cliente directo" : `Organización: ${organizationLabel(usuario)}`}</p>}
                       <p className="flex items-center gap-1.5 truncate text-xs text-stone-500">
                         <Mail className="h-3.5 w-3.5 shrink-0" />
                         {usuario.email}
@@ -484,6 +577,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                         <span className="rounded-full bg-[#f6efe7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9a653f]">
                           {evento._count.invitados} invitados
                         </span>
+                        {isDirect && evento.limite_pases && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Límite: {evento.limite_pases} pases</span>}
                       </div>
                     </div>
                     <p className="flex items-start gap-2">
@@ -520,6 +614,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                   </p>
                 )}
               </article>
+              </Fragment>
             );
           })
         )}
@@ -694,6 +789,21 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                           className={inputClass}
                         />
                       </Field>
+                      {isAdmin && (!editingId || usuarios.find(usuario => usuario.id === editingId)?.organizacion_id === DIRECT_ORGANIZATION_ID) && (
+                        <div className="sm:col-span-2">
+                          <p className="mb-2 text-xs font-bold">Complementos</p>
+                          <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${form.qrEnabled ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-stone-50"}`}>
+                            <input type="checkbox" checked={form.qrEnabled} onChange={event => setForm(current => ({ ...current, qrEnabled: event.target.checked }))}/>
+                            <Crown className="h-5 w-5 shrink-0 text-amber-600"/>
+                            <span><strong className="block text-sm">Control de acceso QR</strong><small className="text-stone-500">Complemento opcional para esta clienta.</small></span>
+                          </label>
+                        </div>
+                      )}
+                      {isAdmin && (!editingId || usuarios.find(usuario => usuario.id === editingId)?.organizacion_id === DIRECT_ORGANIZATION_ID) && (
+                        <Field label="Límite de pases contratado" hint="Solo el administrador puede modificarlo" required>
+                          <input type="number" min={1} step={1} value={form.limitePases} onWheel={(event) => event.currentTarget.blur()} onChange={(e) => updateField("limitePases", e.target.value)} required className={inputClass} />
+                        </Field>
+                      )}
                     </div>
                   </div>
 

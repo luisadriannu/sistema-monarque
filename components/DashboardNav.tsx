@@ -21,7 +21,7 @@ import {
   UserRoundCheck,
   KeyRound,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import EventTypeIcon from "@/components/EventTypeIcon";
 import type { EventType } from "@/lib/event-theme";
@@ -52,13 +52,16 @@ export default function DashboardNav({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [qrEnabled, setQrEnabled] = useState(qrCheckinEnabled);
+  const permissionRefresh = useRef({ last: 0, pending: false });
 
   useEffect(() => setQrEnabled(qrCheckinEnabled), [qrCheckinEnabled]);
   useEffect(() => {
     if (!["organizador", "recepcionista"].includes(user.rol)) return;
     let active = true;
     const refreshPermission = async () => {
-      if (document.visibilityState === "hidden") return;
+      if (document.visibilityState === "hidden" || permissionRefresh.current.pending || Date.now() - permissionRefresh.current.last < 60000) return;
+      permissionRefresh.current.pending = true;
+      permissionRefresh.current.last = Date.now();
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         if (!response.ok) return;
@@ -69,6 +72,8 @@ export default function DashboardNav({
         ));
       } catch {
         // Conserva el último permiso conocido durante una interrupción de red.
+      } finally {
+        permissionRefresh.current.pending = false;
       }
     };
     void refreshPermission();
@@ -79,7 +84,7 @@ export default function DashboardNav({
       window.removeEventListener("focus", refreshPermission);
       document.removeEventListener("visibilitychange", refreshPermission);
     };
-  }, [user.rol, pathname]);
+  }, [user.rol]);
 
   // Las clientas solo ven las herramientas de su evento. La administración
   // de cuentas se muestra exclusivamente a usuarios con rol admin.
