@@ -58,7 +58,6 @@ export default function DashboardNav({
     if (!["organizador", "recepcionista"].includes(user.rol)) return;
     let active = true;
     const refreshPermission = async () => {
-      if (document.visibilityState === "hidden") return;
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         if (!response.ok) return;
@@ -72,12 +71,8 @@ export default function DashboardNav({
       }
     };
     void refreshPermission();
-    window.addEventListener("focus", refreshPermission);
-    document.addEventListener("visibilitychange", refreshPermission);
     return () => {
       active = false;
-      window.removeEventListener("focus", refreshPermission);
-      document.removeEventListener("visibilitychange", refreshPermission);
     };
   }, [user.rol, pathname]);
 

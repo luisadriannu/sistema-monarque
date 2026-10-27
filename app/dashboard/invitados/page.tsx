@@ -4,7 +4,7 @@ import AsyncButton from "@/components/AsyncButton";
 import FloatingMenu from "@/components/FloatingMenu";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
@@ -78,6 +78,7 @@ type Toast = {
 };
 
 function InvitadosContent() {
+  const router = useRouter();
   const { confirmDialog, notify, dialog } = usePanelDialog();
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
@@ -256,15 +257,6 @@ function InvitadosContent() {
     fetchInvitados();
   }, [fetchInvitados]);
 
-  useEffect(() => {
-    if (!qrCheckinEnabled) return;
-    const refreshOnFocus = () => {
-      if (document.visibilityState === "visible") void fetchInvitados();
-    };
-    window.addEventListener("focus", refreshOnFocus);
-    return () => window.removeEventListener("focus", refreshOnFocus);
-  }, [fetchInvitados, qrCheckinEnabled]);
-
   // Si cambia el evento consultado, ocultamos inmediatamente cualquier acción
   // mutable hasta validar los permisos del nuevo evento.
   useEffect(() => {
@@ -379,7 +371,7 @@ function InvitadosContent() {
     try {
       if (
         !(await confirmDialog(
-          `¿Seguro que deseas regenerar el link para ${invitado.nombre}? El link anterior dejará de funcionar de inmediato.`,
+          `¿Regenerar el enlace de ${invitado.nombre}? El enlace y QR anteriores dejarán de funcionar. Su estado volverá a Pendiente, se borrará su confirmación y tendrás que compartir el nuevo enlace. Los ingresos registrados en recepción se conservarán.`,
         ))
       )
         return;
@@ -393,6 +385,7 @@ function InvitadosContent() {
         throw new Error(data.error || "No se pudo regenerar el enlace.");
       await fetchInvitados();
       notify(data.message || "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.");
+      router.refresh();
     } catch (error) {
       setToast({
         type: "error",

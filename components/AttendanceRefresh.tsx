@@ -1,27 +1,19 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 
 export default function AttendanceRefresh() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible" && !pending) {
-        startTransition(() => router.refresh());
-      }
-    };
-    const interval = window.setInterval(refresh, 15000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [router, pending]);
-
-  return null;
+  return (
+    <button type="button" disabled={pending} aria-busy={pending}
+      onClick={() => startTransition(() => router.refresh())}
+      className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+      <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${pending ? "animate-spin" : ""}`} />
+      {pending ? "Actualizando…" : "Actualizar asistencia"}
+    </button>
+  );
 }

@@ -177,6 +177,7 @@ test("Ver invitados navega una sola vez, indica carga y vuelve a habilitarse al 
   const h = harness("components/LoadingLink.tsx");
   const props = { href: "/dashboard/invitados?evento_id=prueba", children: "Ver invitados" };
   const link = h.render(props); h.effects();
+  assert.equal(link.props.prefetch, false);
   link.props.onClick(event()); link.props.onClick(event());
   assert.deepEqual(h.pushes, [props.href]);
   assert.equal(h.render(props).props["aria-busy"], true);

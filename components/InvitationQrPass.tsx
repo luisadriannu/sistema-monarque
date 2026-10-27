@@ -33,7 +33,7 @@ export default function InvitationQrPass({
     let inFlight = false;
     let controller: AbortController | null = null;
     const check = async () => {
-      if (!active || inFlight || document.visibilityState !== "visible") return;
+      if (!active || inFlight) return;
       inFlight = true;
       controller = new AbortController();
       try {
@@ -48,21 +48,15 @@ export default function InvitationQrPass({
         if (active && data.confirmado === true && typeof data.qrImage === "string") setQrImage(data.qrImage);
         if (active && data.escaneado === true) setScanned(true);
       } catch {
-        // Conserva el pase y reintenta ante una interrupción temporal de red.
+        // Conserva el estado actual si falla la carga del pase.
       } finally { inFlight = false; }
     };
     // La página del servidor ya entrega el estado actual. Solo pedimos el QR
-    // aquí cuando acaba de confirmarse sin recargar, o al regresar a la pestaña.
+    // aquí cuando acaba de confirmarse sin recargar y falta la imagen.
     if (!qrImage) void check();
-    const onVisibility = () => { if (document.visibilityState === "visible") void check(); };
-    const onFocus = () => { void check(); };
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onFocus);
     return () => {
       active = false;
       controller?.abort();
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onFocus);
     };
   }, [token, scanned, unavailable, confirmed, qrImage]);
 
