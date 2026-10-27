@@ -1,3 +1,5 @@
+import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
+import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma-client-v3";
@@ -12,6 +14,7 @@ export async function GET() {
   if (user?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });
 
   const all = await prisma.organizacion.findMany({
+    where: { id: { not: DIRECT_ORGANIZATION_ID } },
     include: {
       usuarios: {
         where: { rol: "organizador" },
@@ -34,6 +37,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const nombre = String(body.nombre || "").trim();
+    if (!isValidName(nombre)) return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
     const negocio = String(body.negocio || nombre).trim();
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");

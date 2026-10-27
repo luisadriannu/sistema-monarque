@@ -40,6 +40,71 @@ function harness(file) {
 
 const event = (extras = {}) => ({ button: 0, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extras });
 
+test("Guardar la fecha límite renueva la caché del resumen únicamente si el servidor confirma el cambio", async () => {
+  for (const success of [true, false]) {
+    const states = [], refs = [], effects = [];
+    let stateIndex = 0, refIndex = 0, refreshes = 0, submitted;
+    const stored = { id: "event", nombre: "Evento", fecha_evento: "2099-01-01T18:00:00Z", fecha_limite_rsvp: "2000-01-01T23:59:59-06:00", estado: "publicado", modo_ingreso: "parcial", recepcion_abre_en: null, recepcion_cierra_en: null };
+    const react = {
+      Suspense: "suspense",
+      useState: initial => {
+        const index = stateIndex++;
+        if (!(index in states)) states[index] = initial;
+        return [states[index], value => { states[index] = typeof value === "function" ? value(states[index]) : value; }];
+      },
+      useRef: initial => { const index = refIndex++; return refs[index] ||= { current: initial }; },
+      useEffect: callback => effects.push(callback),
+    };
+    const mocks = {
+      react,
+      "next/navigation": { useSearchParams: () => new URLSearchParams(), useRouter: () => ({ refresh: () => refreshes++ }) },
+      "motion/react": { AnimatePresence: "div", motion: { div: "div" } },
+      "@/components/AsyncButton": "button",
+      "@/components/DashboardLoader": "div",
+    };
+    const globals = {
+      window: { setInterval: () => 1, clearInterval: () => {}, addEventListener: () => {}, removeEventListener: () => {} },
+      setTimeout: () => 1,
+      fetch: async (_url, options) => {
+        if (options?.method !== "PUT") return Response.json({ eventos: [stored], permisos: {} });
+        submitted = JSON.parse(options.body);
+        return success ? Response.json({ ok: true, evento: { ...stored, ...submitted } }) : Response.json({ error: "No se pudo guardar" }, { status: 500 });
+      },
+    };
+    const load = file => {
+      const exports = {};
+      const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), {
+        compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
+      }).outputText;
+      vm.runInNewContext(code, { exports, Date, console, ...globals,
+        require: name => Object.hasOwn(mocks, name) ? mocks[name] : name.startsWith("@/lib/") ? load(name.slice(2) + ".ts") : require(name),
+      });
+      return exports;
+    };
+    const Content = load("app/dashboard/configuracion/page.tsx").default().props.children.type;
+    const render = () => { stateIndex = 0; refIndex = 0; return Content(); };
+    const find = (node, predicate) => {
+      if (!node) return null;
+      if (Array.isArray(node)) return node.map(child => find(child, predicate)).find(Boolean);
+      if (typeof node !== "object") return null;
+      return predicate(node) ? node : find(node.props?.children, predicate);
+    };
+    render();
+    effects.splice(0).forEach(callback => callback());
+    await new Promise(setImmediate);
+    const date = find(render(), node => node.type === "input" && node.props.type === "date");
+    date.props.onChange({ target: { value: "2098-12-30" } });
+    await find(render(), node => node.type === "form").props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted.fecha_limite_rsvp, "2098-12-31T05:59:59.999Z");
+    assert.equal(refreshes, success ? 1 : 0);
+    if (success) {
+      assert.equal(states.some(value => value && typeof value === "object" && value.fecha_limite_rsvp === submitted.fecha_limite_rsvp), true);
+    } else {
+      assert.equal(states.includes("No se pudo guardar"), true);
+    }
+  }
+});
+
 function menuPosition() {
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "../lib/floating-menu.ts"), "utf8"), {

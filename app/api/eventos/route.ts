@@ -1,9 +1,10 @@
+import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { isEventFinished, toDateInputValue } from "@/lib/utils";
+import { isEventFinished, toDateInputValue, toDateTimeInputValue } from "@/lib/utils";
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -11,9 +12,10 @@ export async function GET() {
 
   // RF-02: Cada clienta solo puede ver los datos de su propio evento.
   const whereClause = user.rol === "admin" ? {} : { usuario_id: user.id };
+  const eventId = new URL(request.url).searchParams.get("evento_id");
 
   const eventos = await prisma.evento.findMany({
-    where: whereClause,
+    where: { ...whereClause, ...(eventId ? { id: eventId } : {}) },
     include: {
       _count: {
         select: { invitados: true },
@@ -25,7 +27,8 @@ export async function GET() {
   return NextResponse.json({
     eventos,
     permisos: {
-      qr_checkin_habilitado: Boolean(user.organizacion?.qr_checkin_habilitado),
+      qr_checkin_habilitado: user.rol === "admin" || Boolean(user.organizacion?.qr_checkin_habilitado),
+      administrador: user.rol === "admin",
     },
   });
 }
@@ -59,6 +62,8 @@ export async function PUT(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "ID del evento requerido." }, { status: 400 });
     }
+
+    if (anfitriones !== undefined && !isValidName(anfitriones)) return NextResponse.json({ error: "Anfitriones: " + NAME_ERROR }, { status: 400 });
 
     // Verificar pertenencia (RF-02)
     const existing = await prisma.evento.findUnique({
@@ -95,13 +100,24 @@ export async function PUT(request: Request) {
 
     const allowedClientStates = ["borrador", "publicado", "cancelado", "archivado"];
     const nextState = estado && allowedClientStates.includes(estado) ? estado : undefined;
-    const nextEntryMode = modo_ingreso === "parcial" ? "parcial" : modo_ingreso === "unico" ? "unico" : undefined;
+    const nextEntryMode = user.rol === "clienta" ? "parcial" : modo_ingreso === "parcial" ? "parcial" : modo_ingreso === "unico" ? "unico" : undefined;
     const receptionOpens = recepcion_abre_en ? new Date(recepcion_abre_en) : recepcion_abre_en === null ? null : undefined;
     const receptionCloses = recepcion_cierra_en ? new Date(recepcion_cierra_en) : recepcion_cierra_en === null ? null : undefined;
     if (receptionOpens instanceof Date && Number.isNaN(receptionOpens.getTime()) || receptionCloses instanceof Date && Number.isNaN(receptionCloses.getTime())) {
       return NextResponse.json({ error: "La ventana de recepción no es válida." }, { status: 400 });
     }
-    if (receptionOpens && receptionCloses && receptionOpens >= receptionCloses) {
+    const now = Date.now();
+    for (const [value, original, label] of [
+      [receptionOpens, existing.recepcion_abre_en, "apertura"],
+      [receptionCloses, existing.recepcion_cierra_en, "cierre"],
+    ] as const) {
+      if (value && value.getTime() <= now && toDateTimeInputValue(value) !== toDateTimeInputValue(original)) {
+        return NextResponse.json({ error: `La fecha y hora de ${label} programado deben ser futuras.`, code: "RECEPTION_DATE_PAST" }, { status: 400 });
+      }
+    }
+    const effectiveOpens = receptionOpens === undefined ? existing.recepcion_abre_en : receptionOpens;
+    const effectiveCloses = receptionCloses === undefined ? existing.recepcion_cierra_en : receptionCloses;
+    if (effectiveOpens && effectiveCloses && effectiveOpens >= effectiveCloses) {
       return NextResponse.json({ error: "La hora de cierre debe ser posterior a la apertura de recepción." }, { status: 400 });
     }
 

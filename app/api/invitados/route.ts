@@ -1,3 +1,4 @@
+import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -105,14 +106,13 @@ export async function GET(request: Request) {
 
   for (const inv of todosInvitados) {
     total_asignados += inv.pases_asignados;
+    total_ingresados += inv.pases_ingresados;
+    if (inv.pases_ingresados > 0) familias_ingresadas += 1;
 
     if (inv.estado === "confirmado") {
       const conf = inv.pases_confirmados || 0;
       total_confirmados += conf;
-      const ingresados = Math.min(conf, inv.pases_ingresados || 0);
-      total_ingresados += ingresados;
-      confirmados_pendientes_ingreso += Math.max(0, conf - ingresados);
-      if (ingresados > 0) familias_ingresadas += 1;
+      confirmados_pendientes_ingreso += Math.max(0, conf - inv.pases_ingresados);
       // Pases liberados: si le dieron 4 pero confirmó 2, se liberaron 2
       pases_liberados += Math.max(0, inv.pases_asignados - conf);
     } else if (inv.estado === "declinado") {
@@ -207,7 +207,7 @@ export async function GET(request: Request) {
         total,
         total_pages: totalPages,
       },
-      solo_lectura: user.rol === "admin" || isEventFinished(evento.fecha_evento),
+      solo_lectura: user.rol !== "admin" && isEventFinished(evento.fecha_evento),
       vista_admin: user.rol === "admin",
       permisos: {
         qr_checkin_habilitado: Boolean(evento.usuario.organizacion?.qr_checkin_habilitado),
@@ -260,7 +260,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) {
+    if (user.rol !== "admin" && evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) {
       return NextResponse.json({ error: organizationBlockMessage(evento.usuario.organizacion) }, { status: 403 });
     }
 
@@ -280,12 +280,14 @@ export async function POST(request: Request) {
       ? invitados.filter(item => String(item?.nombre || "").trim()).length
       : 1;
     const guestLimit = evento.usuario.organizacion?.max_invitados_evento;
-    if (guestLimit && currentGuestCount + incomingCount > guestLimit) {
+    if (user.rol !== "admin" && guestLimit && currentGuestCount + incomingCount > guestLimit) {
       return NextResponse.json({ error: `El plan permite hasta ${guestLimit} invitados por evento. Actualmente hay ${currentGuestCount}.` }, { status: 403 });
     }
 
     // Manejo de importación masiva (RF-10)
     if (bulk && Array.isArray(invitados)) {
+      const invalidIndex = invitados.findIndex(item => !isValidName(item?.nombre));
+      if (invalidIndex !== -1) return NextResponse.json({ error: `Invitado ${invalidIndex + 1}: ${NAME_ERROR}` }, { status: 400 });
       const creados = [];
       for (const item of invitados) {
         const nombreLimpio = String(item.nombre || "").trim();
@@ -319,9 +321,9 @@ export async function POST(request: Request) {
     const nombreLimpio = String(nombre || "").trim();
     const pasesNum = Number(pases_asignados);
 
-    if (!nombreLimpio) {
+    if (!isValidName(nombreLimpio)) {
       return NextResponse.json(
-        { error: "El nombre del invitado o familia es obligatorio." },
+        { error: NAME_ERROR },
         { status: 400 }
       );
     }

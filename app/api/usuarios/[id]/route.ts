@@ -1,3 +1,5 @@
+import { canManageAccounts, accountScope } from "@/lib/management-access";
+import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma-client-v3";
@@ -30,9 +32,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const organizer = await getCurrentUser();
-  if (!organizer || organizer.rol !== "organizador" || !organizer.organizacion_id) {
+  if (!canManageAccounts(organizer)) {
     return NextResponse.json(
-      { error: "Acceso exclusivo para organizadores." },
+      { error: "Acceso exclusivo para administradores y organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
   }
@@ -53,7 +55,7 @@ export async function PUT(
       },
     });
 
-    if (!existing || existing.eliminado_en || existing.rol !== "clienta" || existing.organizacion_id !== organizer.organizacion_id) {
+    if (!existing || existing.eliminado_en || existing.rol !== "clienta" || (organizer.rol !== "admin" && existing.organizacion_id !== organizer.organizacion_id)) {
       return NextResponse.json(
         { error: "La cuenta de la clienta no existe." },
         { status: 404, headers: noStoreHeaders },
@@ -61,6 +63,7 @@ export async function PUT(
     }
 
     const nombre = String(body.nombre || "").trim();
+    if (!isValidName(nombre)) return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
     const evento = body.evento || {};
@@ -88,6 +91,7 @@ export async function PUT(
 
     const nombreEvento = String(evento.nombre || "").trim();
     const anfitriones = String(evento.anfitriones || "").trim();
+    if (!isValidName(anfitriones)) return NextResponse.json({ error: "Anfitriones: " + NAME_ERROR }, { status: 400 });
     const slug = normalizeSlug(evento.slug);
     const lugar = String(evento.lugar || "").trim();
     const fechaEvento = new Date(evento.fecha_evento);
@@ -188,13 +192,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const organizer = await getCurrentUser();
-  if (!organizer || organizer.rol !== "organizador" || !organizer.organizacion_id) {
-    return NextResponse.json({ error: "Acceso exclusivo para organizadores." }, { status: 403, headers: noStoreHeaders });
+  if (!canManageAccounts(organizer)) {
+    return NextResponse.json({ error: "Acceso exclusivo para administradores y organizadores." }, { status: 403, headers: noStoreHeaders });
   }
   const body = await request.json().catch(() => null);
   if (body?.action !== "restaurar") return NextResponse.json({ error: "Acción no válida." }, { status: 400, headers: noStoreHeaders });
   const { id } = await params;
-  const client = await prisma.usuario.findFirst({ where: { id, rol: "clienta", organizacion_id: organizer.organizacion_id }, select: { id: true } });
+  const client = await prisma.usuario.findFirst({ where: { id, rol: "clienta", ...accountScope(organizer) }, select: { id: true } });
   if (!client) return NextResponse.json({ error: "La cuenta no existe." }, { status: 404, headers: noStoreHeaders });
   await prisma.usuario.update({ where: { id }, data: { eliminado_en: null, session_version: { increment: 1 } } });
   return NextResponse.json({ ok: true, message: "Cliente restaurado correctamente." }, { headers: noStoreHeaders });
@@ -205,9 +209,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const organizer = await getCurrentUser();
-  if (!organizer || organizer.rol !== "organizador" || !organizer.organizacion_id) {
+  if (!canManageAccounts(organizer)) {
     return NextResponse.json(
-      { error: "Acceso exclusivo para organizadores." },
+      { error: "Acceso exclusivo para administradores y organizadores." },
       { status: 403, headers: noStoreHeaders },
     );
   }
@@ -220,15 +224,14 @@ export async function DELETE(
       select: { id: true, nombre: true, rol: true, organizacion_id: true },
     });
 
-    if (!cliente || cliente.rol !== "clienta" || cliente.organizacion_id !== organizer.organizacion_id) {
+    if (!cliente || cliente.rol !== "clienta" || (organizer.rol !== "admin" && cliente.organizacion_id !== organizer.organizacion_id)) {
       return NextResponse.json(
         { error: "La cuenta de la clienta no existe." },
         { status: 404, headers: noStoreHeaders },
       );
     }
 
-    // Evento e invitados se eliminan mediante las relaciones onDelete: Cascade
-    // definidas en Prisma, manteniendo la operación atómica en PostgreSQL.
+    // La papelera conserva los eventos e invitados y revoca la sesión de la clienta.
     await prisma.usuario.update({ where: { id: cliente.id }, data: { eliminado_en: new Date(), session_version: { increment: 1 } } });
 
     return NextResponse.json(

@@ -91,6 +91,9 @@ export default function DashboardNav({
             href: "/dashboard/usuarios",
             icon: UserCog,
           },
+          { label: "Clientes", href: "/dashboard/clientes", icon: Users },
+          { label: "Equipo de recepción", href: "/dashboard/equipo", icon: UserRoundCheck },
+          { label: "Escanear invitación", href: "/dashboard/escanear", icon: ScanLine },
         ]
       : user.rol === "organizador"
         ? [

@@ -1,3 +1,4 @@
+import { canManageAccounts, accountScope } from "@/lib/management-access";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -5,11 +6,11 @@ import { isOrganizationServiceActive, organizationBlockMessage } from "@/lib/org
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (user?.rol !== "organizador" || !user.organizacion_id || !user.organizacion) return NextResponse.json({ error: "Solo el organizador puede cambiar el estado de recepción." }, { status: 403 });
-  if (!isOrganizationServiceActive(user.organizacion)) return NextResponse.json({ error: organizationBlockMessage(user.organizacion) }, { status: 403 });
-  if (!user.organizacion.qr_checkin_habilitado) return NextResponse.json({ error: "El acceso QR no está habilitado." }, { status: 403 });
+  if (!canManageAccounts(user)) return NextResponse.json({ error: "Solo el administrador o el organizador pueden cambiar el estado de recepción." }, { status: 403 });
+  if (user.rol !== "admin" && (!user.organizacion || !isOrganizationServiceActive(user.organizacion))) return NextResponse.json({ error: organizationBlockMessage(user.organizacion!) }, { status: 403 });
+  if (user.rol !== "admin" && !user.organizacion?.qr_checkin_habilitado) return NextResponse.json({ error: "El acceso QR no está habilitado." }, { status: 403 });
   const { id } = await params;
-  const event = await prisma.evento.findFirst({ where: { id, usuario: { organizacion_id: user.organizacion_id, eliminado_en: null } } });
+  const event = await prisma.evento.findFirst({ where: { id, usuario: { ...accountScope(user), eliminado_en: null } } });
   if (!event) return NextResponse.json({ error: "Evento no encontrado." }, { status: 404 });
   const body = await request.json().catch(() => null);
   const action = body?.action;

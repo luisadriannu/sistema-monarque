@@ -52,6 +52,12 @@ body {
 
 /* Identidad visual del panel según el tipo de evento. Las variables se
    resuelven en el layout del dashboard y no afectan la invitación pública. */
+/* space-y-* aplica márgenes también a los overlays que son hijos de la página.
+   Un fondo fijo debe cubrir el viewport sin heredar ese espaciado. */
+.dashboard-theme [class~="fixed"][class~="inset-0"] {
+  margin: 0;
+}
+
 .dashboard-theme {
   --dashboard-accent: #e05a1b;
   --dashboard-accent-strong: #c2410c;

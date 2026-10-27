@@ -12,7 +12,7 @@ function loadSource(file, mocks, globals = {}) {
   }).outputText;
   const exports = {};
   vm.runInNewContext(source, {
-    exports, require: name => Object.hasOwn(mocks, name) ? mocks[name] : require(name),
+    exports, require: name => Object.hasOwn(mocks, name) ? mocks[name] : name.startsWith("@/lib/") ? loadSource(name.slice(2) + ".ts", mocks) : require(name),
     URL, Date, console, process, ...globals,
   }, { filename: file });
   return exports;
@@ -69,6 +69,111 @@ const request = (body, method = "POST") => new Request("http://localhost/api/ent
   method,
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body && typeof body === "object" ? { evento_id: "event-a", ...body } : body),
+});
+
+test("La clienta amplía de 10 a 15 después del ingreso y el nuevo QR suma solo 5", async () => {
+  const f = fixture();
+  Object.assign(f.guest, { pases_asignados: 10, pases_confirmados: 10, ninos_confirmados: 2 });
+  f.event.usuario_id = "client-a";
+  f.event.usuario.organizacion = f.organization;
+  f.prisma.invitado.findUnique = async ({ where }) =>
+    where.id === f.guest.id || where.codigo_entrada === f.guest.codigo_entrada || where.token === "token-a" ? { ...f.guest } : null;
+  f.prisma.invitado.update = async ({ data }) => {
+    const { pases_ingresados, ...rest } = data;
+    Object.assign(f.guest, rest);
+    if (pases_ingresados) f.guest.pases_ingresados += pases_ingresados.increment;
+    return { ...f.guest };
+  };
+  f.prisma.evento.findUnique = async () => f.event;
+  const mocks = { ...f.mocks,
+    "@/lib/tokens": { generateInvitationToken: () => "code-renovado" },
+    "@/lib/utils": { isEventFinished: () => false },
+  };
+  const scan = loadSource("app/api/entradas/route.ts", mocks);
+  assert.equal((await scan.POST(request({ codigo: "code-a", cantidad: 10 }))).status, 200);
+  const firstEntry = f.guest.ultima_entrada_en;
+  f.setUser({ id: "client-a", rol: "clienta", organizacion: f.organization });
+  const edit = loadSource("app/api/invitados/[id]/route.ts", mocks);
+  const edited = await edit.PUT(request({ pases_asignados: 15 }, "PUT"), { params: Promise.resolve({ id: f.guest.id }) });
+  assert.equal(edited.status, 200);
+  assert.equal(f.guest.pases_confirmados, 15);
+  assert.equal(f.guest.pases_ingresados, 10);
+  assert.equal(f.guest.ninos_confirmados, 2);
+  assert.equal(f.guest.ultima_entrada_en, firstEntry);
+  assert.equal(f.guest.escaneado_en, null);
+  const guests = loadSource("app/api/invitados/route.ts", mocks);
+  const kpis = async () => (await (await guests.GET(new Request("http://localhost/api/invitados?evento_id=event-a"))).json()).kpis;
+  assert.equal((await kpis()).total_ingresados, 10);
+  assert.equal((await kpis()).confirmados_pendientes_ingreso, 5);
+  const qr = loadSource("app/api/invitacion/entrada/route.ts", { ...mocks,
+    "@/lib/ratelimit": { checkRateLimit: () => true },
+    qrcode: { toDataURL: async payload => { assert.equal(payload, "monarque:entrada:code-renovado"); return "data:image/png;base64,nuevo"; } },
+  });
+  assert.equal((await (await qr.GET(new Request("http://localhost/api/invitacion/entrada?token=token-a&qr=1"))).json()).qrImage, "data:image/png;base64,nuevo");
+  f.setUser({ id: "organizer", rol: "organizador", organizacion_id: "org-a", organizacion: f.organization });
+  assert.equal((await scan.POST(request({ codigo: "code-a", cantidad: 5 }))).status, 404);
+  const additional = await scan.POST(request({ codigo: "code-renovado", cantidad: 5 }));
+  assert.equal(additional.status, 200);
+  assert.equal((await additional.json()).invitado.pases_ingresados, 15);
+  assert.equal((await scan.POST(request({ codigo: "code-renovado", cantidad: 5 }))).status, 409);
+  assert.deepEqual(f.logs.map(log => log.cantidad), [10, 5]);
+  const totals = await kpis();
+  assert.equal(totals.total_ingresados, 15);
+  assert.equal(totals.confirmados_pendientes_ingreso, 0);
+  assert.equal(totals.familias_ingresadas, 1);
+  // Cambiar la respuesta después no borra personas que ya llegaron.
+  f.guest.pases_confirmados = 8;
+  assert.equal((await kpis()).total_ingresados, 15);
+  f.guest.estado = "declinado";
+  assert.equal((await kpis()).total_ingresados, 15);
+  assert.equal((await kpis()).familias_ingresadas, 1);
+});
+
+test("Ampliar cupo antes del ingreso conserva la confirmación y después suma solo el incremento", async () => {
+  for (const entered of [0, 8]) {
+    const f = fixture();
+    Object.assign(f.guest, { pases_asignados: 10, pases_confirmados: 8, pases_ingresados: entered, ninos_confirmados: 2 });
+    f.prisma.invitado.findUnique = async () => ({ ...f.guest });
+    f.prisma.invitado.update = async ({ data }) => Object.assign(f.guest, data);
+    const edit = loadSource("app/api/invitados/[id]/route.ts", { ...f.mocks,
+      "@/lib/tokens": { generateInvitationToken: () => "nuevo" },
+      "@/lib/utils": { isEventFinished: () => false },
+    });
+    assert.equal((await edit.PUT(request({ pases_asignados: 15 }, "PUT"), { params: Promise.resolve({ id: f.guest.id }) })).status, 200);
+    assert.equal(f.guest.pases_confirmados, entered ? 13 : 8);
+    assert.equal(f.guest.pases_ingresados, entered);
+  }
+});
+
+test("El panel refresca cada 15 segundos, al volver y limpia sus suscripciones", () => {
+  const effects = [], windowListeners = {}, documentListeners = {};
+  let tick, delay, refreshes = 0, cleared;
+  const doc = { visibilityState: "visible", addEventListener: (name, fn) => { documentListeners[name] = fn; }, removeEventListener: name => { delete documentListeners[name]; } };
+  const component = loadSource("components/AttendanceRefresh.tsx", {
+    react: { useEffect: fn => effects.push(fn), useTransition: () => [false, fn => fn()] },
+    "next/navigation": { useRouter: () => ({ refresh: () => refreshes++ }) },
+  }, { document: doc, window: {
+    setInterval: (fn, ms) => { tick = fn; delay = ms; return 12; },
+    clearInterval: id => { cleared = id; },
+    addEventListener: (name, fn) => { windowListeners[name] = fn; },
+    removeEventListener: name => { delete windowListeners[name]; },
+  } });
+  component.default();
+  const cleanup = effects[0]();
+  assert.equal(delay, 15000);
+  tick();
+  assert.equal(refreshes, 1);
+  doc.visibilityState = "hidden";
+  tick();
+  assert.equal(refreshes, 1);
+  doc.visibilityState = "visible";
+  documentListeners.visibilitychange();
+  windowListeners.focus();
+  assert.equal(refreshes, 3);
+  cleanup();
+  assert.equal(cleared, 12);
+  assert.equal(windowListeners.focus, undefined);
+  assert.equal(documentListeners.visibilitychange, undefined);
 });
 
 test("El menú de una sesión abierta muestra y retira el escáner al cambiar premium", async () => {

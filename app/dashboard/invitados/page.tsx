@@ -1,4 +1,5 @@
 "use client";
+import { isValidName, lettersOnly, nameInputProps, NAME_ERROR } from "@/lib/names";
 import AsyncButton from "@/components/AsyncButton";
 import FloatingMenu from "@/components/FloatingMenu";
 
@@ -638,11 +639,11 @@ function InvitadosContent() {
 
       const pasesNum = parseInt(String(pasesRaw ?? "1"), 10);
       const valido = Boolean(
-        nombre.length > 0 && !isNaN(pasesNum) && pasesNum >= 1,
+        isValidName(nombre) && !isNaN(pasesNum) && pasesNum >= 1,
       );
 
       let error = undefined;
-      if (!nombre) error = "Nombre vacío";
+      if (!isValidName(nombre)) error = NAME_ERROR;
       else if (isNaN(pasesNum) || pasesNum < 1)
         error = "Pases inválidos (mínimo 1)";
 
@@ -675,7 +676,7 @@ function InvitadosContent() {
         pases: 2,
         grupo: "Amigos de Luis",
       },
-      { nombre: "Dra. Sofía Alarcón", pases: 1, grupo: "Colegas" },
+      { nombre: "Dra Sofía Alarcón", pases: 1, grupo: "Colegas" },
       {
         nombre: "Familia Treviño Morales",
         pases: 3,
@@ -1693,7 +1694,7 @@ function InvitadosContent() {
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
+              className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif text-xl font-bold text-stone-900">
@@ -1722,8 +1723,9 @@ function InvitadosContent() {
                     type="text"
                     required
                     placeholder="ej. Familia Gómez Pérez"
+                    {...nameInputProps}
                     value={formNombre}
-                    onChange={(e) => setFormNombre(e.target.value)}
+                    onChange={(e) => setFormNombre(lettersOnly(e.target.value))}
                     className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                   />
                 </div>
@@ -1835,7 +1837,7 @@ function InvitadosContent() {
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
+              className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif text-xl font-bold text-stone-900">
@@ -1863,8 +1865,9 @@ function InvitadosContent() {
                   <input
                     type="text"
                     required
+                    {...nameInputProps}
                     value={formNombre}
-                    onChange={(e) => setFormNombre(e.target.value)}
+                    onChange={(e) => setFormNombre(lettersOnly(e.target.value))}
                     className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                   />
                 </div>
@@ -1904,6 +1907,12 @@ function InvitadosContent() {
                     <p className="text-[11px] text-stone-500 mt-1">
                       Confirmados actualmente:{" "}
                       <strong>{modalEditar.pases_confirmados}</strong>.
+                    </p>
+                  )}
+
+                  {modalEditar.estado === "confirmado" && modalEditar.pases_ingresados > 0 && formPasesValido && formPasesNumero > modalEditar.pases_asignados && (
+                    <p className="mt-2 text-xs text-emerald-700">
+                      Se autorizarán {formPasesNumero - modalEditar.pases_asignados} pases adicionales y se generará un nuevo QR. Los {modalEditar.pases_ingresados} ingresos anteriores se conservarán. Abre de nuevo la invitación para obtener el QR actualizado.
                     </p>
                   )}
 

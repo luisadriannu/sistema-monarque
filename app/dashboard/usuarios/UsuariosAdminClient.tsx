@@ -1,4 +1,6 @@
 "use client";
+import { lettersOnly, nameInputProps } from "@/lib/names";
+import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
 import AsyncButton from "@/components/AsyncButton";
 import LoadingLink from "@/components/LoadingLink";
 
@@ -62,6 +64,8 @@ interface UsuarioCliente {
   rol: string;
   creado_en: string;
   eliminado_en: string | null;
+  organizacion_id: string | null;
+  organizacion: { nombre: string } | null;
   eventos: EventoCliente[];
 }
 
@@ -105,15 +109,23 @@ function eventDateToIso(value: string) {
   return new Date(`${value}:00-06:00`).toISOString();
 }
 
-export default function UsuariosAdminClient() {
+function minimumEventDate() {
+  // El selector tiene precisión de minutos: el siguiente minuto completo
+  // evita ofrecer una hora cuyos segundos ya transcurrieron.
+  return toDateTimeInputValue(new Date(Math.floor(Date.now() / 60000) * 60000 + 60000));
+}
+
+export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boolean }) {
   const [usuarios, setUsuarios] = useState<UsuarioCliente[]>([]);
   const [usuariosEliminados, setUsuariosEliminados] = useState<UsuarioCliente[]>([]);
+  const [onlyDirect, setOnlyDirect] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [minEventDate, setMinEventDate] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [clienteEliminar, setClienteEliminar] =
     useState<UsuarioCliente | null>(null);
@@ -145,6 +157,18 @@ export default function UsuariosAdminClient() {
   }, [loadUsuarios]);
 
   useEffect(() => {
+    if (!modalOpen || editingId) return;
+    const updateMinimum = () => setMinEventDate(minimumEventDate());
+    updateMinimum();
+    const interval = window.setInterval(updateMinimum, 30000);
+    window.addEventListener("focus", updateMinimum);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", updateMinimum);
+    };
+  }, [modalOpen, editingId]);
+
+  useEffect(() => {
     if (!modalOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !saving) setModalOpen(false);
@@ -164,7 +188,10 @@ export default function UsuariosAdminClient() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm(emptyForm);
+    const todayInMexico = toDateTimeInputValue(new Date()).slice(0, 10);
+    const nextMidnight = new Date(`${todayInMexico}T00:00:00-06:00`);
+    nextMidnight.setTime(nextMidnight.getTime() + 24 * 60 * 60 * 1000);
+    setForm({ ...emptyForm, fechaEvento: toDateTimeInputValue(nextMidnight) });
     setError(null);
     setModalOpen(true);
   };
@@ -208,6 +235,11 @@ export default function UsuariosAdminClient() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
+    if (!editingId && (!form.fechaEvento || new Date(`${form.fechaEvento}:00-06:00`).getTime() <= Date.now())) {
+      setMinEventDate(minimumEventDate());
+      setError("La fecha y hora del evento deben ser futuras (horario de Ciudad de México).");
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -241,12 +273,12 @@ export default function UsuariosAdminClient() {
 
       setModalOpen(false);
       setSuccess(
-        editingId
+        data.message || (editingId
           ? "La cuenta se actualizó correctamente."
-          : "La clienta y su evento se crearon correctamente.",
+          : "La clienta y su evento se crearon correctamente."),
       );
       await loadUsuarios();
-      setTimeout(() => setSuccess(null), 4500);
+      setTimeout(() => setSuccess(null), data.message ? 12000 : 4500);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -321,8 +353,9 @@ export default function UsuariosAdminClient() {
             Clientes
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-stone-500">
-            Crea las cuentas de las anfitrionas y administra el evento asociado
-            a cada una.
+            {isAdmin
+              ? "Administra todos los clientes. Las nuevas cuentas quedan bajo tu atención directa, sin necesitar un organizador."
+              : "Crea las cuentas de las anfitrionas y administra el evento asociado a cada una."}
           </p>
         </div>
         <button
@@ -334,6 +367,11 @@ export default function UsuariosAdminClient() {
           Nueva clienta
         </button>
       </header>
+
+      {isAdmin && <label className="flex items-center gap-2 text-sm text-stone-600">
+        <input type="checkbox" checked={onlyDirect} onChange={event => setOnlyDirect(event.target.checked)} />
+        Mostrar únicamente clientes directos
+      </label>}
 
       {success && (
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -359,7 +397,7 @@ export default function UsuariosAdminClient() {
             </p>
           </div>
         ) : (
-          usuarios.map((usuario) => {
+          usuarios.filter(usuario => !onlyDirect || !usuario.organizacion_id || usuario.organizacion_id === DIRECT_ORGANIZATION_ID).map((usuario) => {
             const evento = usuario.eventos[0];
             const eventType = evento
               ? getEventTypeFromConfig(evento.configuracion_invitacion)
@@ -389,6 +427,7 @@ export default function UsuariosAdminClient() {
                       <h2 className="truncate font-serif text-lg font-bold text-[#2b211b]">
                         {usuario.nombre}
                       </h2>
+                      {isAdmin && <p className="mb-1 text-[11px] font-semibold text-emerald-700">{usuario.organizacion?.nombre || "Sin organizador"}</p>}
                       <p className="flex items-center gap-1.5 truncate text-xs text-stone-500">
                         <Mail className="h-3.5 w-3.5 shrink-0" />
                         {usuario.email}
@@ -463,6 +502,7 @@ export default function UsuariosAdminClient() {
                         <Users className="h-3.5 w-3.5" />
                         Ver invitados
                       </LoadingLink>
+                      {isAdmin && <LoadingLink href={`/dashboard/configuracion?evento_id=${evento.id}`} className="text-xs font-bold text-[#d65318] hover:underline">Configurar evento</LoadingLink>}
                       <a
                         href={`/${evento.slug}?preview=1`}
                         target="_blank"
@@ -507,9 +547,9 @@ export default function UsuariosAdminClient() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
               onClick={(event) => event.stopPropagation()}
-              className="relative my-auto w-full max-w-3xl rounded-3xl border border-[#eadbca] bg-white shadow-2xl"
+              className="relative my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-[#eadbca] bg-white shadow-2xl"
             >
-              <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-3xl border-b border-[#f0e4d8] bg-white px-6 py-5">
+              <div className="z-10 flex shrink-0 items-center justify-between rounded-t-3xl border-b border-[#f0e4d8] bg-white px-6 py-5">
                 <div>
                   <h2 className="font-serif text-2xl font-bold text-[#2b211b]">
                     {editingId ? "Editar clienta" : "Nueva clienta"}
@@ -533,7 +573,7 @@ export default function UsuariosAdminClient() {
 
               <form
                 onSubmit={handleSubmit}
-                className="max-h-[calc(100dvh-8rem)] overflow-y-auto p-6"
+                className="min-h-0 overflow-y-auto overscroll-contain p-6"
               >
                 <fieldset disabled={saving} className="space-y-7">
                   <div>
@@ -544,9 +584,10 @@ export default function UsuariosAdminClient() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <Field label="Nombre" required>
                         <input
+                          {...nameInputProps}
                           value={form.nombre}
                           onChange={(e) =>
-                            updateField("nombre", e.target.value)
+                            updateField("nombre", lettersOnly(e.target.value))
                           }
                           required
                           className={inputClass}
@@ -607,9 +648,10 @@ export default function UsuariosAdminClient() {
                       </Field>
                       <Field label="Anfitriones" required>
                         <input
+                          {...nameInputProps}
                           value={form.anfitriones}
                           onChange={(e) =>
-                            updateField("anfitriones", e.target.value)
+                            updateField("anfitriones", lettersOnly(e.target.value))
                           }
                           placeholder="Laura y Miguel"
                           required
@@ -631,9 +673,11 @@ export default function UsuariosAdminClient() {
                           className={inputClass}
                         />
                       </Field>
-                      <Field label="Fecha y hora" required>
+                      <Field label="Fecha y hora" required hint="Horario de Ciudad de México">
                         <input
                           type="datetime-local"
+                          min={editingId ? undefined : minEventDate}
+                          onFocus={() => { if (!editingId) setMinEventDate(minimumEventDate()); }}
                           value={form.fechaEvento}
                           onChange={(e) =>
                             updateField("fechaEvento", e.target.value)

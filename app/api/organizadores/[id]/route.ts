@@ -1,3 +1,5 @@
+import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
+import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
@@ -12,6 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const admin = await getCurrentUser();
   if (admin?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });
   const { id } = await params;
+  if (id === DIRECT_ORGANIZATION_ID) return NextResponse.json({ error: "Los clientes directos se administran desde Clientes." }, { status: 400, headers });
   const body = await request.json().catch(() => null);
   if (body?.action === "restaurar") {
     const organization = await prisma.organizacion.findUnique({ where: { id }, select: { id: true } });
@@ -44,8 +47,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const admin = await getCurrentUser();
   if (admin?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });
   const { id } = await params;
+  if (id === DIRECT_ORGANIZATION_ID) return NextResponse.json({ error: "Los clientes directos se administran desde Clientes." }, { status: 400, headers });
   const body = await request.json();
   const nombre = String(body.nombre || "").trim();
+    if (!isValidName(nombre)) return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
   const negocio = String(body.negocio || "").trim();
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
@@ -80,6 +85,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const admin = await getCurrentUser();
   if (admin?.rol !== "admin") return NextResponse.json({ error: "Acceso denegado." }, { status: 403, headers });
   const { id } = await params;
+  if (id === DIRECT_ORGANIZATION_ID) return NextResponse.json({ error: "Los clientes directos se administran desde Clientes." }, { status: 400, headers });
   const organization = await prisma.organizacion.findUnique({ where: { id }, select: { nombre: true, eliminado_en: true } });
   if (!organization) return NextResponse.json({ error: "Organizador no encontrado." }, { status: 404, headers });
   if (organization.eliminado_en) return NextResponse.json({ ok: true, message: `${organization.nombre} ya se encuentra en la papelera.` }, { headers });

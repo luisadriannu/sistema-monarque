@@ -15,12 +15,14 @@ class EventoIncorrecto extends Error {
 
 async function authorizedScanner() {
   const user = await getCurrentUser();
+  if (user?.rol === "admin") return user;
   if (!user || !["organizador", "recepcionista"].includes(user.rol) || !user.organizacion_id || !user.organizacion?.qr_checkin_habilitado || !isOrganizationServiceActive(user.organizacion)) return null;
   if (user.rol === "recepcionista" && !user.lector_qr_habilitado) return null;
   return user;
 }
 
 function eventScope(user: { id: string; rol: string; organizacion_id: string | null }) {
+  if (user.rol === "admin") return {};
   return user.rol === "recepcionista"
     ? { usuario: { organizacion_id: user.organizacion_id! }, recepcionistas: { some: { usuario_id: user.id } } }
     : { usuario: { organizacion_id: user.organizacion_id! } };
@@ -89,7 +91,7 @@ export async function GET(request: Request) {
   if (code) {
     if (eventoActivo.estado !== "recepcion_abierta") return NextResponse.json({ error: "La recepción de este evento está cerrada.", code: "RECEPTION_CLOSED" }, { status: 409, headers });
     const invitado = await prisma.invitado.findUnique({ where: { codigo_entrada: code }, select: guestSelect });
-    if (!invitado || invitado.evento.usuario.organizacion_id !== user.organizacion_id) return NextResponse.json({ error: "Código no válido para tu organización." }, { status: 404, headers });
+    if (!invitado || (user.rol !== "admin" && invitado.evento.usuario.organizacion_id !== user.organizacion_id)) return NextResponse.json({ error: "Código no válido para tu organización." }, { status: 404, headers });
     if (invitado.evento.id !== eventoActivo.id) {
       return NextResponse.json(
         {
@@ -145,7 +147,7 @@ export async function POST(request: Request) {
       const invitado = guestId
         ? await tx.invitado.findUnique({ where: { id: guestId }, select: guestSelect })
         : await tx.invitado.findUnique({ where: { codigo_entrada: code }, select: guestSelect });
-      if (!invitado || invitado.evento.usuario.organizacion_id !== user.organizacion_id) throw new Error("INVALID_CODE");
+      if (!invitado || (user.rol !== "admin" && invitado.evento.usuario.organizacion_id !== user.organizacion_id)) throw new Error("INVALID_CODE");
       if (invitado.evento.id !== eventoActivo.id) throw new EventoIncorrecto();
       const limite = invitado.pases_confirmados ?? 0;
       if (invitado.estado === "declinado") throw new Error("DECLINED");

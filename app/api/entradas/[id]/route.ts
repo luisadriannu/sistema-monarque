@@ -1,12 +1,13 @@
+import { canManageAccounts, accountScope } from "@/lib/management-access";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (user?.rol !== "organizador" || !user.organizacion_id) return NextResponse.json({ error: "Solo el organizador puede corregir una entrada." }, { status: 403 });
+  if (!canManageAccounts(user)) return NextResponse.json({ error: "Solo el administrador o el organizador pueden corregir una entrada." }, { status: 403 });
   const { id } = await params;
-  const guest = await prisma.invitado.findFirst({ where: { id, evento: { usuario: { organizacion_id: user.organizacion_id } } }, select: { id: true, nombre: true } });
+  const guest = await prisma.invitado.findFirst({ where: { id, evento: { usuario: accountScope(user) } }, select: { id: true, nombre: true } });
   if (!guest) return NextResponse.json({ error: "Invitado no encontrado." }, { status: 404 });
   await prisma.$transaction([
     prisma.registroEntrada.deleteMany({ where: { invitado_id: id } }),

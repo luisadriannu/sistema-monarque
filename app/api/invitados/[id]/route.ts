@@ -1,3 +1,4 @@
+import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -91,6 +92,7 @@ export async function PUT(
     const updateData: Record<string, unknown> = {};
 
     if (nombre !== undefined) {
+      if (!isValidName(nombre)) return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
       updateData.nombre = String(nombre).trim();
     }
 
@@ -108,6 +110,20 @@ export async function PUT(
       }
 
       updateData.pases_asignados = nuevoAsignados;
+
+      // Después del ingreso, la ampliación hecha por la anfitriona autoriza
+      // solo el incremento; conserva cualquier cupo previamente no confirmado.
+      if (
+        nuevoAsignados > invitado.pases_asignados &&
+        invitado.estado === "confirmado" &&
+        invitado.pases_ingresados > 0
+      ) {
+        updateData.pases_confirmados = Math.min(
+          nuevoAsignados,
+          Math.max(invitado.pases_confirmados ?? 0, invitado.pases_ingresados) +
+            nuevoAsignados - invitado.pases_asignados,
+        );
+      }
 
       // Si ya hubo una entrada y se amplía el cupo, invalida el QR que pudo
       // quedar guardado en una captura. El historial y el total ingresado no
@@ -152,9 +168,11 @@ export async function PUT(
     return NextResponse.json({
       ok: true,
       invitado: actualizado,
-      aviso: (updateData.pases_asignados !== undefined && (updateData.pases_confirmados !== undefined || updateData.ninos_confirmados !== undefined))
-        ? "Se redujeron los pases asignados; se ajustaron automáticamente los asistentes y niños confirmados."
-        : undefined,
+      aviso: updateData.codigo_entrada && updateData.pases_confirmados !== undefined && Number(updateData.pases_asignados) > invitado.pases_asignados
+        ? "Pases adicionales autorizados. Abre la invitación para obtener el nuevo QR; los ingresos anteriores se conservaron."
+        : (updateData.pases_asignados !== undefined && (updateData.pases_confirmados !== undefined || updateData.ninos_confirmados !== undefined))
+          ? "Se redujeron los pases asignados; se ajustaron automáticamente los asistentes y niños confirmados."
+          : undefined,
     });
   } catch (error) {
     console.error("Error al modificar invitado:", error);

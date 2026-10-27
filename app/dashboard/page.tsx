@@ -1,4 +1,5 @@
 import LoadingLink from "@/components/LoadingLink";
+import AttendanceRefresh from "@/components/AttendanceRefresh";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -72,14 +73,14 @@ export default async function DashboardPage() {
 
   for (const inv of invitados) {
     total_asignados += inv.pases_asignados;
+    // Los ingresos son históricos: una edición de la respuesta no los elimina.
+    total_ingresados += inv.pases_ingresados;
+    if (inv.pases_ingresados > 0) familias_ingresadas += 1;
 
     if (inv.estado === "confirmado") {
       const conf = inv.pases_confirmados || 0;
       total_confirmados += conf;
-      const ingresados = Math.min(conf, inv.pases_ingresados || 0);
-      total_ingresados += ingresados;
-      confirmados_pendientes_ingreso += Math.max(0, conf - ingresados);
-      if (ingresados > 0) familias_ingresadas += 1;
+      confirmados_pendientes_ingreso += Math.max(0, conf - inv.pases_ingresados);
       total_ninos += inv.ninos_confirmados || 0;
       if (conf < inv.pases_asignados) {
         total_parciales_count += 1;
@@ -473,11 +474,12 @@ export default async function DashboardPage() {
 
       {qrCheckinEnabled && (
         <section className="rounded-3xl border border-[#d7e8df] bg-[#f7fbf8] p-5 shadow-xs sm:p-6">
+          <AttendanceRefresh />
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[.2em] text-emerald-700">Control de acceso QR</p>
               <h2 className="mt-1 font-serif text-2xl font-bold text-[#183126]">Asistencia en el evento</h2>
-              <p className="mt-1 text-xs text-stone-500">Se actualiza conforme el equipo de recepción registra las entradas.</p>
+              <p className="mt-1 text-xs text-stone-500">Se actualiza cada 15 segundos y al volver a esta pestaña.</p>
             </div>
             <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-900">Ver entradas <ArrowRight className="h-3.5 w-3.5" /></LoadingLink>
           </div>
