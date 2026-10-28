@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useTransition, type AnchorHTMLAttributes, type MouseEvent } from "react";
 import { LoaderCircle } from "lucide-react";
+import { beginNavigation } from "@/lib/navigation-busy";
 
 type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
   href: string;
@@ -14,7 +15,15 @@ export default function LoadingLink({ href, loadingText = "Cargando…", childre
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const locked = useRef(false);
-  useEffect(() => { if (!pending) locked.current = false; }, [pending]);
+  const finishNavigation = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!pending) {
+      locked.current = false;
+      finishNavigation.current?.();
+      finishNavigation.current = null;
+    }
+  }, [pending]);
+  useEffect(() => () => { finishNavigation.current?.(); }, []);
 
   const navigate = (event: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(event);
@@ -22,8 +31,9 @@ export default function LoadingLink({ href, loadingText = "Cargando…", childre
     event.preventDefault();
     if (locked.current) return;
     locked.current = true;
+    finishNavigation.current = beginNavigation();
     try { startTransition(() => router.push(href)); }
-    catch (error) { locked.current = false; throw error; }
+    catch (error) { locked.current = false; finishNavigation.current?.(); finishNavigation.current = null; throw error; }
   };
 
   return <Link {...props} prefetch={false} href={href} target={target} onClick={navigate} aria-busy={pending} aria-disabled={pending} className={`${className} ${pending ? "cursor-wait opacity-70" : ""}`}>

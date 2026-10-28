@@ -92,6 +92,7 @@ function ConfiguracionContent() {
   const [textoEdadNino, setTextoEdadNino] = useState("menores de 12 años");
   const [plantillaMensaje, setPlantillaMensaje] = useState("");
   const [estadoEvento, setEstadoEvento] = useState("publicado");
+  const [publicationChanged, setPublicationChanged] = useState(false);
   const [recepcionAbreEn, setRecepcionAbreEn] = useState("");
   const [recepcionCierraEn, setRecepcionCierraEn] = useState("");
   const [modoIngreso, setModoIngreso] = useState("parcial");
@@ -155,7 +156,8 @@ function ConfiguracionContent() {
             ev.plantilla_mensaje ||
               "¡Hola {nombre}! Te invitamos con mucho cariño a nuestro evento. Tienes {pases} pases reservados. Por favor confírmanos tu asistencia aquí: {link}",
           );
-          setEstadoEvento(ev.estado || "publicado");
+            setEstadoEvento(["borrador", "publicado", "cancelado"].includes(ev.estado) ? ev.estado : ev.estado === "archivado" ? "borrador" : "publicado");
+            setPublicationChanged(false);
           setRecepcionAbreEn(
             ev.recepcion_abre_en
               ? toDateTimeInputValue(ev.recepcion_abre_en)
@@ -288,7 +290,7 @@ function ConfiguracionContent() {
           fecha_limite_rsvp: fechaLimiteEndOfDay.toISOString(),
           texto_edad_nino: textoEdadNino.trim() || "menores de 12 años",
           plantilla_mensaje: plantillaMensaje,
-          estado: estadoEvento,
+          ...(isAdmin && publicationChanged ? { estado: estadoEvento } : {}),
           ...(isAdmin && {
             recepcion_abre_en: recepcionAbreEn
               ? new Date(`${recepcionAbreEn}:00-06:00`).toISOString()
@@ -305,6 +307,7 @@ function ConfiguracionContent() {
       if (!res.ok) throw new Error(data.error || "Error al actualizar evento.");
 
       setEvento(data.evento);
+      setPublicationChanged(false);
       setFechaLimiteRsvp(toDateInputValue(data.evento.fecha_limite_rsvp));
       // El resumen pudo quedar almacenado al visitarlo antes de editar.
       // refresh invalida esa caché de navegación sin abandonar el formulario.
@@ -537,7 +540,7 @@ function ConfiguracionContent() {
               </h2>
             </div>
 
-            <div className="rounded-2xl border border-[#ebd9c4] bg-[#fffaf5] p-5">
+            {isAdmin && <div className="rounded-2xl border border-[#ebd9c4] bg-[#fffaf5] p-5">
               <div className="flex items-start gap-3">
                 <CalendarClock className="mt-0.5 h-5 w-5 text-[#e05a1b]" />
                 <div>
@@ -560,13 +563,12 @@ function ConfiguracionContent() {
                   Estado público
                   <select
                     value={estadoEvento}
-                    onChange={(event) => setEstadoEvento(event.target.value)}
+                    onChange={(event) => { setEstadoEvento(event.target.value); setPublicationChanged(true); }}
                     className="mt-2 w-full rounded-xl border border-[#dec0a2] bg-white px-4 py-3 text-sm font-normal normal-case tracking-normal"
                   >
-                    <option value="borrador">Borrador · no visible</option>
+                    <option value="borrador">Borrador</option>
                     <option value="publicado">Publicado</option>
-                    <option value="cancelado">Cancelado · no visible</option>
-                    <option value="archivado">Archivado · no visible</option>
+                    <option value="cancelado">Cancelado</option>
                   </select>
                 </label>
                 {qrCheckinEnabled && isAdmin && (
@@ -632,7 +634,7 @@ function ConfiguracionContent() {
                   </>
                 )}
               </div>
-            </div>
+            </div>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Fecha Límite de Confirmación */}

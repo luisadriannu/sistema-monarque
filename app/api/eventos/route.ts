@@ -115,8 +115,10 @@ export async function PUT(request: Request) {
       }
     }
 
-    const allowedClientStates = ["borrador", "publicado", "cancelado", "archivado"];
-    const nextState = estado && allowedClientStates.includes(estado) ? estado : undefined;
+    if (estado !== undefined && user.rol !== "admin") return NextResponse.json({ error: "Solo el administrador puede cambiar la publicación de la invitación." }, { status: 403 });
+    const publicationStates = ["borrador", "publicado", "cancelado"];
+    if (estado !== undefined && !publicationStates.includes(estado)) return NextResponse.json({ error: "El estado de publicación debe ser Publicado, Borrador o Cancelado." }, { status: 400 });
+    const nextState = estado;
     const nextEntryMode = user.rol === "clienta" ? "parcial" : modo_ingreso === "parcial" ? "parcial" : modo_ingreso === "unico" ? "unico" : undefined;
     if (user.rol === "clienta" && (recepcion_abre_en !== undefined || recepcion_cierra_en !== undefined)) {
       return NextResponse.json({ error: "Solo el administrador o el organizador pueden configurar la recepción." }, { status: 403 });
