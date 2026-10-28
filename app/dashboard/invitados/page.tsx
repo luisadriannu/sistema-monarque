@@ -175,6 +175,8 @@ function InvitadosContent() {
   const [toast, setToast] = useState<Toast | null>(null);
   const formPasesNumero = Number(formPases);
   const formPasesValido = /^\d+$/.test(formPases) && formPasesNumero >= 1;
+  const newGuestLimit = pasesContratados ?? limitePases;
+  const newGuestExceedsContract = newGuestLimit !== null && totalPasesAsignados + formPasesNumero > newGuestLimit;
 
   const handleCambiarPases = (value: string) => {
     if (/^\d*$/.test(value)) {
@@ -482,8 +484,8 @@ function InvitadosContent() {
       );
       return;
     }
-    if (limitePases !== null && totalPasesAsignados + formPasesNumero > limitePases) {
-      setFormError(`Solo quedan ${Math.max(0, limitePases - totalPasesAsignados)} pases disponibles.`);
+    if (newGuestExceedsContract) {
+      setFormError(`Solo quedan ${Math.max(0, (newGuestLimit ?? 0) - totalPasesAsignados)} pases disponibles dentro del contrato.`);
       return;
     }
 
@@ -506,6 +508,7 @@ function InvitadosContent() {
 
       setPage(1);
       const refreshed = await fetchInvitados(1);
+      router.refresh();
       setModalAgregar(false);
       setFormNombre("");
       setFormGrupo("");
@@ -513,7 +516,7 @@ function InvitadosContent() {
       setToast({
         type: refreshed === false ? "error" : "success",
         title: refreshed === false ? "Invitado guardado; lista pendiente de actualizar" : "Invitado agregado",
-        message: refreshed === false ? `${data.invitado.nombre} ya está guardado. Actualiza la lista; no necesitas agregarlo otra vez.` : `${data.invitado.nombre} se guardó correctamente.${debouncedSearch || filtroEstado !== "todos" || filtroEntrada !== "todos" ? " Si no aparece, revisa los filtros o la búsqueda activos." : ""}`,
+        message: refreshed === false ? `${data.invitado.nombre} ya está guardado. Actualiza la lista; no necesitas agregarlo otra vez.` : `${data.invitado.nombre} se guardó correctamente.${data.capacidad_actualizada ? ` Capacidad actualizada a ${data.capacidad_total} asientos.` : ""}${debouncedSearch || filtroEstado !== "todos" || filtroEntrada !== "todos" ? " Si no aparece, revisa los filtros o la búsqueda activos." : ""}`,
       });
     } catch (err: unknown) {
       if (err instanceof Error) setFormError(err.message);
@@ -1885,28 +1888,17 @@ function InvitadosContent() {
                   )}
 
                   {/* Aviso informativo de cupo (sin bloquear) */}
+                  {formPasesValido && newGuestExceedsContract && <p role="alert" className="mt-2.5 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertCircle className="h-4 w-4 shrink-0"/><span>El contrato permite <strong>{newGuestLimit} pases</strong>. Ya hay {totalPasesAsignados} comprometidos y quedan <strong>{Math.max(0, (newGuestLimit ?? 0) - totalPasesAsignados)}</strong>. No puedes guardar {formPasesNumero} pases más. Reduce la cantidad o solicita una ampliación del contrato.</span></p>}
                   {evento?.capacidad_total &&
+                    !newGuestExceedsContract &&
                     formPasesValido &&
                     totalPasesAsignados + formPasesNumero >
                       evento.capacidad_total && (
                       <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold">Aviso de cupo:</span>{" "}
-                          Con este invitado superarás la capacidad del evento (
-                          {evento.capacidad_total} asientos) por{" "}
-                          <strong>
-                            {totalPasesAsignados +
-                              formPasesNumero -
-                              evento.capacidad_total}{" "}
-                            {totalPasesAsignados +
-                              formPasesNumero -
-                              evento.capacidad_total ===
-                            1
-                              ? "cupo"
-                              : "cupos"}
-                          </strong>
-                          . Puedes guardar si planeas sobreinvitar.
+                          <span className="font-semibold">Actualización de capacidad:</span>{" "}
+                          Al guardar, la capacidad del evento aumentará de <strong>{evento.capacidad_total}</strong> a <strong>{totalPasesAsignados + formPasesNumero} asientos</strong> para cubrir los pases comprometidos. El límite contratado no cambia.
                         </div>
                       </div>
                     )}
@@ -1922,7 +1914,7 @@ function InvitadosContent() {
                   </button>
                   <AsyncButton
                     type="submit"
-                    disabled={guardando || !formPasesValido}
+                    disabled={guardando || !formPasesValido || newGuestExceedsContract}
                     className="px-5 py-2.5 bg-gradient-to-r from-[#e05a1b] to-[#ea580c] hover:from-[#c2410c] hover:to-[#e05a1b] text-white text-xs font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50"
                     loadingText="Guardando…"
                     loading={guardando}

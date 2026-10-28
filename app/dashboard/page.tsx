@@ -239,21 +239,19 @@ export default async function DashboardPage() {
               </div>
               <p className="text-xs text-stone-500 mt-0.5">
                 {total_confirmados} confirmados • {total_pendientes} en espera
-                de responder
+                de responder · {Math.max(0, cuposComprometidos - total_confirmados)} lugares adicionales reservados · {cuposComprometidos} comprometidos en total
               </p>
             </div>
 
             <div>
               {cuposDisponibles >= 0 ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#ffedd5] text-[#c2410c] border border-[#fed7aa]">
-                  Te quedan {cuposDisponibles}{" "}
-                  {cuposDisponibles === 1
-                    ? "cupo disponible"
-                    : "cupos disponibles"}
-                </span>
+                <div className="text-sm text-stone-700 sm:text-right">
+                  <p className="font-semibold">Quedan {cuposDisponibles} {cuposDisponibles === 1 ? "pase disponible" : "pases disponibles"}</p>
+                  <p className="mt-1 text-xs text-stone-500">{total_confirmados} confirmados de {capacidad} asientos{cuposComprometidos > total_confirmados ? ` · ${cuposComprometidos - total_confirmados} reservados sin confirmar` : ""}.</p>
+                </div>
               ) : (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-                  Has sobrepasado la capacidad por {Math.abs(cuposDisponibles)}{" "}
+                  Los lugares comprometidos exceden la capacidad por {Math.abs(cuposDisponibles)}{" "}
                   {Math.abs(cuposDisponibles) === 1 ? "asiento" : "asientos"}
                 </span>
               )}
@@ -288,7 +286,7 @@ export default async function DashboardPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
               <span>
                 <strong>{total_confirmados}</strong> confirmados (
-                {Math.round(pctConfirmados)}%)
+                {capacidad > 0 ? Math.round(total_confirmados / capacidad * 100) : 0}%)
               </span>
             </div>
             <div className="flex items-center gap-1.5">

@@ -33,6 +33,8 @@ interface EventoConfig {
   lugar: string;
   capacidad_total?: number | null;
   limite_pases?: number | null;
+  total_confirmados?: number;
+  total_comprometidos?: number;
   fecha_limite_rsvp: string;
   texto_edad_nino?: string;
   plantilla_mensaje: string;
@@ -232,6 +234,10 @@ function ConfiguracionContent() {
       return;
     }
 
+    if (capacidadTotal.trim() && Number(capacidadTotal) < (evento.total_confirmados ?? 0)) {
+      setError(`Ya tienes ${evento.total_confirmados} asistentes confirmados. La capacidad no puede ser menor a ${evento.total_confirmados}.`);
+      return;
+    }
     if (
       evento.limite_pases &&
       capacidadTotal.trim() &&
@@ -706,8 +712,9 @@ function ConfiguracionContent() {
                   </div>
                   <input
                     type="number"
-                    min="1"
+                    min={Math.max(1, evento.total_confirmados ?? 0)}
                     max={evento.limite_pases || undefined}
+                    aria-describedby="capacity-reservations"
                     value={capacidadTotal}
                     onWheel={(event) => event.currentTarget.blur()}
                     onChange={(e) => setCapacidadTotal(e.target.value)}
@@ -715,6 +722,8 @@ function ConfiguracionContent() {
                     className="block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
                   />
                 </div>
+                <p id="capacity-reservations" className="mt-3 text-xs leading-relaxed text-stone-600">{evento.total_confirmados ?? 0} asistentes confirmados · {Math.max(0, (evento.total_comprometidos ?? 0) - (evento.total_confirmados ?? 0))} lugares adicionales aún reservados. La capacidad debe cubrir al menos los confirmados.</p>
+                {capacidadTotal.trim() && Number(capacidadTotal) < (evento.total_comprometidos ?? 0) && <p role="status" className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">{Number(capacidadTotal) < (evento.total_confirmados ?? 0) ? "No puedes guardar una capacidad inferior a los asistentes confirmados." : "Esta capacidad no cubre todos los lugares reservados. Revisa las invitaciones pendientes y los pases disponibles para liberar."}</p>}
                 <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
                   {evento.limite_pases
                     ? `Tu contratación permite hasta ${evento.limite_pases} pases. `
@@ -750,200 +759,83 @@ function ConfiguracionContent() {
             </div>
           </div>
 
-          {/* Plantilla de Mensaje para WhatsApp */}
-          <details className="group bg-white border border-[#ebd9c4] rounded-3xl p-5 sm:p-7 shadow-xs">
-            <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="font-serif text-xl font-bold text-[#2b211b]">
-                  Mensaje para compartir la invitación
-                </h2>
-                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-stone-500">
-                  Personaliza el texto de WhatsApp y revisa cómo lo recibirá
-                  cada familia.
-                </p>
-              </div>
-              <span className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-600 group-open:bg-emerald-50 group-open:text-emerald-700">
-                <span className="group-open:hidden">Abrir</span>
-                <span className="hidden group-open:inline">Cerrar</span>
-              </span>
-            </summary>
-
-            <div className="mt-6 space-y-6 border-t border-[#f5ede2] pt-6">
-              <div className="rounded-2xl border border-[#f0ddc9] bg-[#fffaf5] p-4">
-                <p className="text-xs font-bold text-[#6e422b]">
-                  1. Inserta los datos personalizados
-                </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-                  Coloca el cursor en el mensaje y presiona uno de estos
-                  botones. No necesitas escribir las llaves manualmente.
-                </p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {variablesMensaje.map((variable) => {
-                    const Icon = variable.icon;
-                    const incluida = plantillaMensaje.includes(variable.token);
-                    return (
-                      <button
-                        key={variable.token}
-                        type="button"
-                        onClick={() => insertarVariable(variable.token)}
-                        title={
-                          incluida
-                            ? "Ya está incluida. Presiona para localizarla en el mensaje."
-                            : `Insertar ${variable.label.toLowerCase()}`
-                        }
-                        className="group flex items-center gap-3 rounded-xl border border-[#ead7c4] bg-white px-3.5 py-3 text-left transition hover:border-[#e05a1b] hover:shadow-sm"
-                      >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#fbf3eb] text-[#d65318]">
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
-                            {variable.label}
-                            {variable.required && (
-                              <span className="text-[9px] font-bold uppercase text-[#e05a1b]">
-                                Necesario
-                              </span>
-                            )}
-                          </span>
-                          <span className="mt-0.5 block truncate font-mono text-[10px] text-stone-400">
-                            {incluida
-                              ? `${variable.token} · Ya incluida`
-                              : `${variable.token} → ${variable.example}`}
-                          </span>
-                        </span>
-                        {incluida && (
-                          <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_.95fr]">
-                <div className="space-y-3">
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <label
-                        htmlFor="plantilla-whatsapp"
-                        className="block text-xs font-bold text-stone-800"
-                      >
-                        2. Escribe tu mensaje
-                      </label>
-                      <p className="mt-1 text-[11px] text-stone-500">
-                        Puedes agregar emojis, saltos de línea y el texto que
-                        prefieras.
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-[10px] text-stone-400">
-                      {plantillaMensaje.length} caracteres
-                    </span>
-                  </div>
-                  <textarea
-                    ref={mensajeRef}
-                    id="plantilla-whatsapp"
-                    rows={10}
-                    required
-                    value={plantillaMensaje}
-                    onChange={(e) => {
-                      plantillaMensajeRef.current = e.target.value;
-                      cursorMensajeRef.current = e.target.selectionStart;
-                      setPlantillaMensaje(e.target.value);
-                    }}
-                    onSelect={(e) => {
-                      cursorMensajeRef.current = e.currentTarget.selectionStart;
-                    }}
-                    placeholder="Ejemplo: ¡Hola {nombre}! Nos dará mucho gusto celebrar contigo..."
-                    className="w-full resize-y rounded-2xl border border-[#dec0a2] bg-[#fffdfb] p-4 text-sm leading-relaxed text-stone-800 outline-none transition focus:border-[#e05a1b] focus:ring-2 focus:ring-orange-100"
-                  />
-
-                  {variablesDuplicadas.length > 0 && (
-                    <div className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-[11px] leading-relaxed text-rose-800 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="flex items-start gap-2">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                        Hay variables repetidas accidentalmente en el mensaje.
-                      </span>
-                      <button
-                        type="button"
-                        onClick={limpiarVariablesDuplicadas}
-                        className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-700 transition hover:bg-rose-100"
-                      >
-                        Quitar duplicados
-                      </button>
-                    </div>
-                  )}
-
-                  {variablesObligatoriasFaltantes.length > 0 ? (
-                    <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] leading-relaxed text-amber-800">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>
-                        Te falta incluir:{" "}
-                        <strong>
-                          {variablesObligatoriasFaltantes
-                            .map((variable) => variable.label.toLowerCase())
-                            .join(", ")}
-                        </strong>
-                        . Puedes guardar, pero el mensaje no tendrá esos datos
-                        personalizados.
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[11px] text-emerald-800">
-                      <CheckCircle className="h-4 w-4 shrink-0" />
-                      El mensaje contiene todos los datos necesarios.
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs font-bold text-stone-800">
-                      3. Revisa el resultado
-                    </p>
-                    <p className="mt-1 text-[11px] text-stone-500">
-                      Esta simulación usa una familia de ejemplo. Cada invitado
-                      recibirá sus propios datos.
-                    </p>
-                  </div>
-                  <div className="overflow-hidden rounded-2xl border border-[#d6d7d1] bg-[#e9e4dc] shadow-inner">
-                    <div className="flex items-center gap-3 bg-[#f7f7f5] px-4 py-3 border-b border-stone-200">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e05a1b] text-xs font-bold text-white">
-                        M
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-stone-800">
-                          Monarque
-                        </p>
-                        <p className="text-[9px] text-stone-400">
-                          Vista previa de WhatsApp
-                        </p>
-                      </div>
-                    </div>
-                    <div className="min-h-[18rem] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.7),transparent_35%)] p-4">
-                      <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-[#d9fdd3] px-4 py-3 shadow-sm">
-                        <p className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-stone-800">
-                          {previewMensaje ||
-                            "Tu mensaje aparecerá aquí mientras escribes."}
-                        </p>
-                        <div className="mt-2 flex items-center justify-end gap-1 text-[9px] text-stone-500">
-                          <span>10:30 a. m.</span>
-                          <span className="font-bold text-sky-500">✓✓</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="flex items-start gap-2 text-[10px] leading-relaxed text-stone-500">
-                    <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e05a1b]" />
-                    El enlace mostrado es solo un ejemplo. En Invitados se
-                    genera un enlace único y privado para cada registro.
-                  </p>
-                </div>
+          {/* Mensaje de WhatsApp: vista previa primero, edición opcional. */}
+          <section className="rounded-3xl border border-[#ebd9c4] bg-white p-5 shadow-xs sm:p-7">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><MessageSquare className="h-5 w-5"/></div>
+              <div>
+                <h2 className="font-serif text-xl font-bold text-[#2b211b]">Mensaje de WhatsApp para tus invitados</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">Este texto acompaña el enlace cuando compartes una invitación desde la lista de Invitados.</p>
               </div>
             </div>
-          </details>
+
+            <div className="mt-5 grid gap-6 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-[#fbf8f4] p-4">
+                  <p className="text-sm font-semibold text-stone-800">Tu mensaje ya está listo para compartir</p>
+                  <p className="mt-2 text-sm leading-relaxed text-stone-500">El sistema pone el nombre, los pases y el enlace de cada invitado donde corresponde. Puedes dejar el texto actual o darle tu toque personal.</p>
+                  <p className="mt-3 text-xs leading-relaxed text-stone-500">Aquí solo preparas el texto. Para enviarlo, entra a <strong>Invitados</strong> y elige <strong>WhatsApp</strong> en la persona o familia que deseas invitar.</p>
+                </div>
+
+                <details className="group rounded-2xl border border-stone-200">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-semibold text-stone-800 [&::-webkit-details-marker]:hidden">
+                    <span>Personalizar mensaje <span className="font-normal text-stone-400">(opcional)</span></span>
+                    <span className="text-emerald-700"><span className="group-open:hidden">Editar</span><span className="hidden group-open:inline">Cerrar</span></span>
+                  </summary>
+                  <div className="space-y-4 border-t border-stone-100 p-4">
+                    <label htmlFor="plantilla-whatsapp" className="block text-sm font-semibold text-stone-800">Escribe con tus propias palabras</label>
+                    <p id="mensaje-ayuda" className="text-xs leading-relaxed text-stone-500">Las etiquetas entre llaves se cambian por los datos de cada invitado al compartir. Consérvalas en el texto. Si borras alguna, puedes volver a añadirla con los botones.</p>
+                    <textarea
+                      ref={mensajeRef}
+                      id="plantilla-whatsapp"
+                      aria-describedby="mensaje-ayuda"
+                      rows={7}
+                      required
+                      value={plantillaMensaje}
+                      onChange={(e) => {
+                        plantillaMensajeRef.current = e.target.value;
+                        cursorMensajeRef.current = e.target.selectionStart;
+                        setPlantillaMensaje(e.target.value);
+                      }}
+                      onSelect={(e) => { cursorMensajeRef.current = e.currentTarget.selectionStart; }}
+                      className="w-full resize-y rounded-xl border border-stone-200 bg-[#fffdfb] p-4 text-sm leading-relaxed text-stone-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-stone-600">Añadir un dato al mensaje</p>
+                      <div className="flex flex-wrap gap-2">{variablesMensaje.map(variable => {
+                        const Icon = variable.icon;
+                        const incluida = plantillaMensaje.includes(variable.token);
+                        return <button key={variable.token} type="button" onClick={() => insertarVariable(variable.token)} title={incluida ? "Ver este dato en el texto" : `Añadir ${variable.label.toLowerCase()}`} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition ${incluida ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}><Icon className="h-3.5 w-3.5"/>{variable.label}{incluida && <CheckCircle className="h-3 w-3"/>}</button>;
+                      })}</div>
+                    </div>
+                    {variablesObligatoriasFaltantes.length > 0 && <p role="status" className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">Tu texto no incluye: <strong>{variablesObligatoriasFaltantes.map(variable => variable.label.toLowerCase()).join(", ")}</strong>. Usa los botones para añadir esos datos.</p>}
+                    {variablesDuplicadas.length > 0 && <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800"><p>Hay datos que aparecen más de una vez en tu texto.</p><button type="button" onClick={limpiarVariablesDuplicadas} className="mt-2 font-semibold underline underline-offset-2">Dejar cada dato una sola vez</button></div>}
+                    <p className="text-xs text-stone-500">Al terminar, pulsa <strong>Guardar configuración</strong>.</p>
+                  </div>
+                </details>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">Así se verá al compartir</p>
+                  <p className="mt-1 text-xs text-stone-500">Ejemplo con Familia Gómez Pérez y 4 pases. Cada invitado recibirá sus propios datos.</p>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-[#d6d7d1] bg-[#e9e4dc]">
+                  <div className="flex items-center gap-3 border-b border-stone-200 bg-[#f7f7f5] px-4 py-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><UserRound className="h-4 w-4"/></span>
+                    <div><p className="text-sm font-semibold text-stone-800">Familia Gómez Pérez</p><p className="text-[11px] text-stone-400">Vista de ejemplo</p></div>
+                  </div>
+                  <div className="p-4 sm:p-5">
+                    <div className="ml-auto max-w-[95%] rounded-2xl rounded-tr-sm bg-[#d9fdd3] px-4 py-3 shadow-sm">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-stone-800">{previewMensaje || "Escribe un mensaje para ver el ejemplo aquí."}</p>
+                      <div className="mt-2 flex justify-end gap-1 text-[10px] text-stone-500"><span>10:30 a. m.</span><span className="font-bold text-sky-500">✓✓</span></div>
+                    </div>
+                  </div>
+                </div>
+                <p className="flex items-start gap-2 text-xs leading-relaxed text-stone-500"><Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0"/>El enlace del ejemplo es ilustrativo. Al compartir se usa el enlace personal de cada invitado.</p>
+              </div>
+            </div>
+          </section>
 
           {/* Botón de guardado */}
           <div className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 lg:left-[calc(16rem+2rem)] lg:right-8">

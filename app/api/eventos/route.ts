@@ -1,4 +1,5 @@
 import { isValidName, NAME_ERROR } from "@/lib/names";
+import { committedPasses } from "@/lib/pass-balance";
 import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
 
 function effectivePassLimit(eventLimit: number | null, user: { organizacion_id: string | null; organizacion: { max_invitados_evento: number } | null }) {
@@ -32,7 +33,12 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json({
-    eventos: user.rol === "admin" ? eventos : eventos.map(event => ({ ...event, limite_pases: effectivePassLimit(event.limite_pases, user) })),
+    eventos: await Promise.all(eventos.map(async event => {
+      const guests = await prisma.invitado.findMany({ where: { evento_id: event.id } });
+      return { ...event, limite_pases: user.rol === "admin" ? event.limite_pases : effectivePassLimit(event.limite_pases, user),
+        total_confirmados: guests.reduce((sum, guest) => sum + (guest.estado === "confirmado" ? guest.pases_confirmados ?? 0 : 0), 0),
+        total_comprometidos: guests.reduce((sum, guest) => sum + committedPasses(guest), 0) };
+    })),
     permisos: {
       qr_checkin_habilitado: user.rol === "admin" || Boolean(user.organizacion?.qr_checkin_habilitado),
       administrador: user.rol === "admin",
@@ -170,6 +176,11 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "La capacidad del evento debe ser un número entero mayor a cero." }, { status: 400 });
     }
     const passLimit = effectivePassLimit(existing.limite_pases, user);
+    if (requestedCapacity !== null && capacidad_total !== undefined) {
+      const confirmed = await prisma.invitado.aggregate({ where: { evento_id: id, estado: "confirmado" }, _sum: { pases_confirmados: true } });
+      const minimum = confirmed._sum.pases_confirmados ?? 0;
+      if (requestedCapacity < minimum) return NextResponse.json({ error: `Ya tienes ${minimum} asistentes confirmados. La capacidad no puede ser menor a ${minimum}.`, code: "CAPACITY_BELOW_CONFIRMED" }, { status: 409 });
+    }
     if (user.rol !== "admin" && passLimit !== null && requestedCapacity !== null && requestedCapacity > passLimit) {
       return NextResponse.json({ error: `Tu evento tiene un límite contratado de ${passLimit} pases.` }, { status: 403 });
     }

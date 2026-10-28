@@ -293,96 +293,47 @@ export async function POST(request: Request) {
       );
     }
 
-    const incomingPasses = bulk && Array.isArray(invitados)
-      ? invitados.reduce((total, item) => total + Number(item?.pases_asignados ?? item?.pases ?? 1), 0)
-      : Number(pases_asignados);
-    if (!Number.isInteger(incomingPasses) || incomingPasses < 1) {
-      return NextResponse.json({ error: "Los pases a registrar deben ser números enteros mayores a cero." }, { status: 400 });
-    }
-    const limit = contractedPassLimit(evento);
-    if (user.rol !== "admin" && limit !== null) {
-      const assigned = await prisma.invitado.findMany({ where: { evento_id: evento.id } });
-      const currentPasses = assigned.reduce((sum, guest) => sum + committedPasses(guest), 0);
-      if (currentPasses + incomingPasses > limit) {
-        return NextResponse.json({ error: `No puedes asignar esos pases. El límite contratado es ${limit} y quedan ${Math.max(0, limit - currentPasses)} disponibles.` }, { status: 403 });
+    const rows = bulk && Array.isArray(invitados) ? invitados : [{ nombre, grupo, pases_asignados }];
+    if (!rows.length) return NextResponse.json({ error: "Agrega al menos un invitado." }, { status: 400 });
+    const normalized = rows.map(item => ({
+      nombre: String(item.nombre || "").trim(),
+      grupo: item.grupo ? String(item.grupo).trim() : null,
+      pases_asignados: Number(item.pases_asignados ?? item.pases ?? 1),
+    }));
+    if (normalized.some(item => !isValidName(item.nombre))) return NextResponse.json({ error: NAME_ERROR }, { status: 400 });
+    if (normalized.some(item => !Number.isSafeInteger(item.pases_asignados) || item.pases_asignados < 1)) return NextResponse.json({ error: "Los pases deben ser números enteros mayores a cero." }, { status: 400 });
+
+    // Both writes share a serializable transaction: no guest without its updated capacity.
+    const save = () => prisma.$transaction(async tx => {
+      const current = await tx.evento.findUniqueOrThrow({ where: { id: evento.id }, include: { usuario: { include: { organizacion: true } } } });
+      const guests = await tx.invitado.findMany({ where: { evento_id: evento.id } });
+      const committed = guests.reduce((sum, guest) => sum + committedPasses(guest), 0);
+      const nextTotal = committed + normalized.reduce((sum, item) => sum + item.pases_asignados, 0);
+      const limit = contractedPassLimit(current);
+      if (limit !== null && nextTotal > limit) throw new Error("PASS_LIMIT");
+      const guestLimit = current.usuario.organizacion?.max_invitados_evento;
+      if (user.rol !== "admin" && guestLimit && guests.length + normalized.length > guestLimit) throw new Error("GUEST_LIMIT");
+      const capacity = current.capacidad_total === null ? null : Math.max(current.capacidad_total, nextTotal);
+      if (capacity !== current.capacidad_total && limit !== null && capacity !== null && capacity > limit) throw new Error("PASS_LIMIT");
+      const created = [];
+      for (const item of normalized) created.push(await tx.invitado.create({ data: { ...item, evento_id: evento.id, token: generateInvitationToken(), estado: "pendiente" } }));
+      if (capacity !== current.capacidad_total) await tx.evento.update({ where: { id: evento.id }, data: { capacidad_total: capacity } });
+      return { created, capacity, adjusted: capacity !== current.capacidad_total };
+    }, { isolationLevel: "Serializable" });
+    let result: Awaited<ReturnType<typeof save>> | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { result = await save(); break; } catch (error) {
+        if (typeof error === "object" && error && "code" in error && error.code === "P2034" && attempt < 2) continue;
+        throw error;
       }
     }
-
-    const currentGuestCount = await prisma.invitado.count({ where: { evento_id: evento.id } });
-    const incomingCount = bulk && Array.isArray(invitados)
-      ? invitados.filter(item => String(item?.nombre || "").trim()).length
-      : 1;
-    const guestLimit = evento.usuario.organizacion?.max_invitados_evento;
-    if (user.rol !== "admin" && guestLimit && currentGuestCount + incomingCount > guestLimit) {
-      return NextResponse.json({ error: `La capacidad contratada permite hasta ${guestLimit} invitaciones por evento. Actualmente hay ${currentGuestCount}.` }, { status: 403 });
-    }
-
-    // Manejo de importación masiva (RF-10)
-    if (bulk && Array.isArray(invitados)) {
-      const invalidIndex = invitados.findIndex(item => !isValidName(item?.nombre));
-      if (invalidIndex !== -1) return NextResponse.json({ error: `Invitado ${invalidIndex + 1}: ${NAME_ERROR}` }, { status: 400 });
-      const creados = [];
-      for (const item of invitados) {
-        const nombreLimpio = String(item.nombre || "").trim();
-        const pasesNum = parseInt(item.pases_asignados ?? item.pases ?? "1", 10);
-
-        if (!nombreLimpio || isNaN(pasesNum) || pasesNum < 1) {
-          continue; // Omitir filas inválidas
-        }
-
-        const nuevoInvitado = await prisma.invitado.create({
-          data: {
-            evento_id: evento.id,
-            nombre: nombreLimpio,
-            grupo: item.grupo ? String(item.grupo).trim() : null,
-            pases_asignados: pasesNum,
-            token: generateInvitationToken(),
-            estado: "pendiente",
-          },
-        });
-        creados.push(nuevoInvitado);
-      }
-
-      return NextResponse.json({
-        ok: true,
-        importados: creados.length,
-        totalRecibidos: invitados.length,
-      });
-    }
-
-    // Creación individual (RF-08)
-    const nombreLimpio = String(nombre || "").trim();
-    const pasesNum = Number(pases_asignados);
-
-    if (!isValidName(nombreLimpio)) {
-      return NextResponse.json(
-        { error: NAME_ERROR },
-        { status: 400 }
-      );
-    }
-
-    if (!Number.isInteger(pasesNum) || pasesNum < 1) {
-      return NextResponse.json(
-        { error: "Los pases asignados deben ser un número entero mayor o igual a 1." },
-        { status: 400 }
-      );
-    }
-
-    const token = generateInvitationToken(); // RF-12, RNF-01
-
-    const nuevoInvitado = await prisma.invitado.create({
-      data: {
-        evento_id: evento.id,
-        nombre: nombreLimpio,
-        grupo: grupo ? String(grupo).trim() : null,
-        pases_asignados: pasesNum,
-        token,
-        estado: "pendiente",
-      },
-    });
-
-    return NextResponse.json({ ok: true, invitado: nuevoInvitado });
+    if (!result) throw new Error("SAVE_FAILED");
+    const extra = { capacidad_total: result.capacity, capacidad_actualizada: result.adjusted };
+    return NextResponse.json(bulk ? { ok: true, importados: result.created.length, totalRecibidos: rows.length, ...extra } : { ok: true, invitado: result.created[0], ...extra });
   } catch (error) {
+    if (error instanceof Error && error.message === "PASS_LIMIT") return NextResponse.json({ error: "Los pases superan el límite contratado. Reduce los pases o contacta a tu administrador." }, { status: 403 });
+    if (error instanceof Error && error.message === "GUEST_LIMIT") return NextResponse.json({ error: "Alcanzaste el límite de invitaciones contratado." }, { status: 403 });
+    if (typeof error === "object" && error && "code" in error && error.code === "P2034") return NextResponse.json({ error: "Se está actualizando este evento. Intenta guardar nuevamente." }, { status: 409 });
     console.error("Error al registrar invitado:", error);
     return NextResponse.json(
       { error: "Error al guardar el invitado." },
