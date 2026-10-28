@@ -6,7 +6,7 @@ const ts = require('typescript');
 const path = require('node:path');
 
 function fixture(capacity = 60, limit = 200, fail = false) {
-  const event = { id: 'event', usuario_id: 'owner', capacidad_total: capacity, limite_pases: limit, usuario: { organizacion_id: 'monarque-clientes-directos', organizacion: null } };
+  const event = { id: 'event', usuario_id: 'owner', fecha_limite_rsvp: new Date('2099-01-01'), capacidad_total: capacity, limite_pases: limit, usuario: { organizacion_id: 'monarque-clientes-directos', organizacion: null } };
   const guests = [{ estado: 'pendiente', pases_asignados: 60, pases_confirmados: null, pases_ingresados: 0 }];
   let creates = 0, updates = 0;
   const tx = { evento: { findUniqueOrThrow: async () => event, update: async ({ data }) => { updates++; event.capacidad_total = data.capacidad_total; } }, invitado: { findMany: async () => guests, create: async ({ data }) => { if (fail) throw Error('simulated failure'); creates++; return data; } } };
@@ -52,4 +52,14 @@ test('Importar también amplía al total comprometido', async () => {
   const data = await response.json();
   assert.equal(data.importados, 2);
   assert.equal(data.capacidad_total, 70);
+});
+test('Después del plazo rechaza altas e importaciones sin crear invitados ni cambiar capacidad', async () => {
+  const f = fixture();
+  f.event.fecha_limite_rsvp = new Date('2000-01-01');
+  for (const extra of [{}, { bulk: true, invitados: [{ nombre: 'Ana', pases: 4 }] }]) {
+    const response = await f.save(extra);
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, 'GUEST_REGISTRATION_CLOSED');
+  }
+  assert.deepEqual(f.counts(), { creates: 0, updates: 0 });
 });

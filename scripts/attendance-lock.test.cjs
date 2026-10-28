@@ -11,10 +11,19 @@ function fixture(entered, racing = false) {
   const prisma = { invitado: {
     findUnique: async () => guest,
     updateMany: async ({ where }) => {
+      if (where.pases_ingresados === undefined) { writes++; return { count: 1 }; }
       assert.equal(where.pases_ingresados, 0);
       assert.equal(where.ultima_entrada_en, null);
       assert.equal(where.escaneado_en, null);
       if (racing || entered) return { count: 0 };
+      writes++; return { count: 1 };
+    },
+    deleteMany: async ({ where }) => {
+      assert.equal(where.pases_ingresados, 0);
+      assert.equal(where.ultima_entrada_en, null);
+      assert.equal(where.escaneado_en, null);
+      assert.ok(where.registros_entrada.none);
+      if (racing || entered || guest.ultima_entrada_en || guest.escaneado_en) return { count: 0 };
       writes++; return { count: 1 };
     },
   } };
@@ -33,7 +42,7 @@ function fixture(entered, racing = false) {
     return exports;
   }
   const request = body => new Request('http://localhost', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return { load, request, writes: () => writes };
+  return { load, request, guest, writes: () => writes };
 }
 
 for (const entered of [6, 12]) {
@@ -92,4 +101,29 @@ test('La liberación manual solo acepta declinados sin ingresos y es condicional
   assert.equal((await edit.PUT(f.request({ action: 'liberar_pases' }), { params: Promise.resolve({ id: 'guest' }) })).status, 200);
   const raced = fixture(0, true);
   assert.equal((await raced.load('app/api/invitados/[id]/route.ts').PUT(raced.request({ action: 'liberar_pases' }), { params: Promise.resolve({ id: 'guest' }) })).status, 409);
+});
+
+test('Después del plazo solo permite corregir datos y liberar pases declinados, también para admin', async () => {
+  const f = fixture(0);
+  f.guest.evento.fecha_limite_rsvp = new Date('2000-01-01');
+  const route = f.load('app/api/invitados/[id]/route.ts');
+  const params = { params: Promise.resolve({ id: 'guest' }) };
+  for (const body of [{ pases_asignados: 20 }, { pases_asignados: 10 }, { action: 'regenerar_link' }]) {
+    const response = await route.PUT(f.request(body), params);
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, 'RSVP_CLOSED');
+  }
+  assert.equal((await route.PUT(f.request({ nombre: 'Familia Perez', grupo: 'Amigos', pases_asignados: 15 }), params)).status, 200);
+  f.guest.estado = 'declinado';
+  assert.equal((await route.PUT(f.request({ action: 'liberar_pases' }), params)).status, 200);
+});
+
+test('Eliminar conserva el historial y solo permite invitados sin ingresos, incluso después del plazo', async () => {
+  for (const [entered, racing, expected] of [[0, false, 200], [4, false, 409], [0, true, 409]]) {
+    const f = fixture(entered, racing);
+    f.guest.evento.fecha_limite_rsvp = new Date('2000-01-01');
+    const response = await f.load('app/api/invitados/[id]/route.ts').DELETE(f.request({}), { params: Promise.resolve({ id: 'guest' }) });
+    assert.equal(response.status, expected);
+    assert.equal(f.writes(), expected === 200 ? 1 : 0);
+  }
 });

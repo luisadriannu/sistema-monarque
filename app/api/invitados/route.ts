@@ -293,6 +293,7 @@ export async function POST(request: Request) {
       );
     }
 
+    if (Date.now() > new Date(evento.fecha_limite_rsvp).getTime()) return NextResponse.json({ error: "El plazo de confirmación ha cerrado. Ya no se pueden agregar ni importar invitados.", code: "GUEST_REGISTRATION_CLOSED" }, { status: 409 });
     const rows = bulk && Array.isArray(invitados) ? invitados : [{ nombre, grupo, pases_asignados }];
     if (!rows.length) return NextResponse.json({ error: "Agrega al menos un invitado." }, { status: 400 });
     const normalized = rows.map(item => ({
@@ -306,6 +307,7 @@ export async function POST(request: Request) {
     // Both writes share a serializable transaction: no guest without its updated capacity.
     const save = () => prisma.$transaction(async tx => {
       const current = await tx.evento.findUniqueOrThrow({ where: { id: evento.id }, include: { usuario: { include: { organizacion: true } } } });
+      if (Date.now() > new Date(current.fecha_limite_rsvp).getTime()) throw new Error("REGISTRATION_CLOSED");
       const guests = await tx.invitado.findMany({ where: { evento_id: evento.id } });
       const committed = guests.reduce((sum, guest) => sum + committedPasses(guest), 0);
       const nextTotal = committed + normalized.reduce((sum, item) => sum + item.pases_asignados, 0);
@@ -331,6 +333,7 @@ export async function POST(request: Request) {
     const extra = { capacidad_total: result.capacity, capacidad_actualizada: result.adjusted };
     return NextResponse.json(bulk ? { ok: true, importados: result.created.length, totalRecibidos: rows.length, ...extra } : { ok: true, invitado: result.created[0], ...extra });
   } catch (error) {
+    if (error instanceof Error && error.message === "REGISTRATION_CLOSED") return NextResponse.json({ error: "El plazo de confirmación ha cerrado. Ya no se pueden agregar ni importar invitados.", code: "GUEST_REGISTRATION_CLOSED" }, { status: 409 });
     if (error instanceof Error && error.message === "PASS_LIMIT") return NextResponse.json({ error: "Los pases superan el límite contratado. Reduce los pases o contacta a tu administrador." }, { status: 403 });
     if (error instanceof Error && error.message === "GUEST_LIMIT") return NextResponse.json({ error: "Alcanzaste el límite de invitaciones contratado." }, { status: 403 });
     if (typeof error === "object" && error && "code" in error && error.code === "P2034") return NextResponse.json({ error: "Se está actualizando este evento. Intenta guardar nuevamente." }, { status: 409 });

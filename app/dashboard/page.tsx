@@ -1,4 +1,4 @@
-import { committedPasses, recoveredPasses, releasablePasses } from "@/lib/pass-balance";
+import { committedPasses, recoveredPasses, releasablePasses, contractedPassLimit } from "@/lib/pass-balance";
 import LoadingLink from "@/components/LoadingLink";
 import AttendanceRefresh from "@/components/AttendanceRefresh";
 import { redirect } from "next/navigation";
@@ -99,7 +99,7 @@ export default async function DashboardPage() {
   const porLiberar = invitados.reduce((sum, guest) => sum + releasablePasses(guest), 0);
   const qrCheckinEnabled = Boolean(user.organizacion?.qr_checkin_habilitado);
 
-  const capacidad = evento.capacidad_total || 0;
+  const capacidad = evento.capacidad_total ?? contractedPassLimit({ ...evento, usuario: user }) ?? 0;
   // Cupos comprometidos reales: Confirmados + Pendientes (quienes declinaron ya liberaron su lugar)
   const cuposComprometidos = total_asignados;
   const cuposDisponibles = capacidad - cuposComprometidos;
@@ -224,7 +224,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Barra de Capacidad del Evento (Dinámica y en tiempo real) */}
-      {evento.capacidad_total && (
+      {capacidad > 0 && (
         <div className="bg-white border border-[#ebd9c4] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div>
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
                 </span>
                 <span className="text-stone-300">•</span>
                 <span className="text-xs font-bold text-[#2b211b]">
-                  {evento.capacidad_total} asientos totales
+                  {capacidad} asientos totales
                 </span>
               </div>
               <p className="text-xs text-stone-500 mt-0.5">

@@ -1,12 +1,5 @@
 import { isValidName, NAME_ERROR } from "@/lib/names";
-import { committedPasses } from "@/lib/pass-balance";
-import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
-
-function effectivePassLimit(eventLimit: number | null, user: { organizacion_id: string | null; organizacion: { max_invitados_evento: number } | null }) {
-  const organizationLimit = user.organizacion_id !== DIRECT_ORGANIZATION_ID ? user.organizacion?.max_invitados_evento : null;
-  const limits = [eventLimit, organizationLimit].filter((value): value is number => typeof value === "number" && value > 0);
-  return limits.length ? Math.min(...limits) : null;
-}
+import { committedPasses, contractedPassLimit } from "@/lib/pass-balance";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -25,6 +18,7 @@ export async function GET(request: Request) {
   const eventos = await prisma.evento.findMany({
     where: { ...whereClause, ...(eventId ? { id: eventId } : {}) },
     include: {
+      usuario: { select: { organizacion_id: true, organizacion: true } },
       _count: {
         select: { invitados: true },
       },
@@ -35,7 +29,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     eventos: await Promise.all(eventos.map(async event => {
       const guests = await prisma.invitado.findMany({ where: { evento_id: event.id } });
-      return { ...event, limite_pases: user.rol === "admin" ? event.limite_pases : effectivePassLimit(event.limite_pases, user),
+      const limit = contractedPassLimit(event);
+      return { ...event, capacidad_total: event.capacidad_total ?? limit, limite_pases: limit,
         total_confirmados: guests.reduce((sum, guest) => sum + (guest.estado === "confirmado" ? guest.pases_confirmados ?? 0 : 0), 0),
         total_comprometidos: guests.reduce((sum, guest) => sum + committedPasses(guest), 0) };
     })),
@@ -81,6 +76,7 @@ export async function PUT(request: Request) {
     // Verificar pertenencia (RF-02)
     const existing = await prisma.evento.findUnique({
       where: { id },
+      include: { usuario: { select: { organizacion_id: true, organizacion: true } } },
     });
 
     if (!existing) {
@@ -114,12 +110,8 @@ export async function PUT(request: Request) {
       if (!fecha_limite_rsvp || Number.isNaN(targetDeadline.getTime())) {
         return NextResponse.json({ error: "La fecha límite de confirmación no es válida." }, { status: 400 });
       }
-      const deadlineDay = toDateInputValue(targetDeadline);
-      if (deadlineDay < toDateInputValue(new Date()) && deadlineDay !== toDateInputValue(existing.fecha_limite_rsvp)) {
-        return NextResponse.json(
-          { error: "La fecha límite de confirmación no puede ser anterior a hoy (horario de Ciudad de México).", code: "RSVP_DATE_PAST" },
-          { status: 400 },
-        );
+      if (toDateInputValue(targetDeadline) < toDateInputValue(new Date()) && toDateInputValue(targetDeadline) !== toDateInputValue(existing.fecha_limite_rsvp)) {
+        return NextResponse.json({ error: "La fecha límite de confirmación debe ser hoy o una fecha futura.", code: "RSVP_DATE_PAST" }, { status: 400 });
       }
     }
 
@@ -160,22 +152,15 @@ export async function PUT(request: Request) {
         { status: 400 },
       );
     }
-    const targetDeadlineKey = toDateInputValue(targetDeadline);
-    const existingDeadlineKey = toDateInputValue(existing.fecha_limite_rsvp);
-    if (targetDeadlineKey < toDateInputValue(new Date()) && targetDeadlineKey !== existingDeadlineKey) {
-      return NextResponse.json(
-        { error: "La fecha límite de confirmación debe ser hoy o una fecha futura." },
-        { status: 400 },
-      );
-    }
 
+
+    const passLimit = contractedPassLimit(existing);
     const requestedCapacity = capacidad_total === null || capacidad_total === "" || capacidad_total === undefined
-      ? null
+      ? passLimit
       : Number(capacidad_total);
     if (requestedCapacity !== null && (!Number.isInteger(requestedCapacity) || requestedCapacity < 1)) {
       return NextResponse.json({ error: "La capacidad del evento debe ser un número entero mayor a cero." }, { status: 400 });
     }
-    const passLimit = effectivePassLimit(existing.limite_pases, user);
     if (requestedCapacity !== null && capacidad_total !== undefined) {
       const confirmed = await prisma.invitado.aggregate({ where: { evento_id: id, estado: "confirmado" }, _sum: { pases_confirmados: true } });
       const minimum = confirmed._sum.pases_confirmados ?? 0;
@@ -193,10 +178,7 @@ export async function PUT(request: Request) {
         ...(fecha_evento && { fecha_evento: new Date(fecha_evento) }),
         ...(lugar && { lugar }),
         ...(capacidad_total !== undefined && {
-          capacidad_total:
-            capacidad_total === null || capacidad_total === ""
-              ? null
-              : requestedCapacity,
+          capacidad_total: requestedCapacity,
         }),
         ...(fecha_limite_rsvp && { fecha_limite_rsvp: new Date(fecha_limite_rsvp) }),
         ...(texto_edad_nino !== undefined && { texto_edad_nino: String(texto_edad_nino).trim() }),

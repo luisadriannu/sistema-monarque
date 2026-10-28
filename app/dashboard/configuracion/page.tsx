@@ -96,7 +96,7 @@ function ConfiguracionContent() {
   const [recepcionCierraEn, setRecepcionCierraEn] = useState("");
   const [modoIngreso, setModoIngreso] = useState("parcial");
   const [minReceptionDate, setMinReceptionDate] = useState("");
-  const [minDeadlineDate, setMinDeadlineDate] = useState("");
+  const [today, setToday] = useState(() => toDateInputValue(new Date()));
   const [qrCheckinEnabled, setQrCheckinEnabled] = useState(false);
   const mensajeRef = useRef<HTMLTextAreaElement>(null);
   const plantillaMensajeRef = useRef("");
@@ -104,12 +104,12 @@ function ConfiguracionContent() {
 
   useEffect(() => {
     const updateMinimum = () => {
+      setToday(toDateInputValue(new Date()));
       setMinReceptionDate(
         toDateTimeInputValue(
           new Date(Math.floor(Date.now() / 60000) * 60000 + 60000),
         ),
       );
-      setMinDeadlineDate(toDateInputValue(new Date()));
     };
     updateMinimum();
     const interval = window.setInterval(updateMinimum, 30000);
@@ -189,15 +189,17 @@ function ConfiguracionContent() {
   }, [eventId]);
 
   const fechaEventoMaxima = evento ? toDateInputValue(evento.fecha_evento) : "";
-  const fechaMinimaRsvp = minDeadlineDate || toDateInputValue(new Date());
   const fechaLimitePosteriorEvento = Boolean(
     fechaLimiteRsvp && fechaEventoMaxima && fechaLimiteRsvp > fechaEventoMaxima,
   );
-  const fechaLimiteAnteriorHoy = Boolean(
-    fechaLimiteRsvp && minDeadlineDate && fechaLimiteRsvp < minDeadlineDate,
-  );
-  const fechaLimiteInvalida =
-    fechaLimiteAnteriorHoy || fechaLimitePosteriorEvento;
+
+  const fechaLimiteAnteriorHoy = Boolean(fechaLimiteRsvp && fechaLimiteRsvp < today && fechaLimiteRsvp !== toDateInputValue(evento?.fecha_limite_rsvp));
+  const fechaLimiteInvalida = fechaLimitePosteriorEvento || fechaLimiteAnteriorHoy;
+  const capacidadError = !capacidadTotal.trim() ? null
+    : !Number.isInteger(Number(capacidadTotal)) || Number(capacidadTotal) < 1 ? "Ingresa una cantidad entera mayor a cero."
+    : evento?.limite_pases && Number(capacidadTotal) > evento.limite_pases ? `Tu contrato permite hasta ${evento.limite_pases} pases. No puedes guardar una capacidad de ${capacidadTotal}.`
+    : Number(capacidadTotal) < (evento?.total_confirmados ?? 0) ? `Ya tienes ${evento?.total_confirmados} asistentes confirmados. La capacidad no puede ser menor.`
+    : null;
   const eventoFinalizado =
     evento && !isAdmin ? isEventFinished(evento.fecha_evento) : false;
 
@@ -215,10 +217,9 @@ function ConfiguracionContent() {
       return;
     }
 
-    if (fechaLimiteRsvp && fechaLimiteRsvp < toDateInputValue(new Date())) {
-      setError(
-        "La fecha límite de confirmación no puede ser anterior a hoy (horario de Ciudad de México).",
-      );
+
+    if (fechaLimiteRsvp && fechaLimiteRsvp < toDateInputValue(new Date()) && fechaLimiteRsvp !== toDateInputValue(evento.fecha_limite_rsvp)) {
+      setError("La fecha límite de confirmación debe ser hoy o una fecha futura.");
       return;
     }
     if (fechaLimitePosteriorEvento) {
@@ -227,12 +228,7 @@ function ConfiguracionContent() {
       );
       return;
     }
-    if (fechaLimiteAnteriorHoy) {
-      setError(
-        "La fecha límite de confirmación debe ser hoy o una fecha futura.",
-      );
-      return;
-    }
+
 
     if (capacidadTotal.trim() && Number(capacidadTotal) < (evento.total_confirmados ?? 0)) {
       setError(`Ya tienes ${evento.total_confirmados} asistentes confirmados. La capacidad no puede ser menor a ${evento.total_confirmados}.`);
@@ -653,16 +649,16 @@ function ConfiguracionContent() {
                   <input
                     type="date"
                     required
+                    min={fechaLimiteRsvp === toDateInputValue(evento.fecha_limite_rsvp) && fechaLimiteRsvp < today ? fechaLimiteRsvp : today}
                     max={fechaEventoMaxima}
                     value={fechaLimiteRsvp}
                     onChange={(e) => {
                       const value = e.target.value;
-                      if (value && value < fechaMinimaRsvp) {
-                        setError(
-                          "La fecha límite de confirmación no puede ser anterior a hoy.",
-                        );
+                      if (value && value < toDateInputValue(new Date())) {
+                        setError("La fecha límite de confirmación debe ser hoy o una fecha futura.");
                         return;
                       }
+
                       if (
                         value &&
                         fechaEventoMaxima &&
@@ -676,7 +672,7 @@ function ConfiguracionContent() {
                       setFechaLimiteRsvp(value);
                       setError(null);
                     }}
-                    aria-invalid={fechaLimitePosteriorEvento}
+                    aria-invalid={fechaLimiteInvalida}
                     aria-describedby="fecha-limite-ayuda"
                     className={`block min-w-0 max-w-full w-full appearance-none box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
                       fechaLimitePosteriorEvento
@@ -714,23 +710,23 @@ function ConfiguracionContent() {
                     type="number"
                     min={Math.max(1, evento.total_confirmados ?? 0)}
                     max={evento.limite_pases || undefined}
-                    aria-describedby="capacity-reservations"
+                    aria-describedby={capacidadError ? "capacity-error capacity-reservations" : "capacity-reservations"}
+                    aria-invalid={Boolean(capacidadError)}
                     value={capacidadTotal}
                     onWheel={(event) => event.currentTarget.blur()}
                     onChange={(e) => setCapacidadTotal(e.target.value)}
-                    placeholder="ej. 100"
-                    className="block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border border-[#dec0a2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
+                    placeholder={evento.limite_pases ? `Por defecto: ${evento.limite_pases}` : "ej. 100"}
+                    className={`block min-w-0 max-w-full w-full box-border px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${capacidadError ? "border-rose-400 focus:ring-rose-300" : "border-[#dec0a2] focus:ring-[#e05a1b]"}`}
                   />
+                  {capacidadError && <p id="capacity-error" role="alert" className="mt-2 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-relaxed text-rose-800"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0"/>{capacidadError}</p>}
                 </div>
-                <p id="capacity-reservations" className="mt-3 text-xs leading-relaxed text-stone-600">{evento.total_confirmados ?? 0} asistentes confirmados · {Math.max(0, (evento.total_comprometidos ?? 0) - (evento.total_confirmados ?? 0))} lugares adicionales aún reservados. La capacidad debe cubrir al menos los confirmados.</p>
+                <p id="capacity-reservations" className="mt-3 text-xs leading-relaxed text-stone-600">{evento.total_confirmados ?? 0} asistentes confirmados · {Math.max(0, (evento.total_comprometidos ?? 0) - (evento.total_confirmados ?? 0))} lugares adicionales aún reservados. Si escribes una capacidad personalizada, debe cubrir al menos los confirmados.</p>
                 {capacidadTotal.trim() && Number(capacidadTotal) < (evento.total_comprometidos ?? 0) && <p role="status" className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">{Number(capacidadTotal) < (evento.total_confirmados ?? 0) ? "No puedes guardar una capacidad inferior a los asistentes confirmados." : "Esta capacidad no cubre todos los lugares reservados. Revisa las invitaciones pendientes y los pases disponibles para liberar."}</p>}
                 <p className="text-[11px] text-stone-600 mt-3 leading-relaxed">
                   {evento.limite_pases
                     ? `Tu contratación permite hasta ${evento.limite_pases} pases. `
                     : ""}
-                  Si defines un cupo máximo, verás en tu Resumen una barra de
-                  control que te indica cuántos cupos te quedan disponibles. Si
-                  lo dejas vacío, no se mostrará.
+                  {evento.limite_pases ? `Si lo dejas vacío, se usará tu capacidad contratada de ${evento.limite_pases} asientos y la barra del Resumen seguirá visible. Puedes indicar una capacidad menor si cubre los asistentes ya confirmados.` : "Define la capacidad del evento para consultar los lugares disponibles en tu Resumen."}
                 </p>
               </div>
 
@@ -852,8 +848,8 @@ function ConfiguracionContent() {
                 type="submit"
                 disabled={
                   guardando ||
-                  fechaLimiteAnteriorHoy ||
-                  fechaLimitePosteriorEvento ||
+                  Boolean(capacidadError) ||
+                  fechaLimiteInvalida ||
                   eventoFinalizado
                 }
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e05a1b] to-[#ea580c] px-6 py-3 text-xs font-semibold text-white shadow-md shadow-orange-500/20 transition-all hover:from-[#c2410c] hover:to-[#e05a1b] disabled:opacity-50 sm:w-auto"

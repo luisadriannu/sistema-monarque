@@ -52,6 +52,10 @@ export async function PUT(
       return NextResponse.json({ ok: true, message: "Pases devueltos al saldo del evento. La confirmación de este invitado quedó cerrada." });
     }
 
+    const deadlineClosed = Date.now() > new Date(invitado.evento.fecha_limite_rsvp).getTime();
+    const wantsPassChange = body.pases_asignados !== undefined && Number(body.pases_asignados) !== invitado.pases_asignados;
+    if (deadlineClosed && (wantsPassChange || body.action === "regenerar_link")) return NextResponse.json({ error: "El plazo de confirmación ha cerrado. Solo puedes corregir el nombre y el grupo; los pases y la confirmación están cerrados.", code: "RSVP_CLOSED" }, { status: 409 });
+
     if (hasAttendance(invitado) && (body.action === "regenerar_link" || (body.pases_asignados !== undefined && Number(body.pases_asignados) !== invitado.pases_asignados))) return NextResponse.json({ error: attendanceLockMessage, code: "ATTENDANCE_LOCKED" }, { status: 409 });
 
     // Acción especial: Regenerar link (RF-13)
@@ -59,7 +63,7 @@ export async function PUT(
       const nuevoToken = generateInvitationToken();
       const nuevoCodigoEntrada = generateInvitationToken(32);
       const changed = await prisma.invitado.updateMany({
-        where: { id, ...noAttendance },
+        where: { id, ...noAttendance, evento: { fecha_limite_rsvp: { gte: new Date() } } },
         data: {
           token: nuevoToken,
           estado: "pendiente",
@@ -158,7 +162,7 @@ export async function PUT(
       delete updateData.pases_confirmados;
       delete updateData.ninos_confirmados;
     }
-    const changed = await prisma.invitado.updateMany({ where: { id, ...(changesPasses ? noAttendance : {}) }, data: updateData });
+    const changed = await prisma.invitado.updateMany({ where: { id, ...(changesPasses ? { ...noAttendance, evento: { fecha_limite_rsvp: { gte: new Date() } } } : {}) }, data: updateData });
     if (changed.count !== 1) return NextResponse.json({ error: attendanceLockMessage, code: "ATTENDANCE_LOCKED" }, { status: 409 });
     const actualizado = await prisma.invitado.findUnique({ where: { id } });
 
@@ -216,13 +220,14 @@ export async function DELETE(
   }
 
   try {
-    await prisma.invitado.delete({
-      where: { id },
+    const deleted = await prisma.invitado.deleteMany({
+      where: { id, pases_ingresados: 0, ultima_entrada_en: null, escaneado_en: null, registros_entrada: { none: {} } },
     });
+    if (deleted.count !== 1) return NextResponse.json({ error: "No puedes eliminar un invitado con ingresos registrados. Su historial de asistencia debe conservarse.", code: "ATTENDANCE_LOCKED" }, { status: 409 });
 
     return NextResponse.json({
       ok: true,
-      message: "Invitado eliminado exitosamente.",
+      message: "Invitado eliminado. Su enlace quedó invalidado y los pases aún reservados volvieron al saldo disponible.",
     });
   } catch (error) {
     console.error("Error al borrar invitado:", error);

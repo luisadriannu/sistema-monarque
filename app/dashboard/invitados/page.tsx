@@ -109,6 +109,15 @@ function InvitadosContent() {
   const [vistaAdmin, setVistaAdmin] = useState(false);
   const permisosResueltos = permisoScopeResuelto === permisoScope;
   const puedeModificar = permisosResueltos && !soloLectura;
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  useEffect(() => {
+    const update = () => setClockNow(Date.now());
+    const timer = window.setInterval(update, 10000);
+    window.addEventListener("focus", update);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", update); };
+  }, []);
+  const altasCerradas = Boolean(evento && clockNow > new Date(evento.fecha_limite_rsvp).getTime());
+  const puedeAgregar = puedeModificar && !altasCerradas;
 
   // Filtros (conectados con la URL al hacer clic desde el dashboard)
   const [search, setSearch] = useState("");
@@ -426,6 +435,7 @@ function InvitadosContent() {
 
   // Regenerar link
   const handleRegenerarLink = async (invitado: Invitado) => {
+    if (altasCerradas) { notify("El plazo de confirmación ha cerrado. No se puede reiniciar la confirmación regenerando el enlace."); return; }
     if (hasAttendance(invitado)) { notify(attendanceLockMessage); return; }
     if (regeneratingId) return;
     setRegeneratingId(invitado.id);
@@ -464,7 +474,7 @@ function InvitadosContent() {
   const handleGuardarNuevo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (guardando) return;
-    if (!evento || !puedeModificar) {
+    if (!evento || !puedeAgregar || Date.now() > new Date(evento.fecha_limite_rsvp).getTime()) {
       setModalAgregar(false);
       return;
     }
@@ -773,7 +783,7 @@ function InvitadosContent() {
   // Guardar importación masiva
   const handleGuardarImportacion = async () => {
     if (importando) return;
-    if (!puedeModificar) {
+    if (!puedeAgregar || !evento || Date.now() > new Date(evento.fecha_limite_rsvp).getTime()) {
       setModalImportar(false);
       return;
     }
@@ -1262,7 +1272,7 @@ function InvitadosContent() {
             </AsyncButton>
           </div>
 
-          {puedeModificar && (
+          {puedeAgregar && (
             <>
               {/* Importar y Agregar */}
               <button
@@ -1325,6 +1335,7 @@ function InvitadosContent() {
         </div>
       )}
 
+      {permisosResueltos && altasCerradas && <p role="status" className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0"/>El plazo de confirmación ha cerrado. Ya no se pueden agregar ni importar invitados. Puedes seguir consultando la lista y registrando ingresos en recepción.</p>}
       {puedeModificar && limiteInvitados !== null && (
         <div
           className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${limiteInvitadosAlcanzado ? "border-amber-200 bg-amber-50 text-amber-900" : "border-[#eadbca] bg-white text-stone-600"}`}
@@ -1729,7 +1740,7 @@ function InvitadosContent() {
                                     }}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
                                     loading={regeneratingId === inv.id}
-                                    disabled={Boolean(regeneratingId) || hasAttendance(inv)}
+                                    disabled={Boolean(regeneratingId) || hasAttendance(inv) || altasCerradas}
                                     loadingText="Regenerando…"
                                   >
                                     <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
@@ -1741,11 +1752,13 @@ function InvitadosContent() {
                                   {/* Eliminar */}
                                   <button
                                     role="menuitem"
+                                    disabled={inv.pases_ingresados > 0 || Boolean(inv.ultima_entrada_en)}
+                                    title={inv.pases_ingresados > 0 || inv.ultima_entrada_en ? "No se puede eliminar: tiene ingresos registrados." : "Eliminar invitado e invalidar su enlace"}
                                     onClick={() => {
                                       setMenuAbiertoId(null);
                                       setModalEliminar(inv);
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-rose-700 hover:bg-rose-50"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                                     <span>Eliminar</span>
@@ -1804,7 +1817,7 @@ function InvitadosContent() {
 
       {/* MODAL: AGREGAR INVITADO */}
       <AnimatePresence>
-        {puedeModificar && modalAgregar && (
+        {puedeAgregar && modalAgregar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1998,7 +2011,7 @@ function InvitadosContent() {
                     pattern="[0-9]*"
                     required
                     value={formPases}
-                    disabled={hasAttendance(modalEditar)}
+                    disabled={hasAttendance(modalEditar) || altasCerradas}
                     onChange={(e) => handleCambiarPases(e.target.value)}
                     aria-invalid={!formPasesValido}
                     className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
@@ -2009,6 +2022,7 @@ function InvitadosContent() {
                     </p>
                   )}
                   {hasAttendance(modalEditar) && <p className="mt-2 text-xs text-amber-800">{attendanceLockMessage}</p>}
+                  {altasCerradas && !hasAttendance(modalEditar) && <p className="mt-2 text-xs text-amber-800">El plazo de confirmación ha cerrado. Puedes corregir el nombre y el grupo; los pases ya no pueden modificarse.</p>}
                   {modalEditar.pases_confirmados !== null && (
                     <p className="text-[11px] text-stone-500 mt-1">
                       Confirmados actualmente:{" "}
@@ -2094,7 +2108,7 @@ function InvitadosContent() {
                 Esta acción no se puede deshacer. Su enlace quedará inservible y
                 mostrará el mensaje{" "}
                 <strong>&ldquo;Invitación no disponible&rdquo;</strong> si
-                alguien intenta abrirlo.
+                alguien intenta abrirlo. Los pases aún reservados se devolverán al saldo disponible del evento.
               </p>
 
               <div className="flex items-center justify-end gap-3">
@@ -2128,7 +2142,7 @@ function InvitadosContent() {
 
       {/* MODAL: IMPORTACIÓN MASIVA CSV/EXCEL */}
       <AnimatePresence>
-        {puedeModificar && modalImportar && (
+        {puedeAgregar && modalImportar && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
