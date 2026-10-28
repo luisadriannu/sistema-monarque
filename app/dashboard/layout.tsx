@@ -60,9 +60,9 @@ export default async function DashboardLayout({
           && (user.rol !== "recepcionista" || user.lector_qr_habilitado),
         )}
       />
-      <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
+      <main className="min-w-0 flex-1 lg:pl-64 min-h-screen flex flex-col">
         <SessionActivity />
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">
+        <div className="min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">
           {children}
         </div>
       </main>

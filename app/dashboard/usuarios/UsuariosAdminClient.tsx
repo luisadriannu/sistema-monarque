@@ -502,17 +502,17 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                 <div className={`col-span-full mt-2 flex flex-col gap-2 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${isDirect ? "border-orange-200 bg-orange-50" : "border-emerald-200 bg-emerald-50"}`}>
                   <div>
                     <p className={`text-[10px] font-bold uppercase tracking-[.18em] ${isDirect ? "text-orange-700" : "text-emerald-700"}`}>{isDirect ? "Gestión interna" : "Organizador"}</p>
-                    <h2 className="mt-1 font-serif text-xl font-bold text-[#2b211b]">{isDirect ? "Clientes directos de Monarque" : organizationLabel(usuario)}</h2>
+                    <h2 className="mt-1 break-words font-serif text-xl font-bold text-[#2b211b]">{isDirect ? "Clientes directos de Monarque" : organizationLabel(usuario)}</h2>
                     <p className="mt-1 text-xs text-stone-600">{isDirect ? "Cuentas atendidas directamente por la administración de Monarque." : "Clientes administrados por esta empresa organizadora."}</p>
                   </div>
                   <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-sm">{clientesPorGrupo[groupKey]} {clientesPorGrupo[groupKey] === 1 ? "cliente" : "clientes"}</span>
                 </div>
               )}
               <article
-                className="overflow-hidden rounded-3xl border border-[#eadbca] bg-white shadow-sm"
+                className="min-w-0 overflow-hidden rounded-3xl border border-[#eadbca] bg-white shadow-sm"
               >
-                <div className="flex items-start justify-between gap-4 border-b border-[#f3e9de] p-5">
-                  <div className="flex min-w-0 items-center gap-3">
+                <div className="flex flex-col items-stretch gap-3 border-b border-[#f3e9de] p-4 sm:p-5">
+                  <div className="flex min-w-0 items-start gap-3">
                     <div
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
                       style={{
@@ -523,18 +523,18 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                     >
                       <EventTypeIcon type={eventType} className="h-5 w-5" />
                     </div>
-                    <div className="min-w-0">
-                      <h2 className="truncate font-serif text-lg font-bold text-[#2b211b]">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="break-words font-serif text-lg font-bold leading-snug text-[#2b211b]">
                         {usuario.nombre}
                       </h2>
-                      {isAdmin && <p className={`mb-1 text-[11px] font-semibold ${isDirect ? "text-orange-700" : "text-emerald-700"}`}>{isDirect ? "Cliente directo" : `Organización: ${organizationLabel(usuario)}`}</p>}
-                      <p className="flex items-center gap-1.5 truncate text-xs text-stone-500">
-                        <Mail className="h-3.5 w-3.5 shrink-0" />
-                        {usuario.email}
+                      {isAdmin && <p className={`mb-1 break-words text-xs font-semibold ${isDirect ? "text-orange-700" : "text-emerald-700"}`}>{isDirect ? "Cliente directo" : `Organización: ${organizationLabel(usuario)}`}</p>}
+                      <p className="flex items-start gap-1.5 text-xs text-stone-500">
+                        <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span className="min-w-0 break-all">{usuario.email}</span>
                       </p>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => openEdit(usuario)}
@@ -556,12 +556,12 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                 </div>
 
                 {evento ? (
-                  <div className="space-y-3 p-5 text-sm text-stone-600">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold text-[#2b211b]">
+                  <div className="space-y-3 p-4 text-sm text-stone-600 sm:p-5">
+                    <div className="flex flex-col items-start gap-3">
+                      <span className="min-w-0 break-words font-semibold text-[#2b211b]">
                         {evento.nombre}
                       </span>
-                      <div className="flex flex-wrap justify-end gap-1.5">
+                      <div className="flex min-w-0 flex-wrap gap-1.5">
                         <span
                           className="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
                           style={{
@@ -593,7 +593,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                     </p>
                     <p className="flex items-start gap-2">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#d65318]" />
-                      {evento.lugar}
+                      <span className="min-w-0 break-words">{evento.lugar}</span>
                     </p>
                     <div className="flex flex-wrap items-center gap-3 pt-1">
                       <LoadingLink
