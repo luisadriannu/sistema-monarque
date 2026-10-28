@@ -1,8 +1,21 @@
+import { hasAttendance, noAttendance, attendanceLockMessage } from "@/lib/attendance-lock";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { isEventFinished } from "@/lib/utils";
 import { generateInvitationToken } from "@/lib/tokens";
+
+async function attendanceLockedResponse(id: string) {
+  const current = await prisma.invitado.findUnique({ where: { id }, include: { evento: true } });
+  const attendance = current ? {
+    pases_ingresados: current.pases_ingresados,
+    pases_confirmados: current.pases_confirmados ?? 0,
+    confirmacion_bloqueada: true,
+    pases_liberados: current.pases_liberados,
+    escaneado: current.pases_ingresados >= (current.pases_confirmados ?? 0) || (current.evento.modo_ingreso === "unico" && Boolean(current.escaneado_en)),
+  } : undefined;
+  return NextResponse.json({ error: attendanceLockMessage, code: "ATTENDANCE_LOCKED", attendance }, { status: 409 });
+}
 
 export async function GET(request: Request) {
   // RNF-03: Límite de intentos por IP
@@ -65,11 +78,14 @@ export async function GET(request: Request) {
     return NextResponse.json({
       invitado: {
         nombre: invitado.nombre,
+        pases_liberados: invitado.pases_liberados,
         pases_asignados: invitado.pases_asignados,
         pases_confirmados: invitado.pases_confirmados,
         ninos_confirmados: invitado.ninos_confirmados,
         estado: invitado.estado,
         ultima_respuesta_en: invitado.ultima_respuesta_en,
+        pases_ingresados: invitado.pases_ingresados,
+        ultima_entrada_en: invitado.ultima_entrada_en,
       },
       evento: {
         nombre: invitado.evento.nombre,
@@ -127,6 +143,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "El evento no está disponible para recibir confirmaciones." }, { status: 409 });
     }
 
+    if (hasAttendance(invitado)) return attendanceLockedResponse(invitado.id);
+
     // RN-03: Pasada la fecha límite, el servidor rechaza nuevas respuestas
     const now = new Date();
     const fechaLimite = new Date(invitado.evento.fecha_limite_rsvp);
@@ -180,29 +198,19 @@ export async function POST(request: Request) {
 
     // RF-20: Si elige 0 -> declinado; si > 0 -> confirmado
     const nuevoEstado = pases === 0 ? "declinado" : "confirmado";
-    const habilitaPasesAdicionales =
-      pases > (invitado.pases_confirmados ?? 0) &&
-      pases > invitado.pases_ingresados &&
-      invitado.pases_ingresados > 0 &&
-      Boolean(invitado.escaneado_en);
-
-    const actualizado = await prisma.invitado.update({
-      where: { id: invitado.id },
+    const changed = await prisma.invitado.updateMany({
+      where: { id: invitado.id, token: token.trim(), ...noAttendance },
       data: {
         pases_confirmados: pases,
         ninos_confirmados: ninos,
         estado: nuevoEstado,
         ultima_respuesta_en: new Date(),
-        ...(habilitaPasesAdicionales
-          ? {
-              codigo_entrada: generateInvitationToken(32),
-              escaneado_en: null,
-              escaneado_por: null,
-            }
-          : {}),
+
       },
     });
 
+    if (changed.count !== 1) return attendanceLockedResponse(invitado.id);
+    const actualizado = { ...invitado, pases_confirmados: pases, ninos_confirmados: ninos, estado: nuevoEstado, ultima_respuesta_en: new Date() };
     return NextResponse.json({
       ok: true,
       mensaje:

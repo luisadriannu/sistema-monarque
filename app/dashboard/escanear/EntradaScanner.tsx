@@ -612,7 +612,7 @@ export default function EntradaScanner({
               ) : alreadyScanned ? (
                 <div role="status" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <p className="font-bold">Este código QR ya ha sido utilizado.</p>
-                  <p className="mt-2">La entrada está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. Si se autorizaron pases adicionales, utiliza el nuevo QR generado en la invitación.</p>
+                  <p className="mt-2">La entrada está registrada para {guest.pases_ingresados} {guest.pases_ingresados === 1 ? "persona" : "personas"}. Este QR ya no permite más ingresos. Los pases y la confirmación quedaron bloqueados desde el primer ingreso.</p>
                   {guest.ultima_entrada_en && <p className="mt-2 text-xs">Registrado el {new Date(guest.ultima_entrada_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}.</p>}
                 </div>
               ) : guest.estado === "declinado" ? (

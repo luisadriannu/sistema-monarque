@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { createActivityToken, IDLE_COOKIE, validIdleSession } from "./session-idle";
 import { cookies } from "next/headers";
 import prisma from "./prisma";
 import { isOrganizationServiceActive } from "./organization-access";
@@ -53,6 +54,7 @@ export async function getCurrentSession(): Promise<SessionPayload | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get(COOKIE_NAME)?.value;
     if (!token) return null;
+    if (!await validIdleSession(token, cookieStore.get(IDLE_COOKIE)?.value)) return null;
 
     return await verifySessionToken(token);
   } catch {
@@ -114,6 +116,7 @@ export async function getCurrentUser() {
  */
 export async function setSessionCookie(token: string) {
   const cookieStore = await cookies();
+  cookieStore.set(IDLE_COOKIE, await createActivityToken(token), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 604800 });
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -130,4 +133,5 @@ export async function setSessionCookie(token: string) {
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(IDLE_COOKIE);
 }

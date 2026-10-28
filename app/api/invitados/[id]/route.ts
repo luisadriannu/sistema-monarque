@@ -1,3 +1,5 @@
+import { committedPasses, contractedPassLimit } from "@/lib/pass-balance";
+import { hasAttendance, noAttendance, attendanceLockMessage } from "@/lib/attendance-lock";
 import { isValidName, NAME_ERROR } from "@/lib/names";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -17,7 +19,7 @@ export async function PUT(
   const { id } = await params;
   const invitado = await prisma.invitado.findUnique({
     where: { id },
-    include: { evento: { include: { usuario: { select: { organizacion_id: true } } } } },
+    include: { evento: { include: { usuario: { select: { organizacion_id: true, organizacion: true } } } } },
   });
 
   if (!invitado) {
@@ -44,13 +46,20 @@ export async function PUT(
 
   try {
     const body = await request.json();
+    if (body.action === "liberar_pases") {
+      const changed = await prisma.invitado.updateMany({ where: { id, estado: "declinado", ...noAttendance }, data: { pases_liberados: true } });
+      if (changed.count !== 1) return NextResponse.json({ error: "Solo puedes liberar pases de un invitado que declinó y aún no tiene ingresos ni pases liberados." }, { status: 409 });
+      return NextResponse.json({ ok: true, message: "Pases devueltos al saldo del evento. La confirmación de este invitado quedó cerrada." });
+    }
+
+    if (hasAttendance(invitado) && (body.action === "regenerar_link" || (body.pases_asignados !== undefined && Number(body.pases_asignados) !== invitado.pases_asignados))) return NextResponse.json({ error: attendanceLockMessage, code: "ATTENDANCE_LOCKED" }, { status: 409 });
 
     // Acción especial: Regenerar link (RF-13)
     if (body.action === "regenerar_link") {
       const nuevoToken = generateInvitationToken();
       const nuevoCodigoEntrada = generateInvitationToken(32);
-      const actualizado = await prisma.invitado.update({
-        where: { id },
+      const changed = await prisma.invitado.updateMany({
+        where: { id, ...noAttendance },
         data: {
           token: nuevoToken,
           estado: "pendiente",
@@ -65,11 +74,12 @@ export async function PUT(
           escaneado_por: null,
         },
       });
+      if (changed.count !== 1) return NextResponse.json({ error: attendanceLockMessage, code: "ATTENDANCE_LOCKED" }, { status: 409 });
       return NextResponse.json({
         ok: true,
-        message: "Enlace regenerado. El estado volvió a Pendiente y se reinició la confirmación. Comparte el nuevo enlace para que el invitado responda de nuevo. Los ingresos registrados se conservaron.",
+        message: "Enlace regenerado. Comparte el nuevo enlace para que el invitado confirme su asistencia.",
         token: nuevoToken,
-        invitado: actualizado,
+        invitado: await prisma.invitado.findUnique({ where: { id } }),
       });
     }
 
@@ -108,41 +118,16 @@ export async function PUT(
         );
       }
 
-      if (user.rol !== "admin" && invitado.evento.limite_pases && nuevoAsignados > invitado.pases_asignados) {
-        const assigned = await prisma.invitado.aggregate({ where: { evento_id: invitado.evento_id }, _sum: { pases_asignados: true } });
-        const nextTotal = (assigned._sum.pases_asignados || 0) - invitado.pases_asignados + nuevoAsignados;
-        if (nextTotal > invitado.evento.limite_pases) {
-          return NextResponse.json({ error: `No puedes aumentar esos pases. El límite contratado es ${invitado.evento.limite_pases}.` }, { status: 403 });
+      const limit = contractedPassLimit(invitado.evento);
+      if (user.rol !== "admin" && limit !== null && nuevoAsignados > invitado.pases_asignados) {
+        const assigned = await prisma.invitado.findMany({ where: { evento_id: invitado.evento_id } });
+        const nextTotal = assigned.reduce((sum, guest) => sum + committedPasses(guest), 0) - committedPasses(invitado) + nuevoAsignados;
+        if (nextTotal > limit) {
+          return NextResponse.json({ error: `No puedes aumentar esos pases. El límite contratado es ${limit}.` }, { status: 403 });
         }
       }
 
       updateData.pases_asignados = nuevoAsignados;
-
-      // Después del ingreso, la ampliación hecha por la anfitriona autoriza
-      // solo el incremento; conserva cualquier cupo previamente no confirmado.
-      if (
-        nuevoAsignados > invitado.pases_asignados &&
-        invitado.estado === "confirmado" &&
-        invitado.pases_ingresados > 0
-      ) {
-        updateData.pases_confirmados = Math.min(
-          nuevoAsignados,
-          Math.max(invitado.pases_confirmados ?? 0, invitado.pases_ingresados) +
-            nuevoAsignados - invitado.pases_asignados,
-        );
-      }
-
-      // Si ya hubo una entrada y se amplía el cupo, invalida el QR que pudo
-      // quedar guardado en una captura. El historial y el total ingresado no
-      // se reinician; el nuevo QR servirá únicamente para el saldo adicional.
-      if (
-        nuevoAsignados > invitado.pases_asignados &&
-        invitado.pases_ingresados > 0
-      ) {
-        updateData.codigo_entrada = generateInvitationToken(32);
-        updateData.escaneado_en = null;
-        updateData.escaneado_por = null;
-      }
 
       let avisoAjuste: string | null = null;
 
@@ -167,17 +152,20 @@ export async function PUT(
       }
     }
 
-    const actualizado = await prisma.invitado.update({
-      where: { id },
-      data: updateData,
-    });
+    const changesPasses = updateData.pases_asignados !== undefined && Number(updateData.pases_asignados) !== invitado.pases_asignados;
+    if (!changesPasses) {
+      delete updateData.pases_asignados;
+      delete updateData.pases_confirmados;
+      delete updateData.ninos_confirmados;
+    }
+    const changed = await prisma.invitado.updateMany({ where: { id, ...(changesPasses ? noAttendance : {}) }, data: updateData });
+    if (changed.count !== 1) return NextResponse.json({ error: attendanceLockMessage, code: "ATTENDANCE_LOCKED" }, { status: 409 });
+    const actualizado = await prisma.invitado.findUnique({ where: { id } });
 
     return NextResponse.json({
       ok: true,
       invitado: actualizado,
-      aviso: updateData.codigo_entrada && updateData.pases_confirmados !== undefined && Number(updateData.pases_asignados) > invitado.pases_asignados
-        ? "Pases adicionales autorizados. Abre la invitación para obtener el nuevo QR; los ingresos anteriores se conservaron."
-        : (updateData.pases_asignados !== undefined && (updateData.pases_confirmados !== undefined || updateData.ninos_confirmados !== undefined))
+      aviso: (updateData.pases_asignados !== undefined && (updateData.pases_confirmados !== undefined || updateData.ninos_confirmados !== undefined))
           ? "Se redujeron los pases asignados; se ajustaron automáticamente los asistentes y niños confirmados."
           : undefined,
     });

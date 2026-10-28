@@ -17,3 +17,4 @@ export default async function EscanearPage() {
     />
   );
 }
+4345677;

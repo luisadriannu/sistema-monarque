@@ -1,3 +1,4 @@
+import { committedPasses, recoveredPasses, releasablePasses, contractedPassLimit } from "@/lib/pass-balance";
 import { isValidName, NAME_ERROR } from "@/lib/names";
 import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
 import { NextResponse } from "next/server";
@@ -92,6 +93,7 @@ export async function GET(request: Request) {
     where: { evento_id: evento.id },
     select: {
       pases_asignados: true,
+      pases_liberados: true,
       pases_confirmados: true,
       pases_ingresados: true,
       ultima_entrada_en: true,
@@ -105,12 +107,15 @@ export async function GET(request: Request) {
   let total_declinados_pases = 0;
   let total_pendientes_pases = 0;
   let pases_liberados = 0;
+  let disponibles_para_liberar = 0;
   let total_ingresados = 0;
   let confirmados_pendientes_ingreso = 0;
   let familias_ingresadas = 0;
 
   for (const inv of todosInvitados) {
-    total_asignados += inv.pases_asignados;
+    total_asignados += committedPasses(inv);
+    pases_liberados += recoveredPasses(inv);
+    disponibles_para_liberar += releasablePasses(inv);
     total_ingresados += inv.pases_ingresados;
     if (inv.pases_ingresados > 0) familias_ingresadas += 1;
 
@@ -119,11 +124,11 @@ export async function GET(request: Request) {
       total_confirmados += conf;
       confirmados_pendientes_ingreso += Math.max(0, conf - inv.pases_ingresados);
       // Pases liberados: si le dieron 4 pero confirmó 2, se liberaron 2
-      pases_liberados += Math.max(0, inv.pases_asignados - conf);
+
     } else if (inv.estado === "declinado") {
       total_declinados_pases += inv.pases_asignados;
       // Todos los asignados quedan liberados al declinar
-      pases_liberados += inv.pases_asignados;
+
     } else {
       // pendiente o visto
       total_pendientes_pases += inv.pases_asignados;
@@ -217,7 +222,7 @@ export async function GET(request: Request) {
       permisos: {
         qr_checkin_habilitado: hasClientQr(evento.usuario),
         limite_invitados: user.rol === "admin" || evento.usuario.organizacion_id === DIRECT_ORGANIZATION_ID ? null : evento.usuario.organizacion?.max_invitados_evento ?? null,
-        limite_pases: user.rol === "admin" ? null : evento.limite_pases ?? null,
+        limite_pases: user.rol === "admin" ? null : contractedPassLimit(evento),
         limite_pases_contratados: (() => {
           const limits = [evento.limite_pases, evento.usuario.organizacion_id === DIRECT_ORGANIZATION_ID ? null : evento.usuario.organizacion?.max_invitados_evento]
             .filter((value): value is number => typeof value === "number" && value > 0);
@@ -230,6 +235,7 @@ export async function GET(request: Request) {
         total_declinados: total_declinados_pases,
         total_pendientes: total_pendientes_pases,
         pases_liberados,
+        disponibles_para_liberar,
         total_invitados: todosInvitados.length,
         total_ingresados,
         confirmados_pendientes_ingreso,
@@ -293,11 +299,12 @@ export async function POST(request: Request) {
     if (!Number.isInteger(incomingPasses) || incomingPasses < 1) {
       return NextResponse.json({ error: "Los pases a registrar deben ser números enteros mayores a cero." }, { status: 400 });
     }
-    if (user.rol !== "admin" && evento.limite_pases) {
-      const assigned = await prisma.invitado.aggregate({ where: { evento_id: evento.id }, _sum: { pases_asignados: true } });
-      const currentPasses = assigned._sum.pases_asignados || 0;
-      if (currentPasses + incomingPasses > evento.limite_pases) {
-        return NextResponse.json({ error: `No puedes asignar esos pases. El límite contratado es ${evento.limite_pases} y quedan ${Math.max(0, evento.limite_pases - currentPasses)} disponibles.` }, { status: 403 });
+    const limit = contractedPassLimit(evento);
+    if (user.rol !== "admin" && limit !== null) {
+      const assigned = await prisma.invitado.findMany({ where: { evento_id: evento.id } });
+      const currentPasses = assigned.reduce((sum, guest) => sum + committedPasses(guest), 0);
+      if (currentPasses + incomingPasses > limit) {
+        return NextResponse.json({ error: `No puedes asignar esos pases. El límite contratado es ${limit} y quedan ${Math.max(0, limit - currentPasses)} disponibles.` }, { status: 403 });
       }
     }
 

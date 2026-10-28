@@ -248,8 +248,9 @@ export default function DashboardNav({
                 <LoadingLink
                   key={item.href}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
+                  className={`dashboard-menu-link relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
                     isActive
                       ? "text-white"
                       : "text-stone-600 hover:bg-[#fbf8f4] hover:text-[#2b211b]"

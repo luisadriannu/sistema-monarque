@@ -11,6 +11,7 @@ export default function InvitationQrPass({
   token,
   initialScanned = false,
   confirmed,
+  onAvailabilityChange,
 }: {
   image: string | null;
   guestName: string;
@@ -18,12 +19,14 @@ export default function InvitationQrPass({
   token: string;
   initialScanned?: boolean;
   confirmed: boolean;
+  onAvailabilityChange?: (available: boolean) => void;
 }) {
   const [scanned, setScanned] = useState(initialScanned);
   const lastCheck = useRef(0);
   const [unavailable, setUnavailable] = useState(false);
   const [qrImage, setQrImage] = useState(image);
   const [serverConfirmed, setServerConfirmed] = useState(confirmed);
+  useEffect(() => { onAvailabilityChange?.(!scanned && !unavailable && serverConfirmed); }, [scanned, unavailable, serverConfirmed, onAvailabilityChange]);
 
   useEffect(() => { setServerConfirmed(confirmed); }, [confirmed]);
   useEffect(() => { if (image) setQrImage(image); }, [image]);

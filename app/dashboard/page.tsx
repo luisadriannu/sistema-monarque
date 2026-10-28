@@ -1,3 +1,4 @@
+import { committedPasses, recoveredPasses, releasablePasses } from "@/lib/pass-balance";
 import LoadingLink from "@/components/LoadingLink";
 import AttendanceRefresh from "@/components/AttendanceRefresh";
 import { redirect } from "next/navigation";
@@ -72,7 +73,7 @@ export default async function DashboardPage() {
   let familias_ingresadas = 0;
 
   for (const inv of invitados) {
-    total_asignados += inv.pases_asignados;
+    total_asignados += committedPasses(inv);
     // Los ingresos son históricos: una edición de la respuesta no los elimina.
     total_ingresados += inv.pases_ingresados;
     if (inv.pases_ingresados > 0) familias_ingresadas += 1;
@@ -94,12 +95,13 @@ export default async function DashboardPage() {
   }
 
   const total_adultos = Math.max(0, total_confirmados - total_ninos);
-  const total_pases_liberados = total_declinados + total_liberados_parciales;
+  const total_pases_liberados = invitados.reduce((sum, guest) => sum + recoveredPasses(guest), 0);
+  const porLiberar = invitados.reduce((sum, guest) => sum + releasablePasses(guest), 0);
   const qrCheckinEnabled = Boolean(user.organizacion?.qr_checkin_habilitado);
 
   const capacidad = evento.capacidad_total || 0;
   // Cupos comprometidos reales: Confirmados + Pendientes (quienes declinaron ya liberaron su lugar)
-  const cuposComprometidos = total_confirmados + total_pendientes;
+  const cuposComprometidos = total_asignados;
   const cuposDisponibles = capacidad - cuposComprometidos;
 
   const pctConfirmados =
@@ -433,11 +435,7 @@ export default async function DashboardPage() {
                 {total_pases_liberados}
               </p>
               <p className="text-xs text-rose-700 mt-1 font-medium leading-relaxed">
-                {total_liberados_parciales > 0
-                  ? `${total_declinados} de declinados y ${total_liberados_parciales} de ${
-                      total_parciales_count === 1 ? "parcial" : "parciales"
-                    }`
-                  : "Pases disponibles para reasignar"}
+                {`${porLiberar} disponibles para liberar de quienes declinaron`}
               </p>
             </div>
             <div className="mt-3 pt-2.5 border-t border-rose-200/60 flex items-center justify-between text-[11px] font-semibold text-rose-800">

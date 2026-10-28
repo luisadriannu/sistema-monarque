@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     const qrImage = includeQr && confirmado && !escaneado
       ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, { width: 480, margin: 1, color: { dark: "#183126", light: "#fffaf0" } })
       : undefined;
-    return NextResponse.json({ escaneado, confirmado, ...(qrImage ? { qrImage } : {}) }, { headers });
+    return NextResponse.json({ escaneado, confirmado, pases_ingresados: invitado.pases_ingresados, pases_confirmados: limite, confirmacion_bloqueada: invitado.pases_ingresados > 0 || Boolean(invitado.ultima_entrada_en) || Boolean(invitado.escaneado_en), ...(qrImage ? { qrImage } : {}) }, { headers });
   } catch (error) {
     console.error("Error al consultar estado de entrada", error);
     return NextResponse.json({ error: "No se pudo consultar la entrada." }, { status: 503, headers });

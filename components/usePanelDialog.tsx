@@ -49,7 +49,7 @@ export default function usePanelDialog() {
     setCurrent({ message, confirmation, resolve });
   });
   const dialog = current ? createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-stone-950/55 p-4 backdrop-blur-sm" onClick={() => close(false)}>
+    <div className="dashboard-modal-enter fixed inset-0 z-[200] flex items-center justify-center bg-stone-950/55 p-4 backdrop-blur-sm" onClick={() => close(false)}>
       <div ref={panel} role="alertdialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} onClick={event => event.stopPropagation()} className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-[#eadbca] bg-white p-6 text-center shadow-2xl">
         <button type="button" aria-label="Cerrar" onClick={() => close(false)} className="absolute right-4 top-4 rounded-lg p-2 text-stone-400 hover:bg-stone-100"><X className="h-4 w-4" /></button>
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600"><AlertTriangle className="h-7 w-7" /></div>

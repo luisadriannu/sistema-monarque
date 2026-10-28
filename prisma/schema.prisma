@@ -100,6 +100,7 @@ model LoginIntento {
 }
 
 model Invitado {
+  pases_liberados      Boolean           @default(false)
   id                  String            @id @default(uuid())
   evento_id           String
   evento              Evento            @relation(fields: [evento_id], references: [id], onDelete: Cascade)

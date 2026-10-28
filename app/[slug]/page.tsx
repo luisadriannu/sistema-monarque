@@ -139,6 +139,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   const invitadoData = {
     pases_ingresados: invitado.pases_ingresados,
+    pases_liberados: invitado.pases_liberados,
     ultima_entrada_en: invitado.ultima_entrada_en?.toISOString() || null,
     nombre: invitado.nombre,
     pases_asignados: invitado.pases_asignados,

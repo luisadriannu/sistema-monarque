@@ -47,6 +47,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("reason") === "session_expired") {
+      setError("Tu sesión ha caducado por inactividad o vencimiento. Inicia sesión nuevamente.");
+    }
+  }, []);
   const [rateLimit, setRateLimit] = useState<{
     email: string;
     blockedUntil: number;

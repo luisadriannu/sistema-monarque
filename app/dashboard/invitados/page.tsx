@@ -1,4 +1,7 @@
 "use client";
+import { recoveredPasses, releasablePasses } from "@/lib/pass-balance";
+import { hasAttendance, attendanceLockMessage } from "@/lib/attendance-lock";
+import ModalHeader from "@/components/ModalHeader";
 import {
   isValidName,
   lettersOnly,
@@ -18,6 +21,7 @@ import {
   Copy,
   Check,
   RefreshCw,
+  RotateCcw,
   Edit2,
   Trash2,
   X,
@@ -58,6 +62,7 @@ interface Invitado {
   enviado_en: string | null;
   ultima_respuesta_en: string | null;
   pases_ingresados: number;
+  pases_liberados?: boolean;
   ultima_entrada_en: string | null;
   creado_en: string;
 }
@@ -210,8 +215,11 @@ function InvitadosContent() {
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
 
   // Cargar lista de invitados
+  const listRequest = useRef(0);
+  useEffect(() => () => { listRequest.current += 1; }, []);
   const fetchInvitados = useCallback(
     async (targetPage = page) => {
+      const requestId = ++listRequest.current;
       setLoading(true);
       try {
         const query = new URLSearchParams({
@@ -227,6 +235,8 @@ function InvitadosContent() {
           cache: "no-store",
         });
         const data = await res.json();
+        if (requestId !== listRequest.current) return;
+        if (!res.ok) throw new Error(data.error || "No se pudo actualizar la lista de invitados.");
         if (res.ok) {
           setEvento(data.evento);
           setInvitados(data.invitados || []);
@@ -258,11 +268,15 @@ function InvitadosContent() {
             data.kpis?.total_asignados || 0,
           );
           setTotalInvitadosEvento(data.kpis?.total_invitados || 0);
+          return true;
         }
       } catch (e) {
+        if (requestId !== listRequest.current) return;
         console.error("Error al cargar invitados", e);
+        setToast({ type: "error", title: "No se pudo actualizar la lista", message: e instanceof Error ? e.message : "Intenta actualizar la lista nuevamente." });
+        return false;
       } finally {
-        setLoading(false);
+        if (requestId === listRequest.current) setLoading(false);
       }
     },
     [
@@ -400,8 +414,17 @@ function InvitadosContent() {
     await registrarEnvio(invitado.id);
   };
 
+  const handleLiberarPases = async (inv: Invitado) => {
+    if (!(await confirmDialog(`¿Liberar los ${inv.pases_asignados} pases de ${inv.nombre}? Su confirmación quedará cerrada y no podrá volver a aceptar la invitación.`))) return;
+    const response = await fetch(`/api/invitados/${inv.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "liberar_pases" }) });
+    const data = await response.json();
+    notify(response.ok ? data.message : data.error);
+    if (response.ok) { await fetchInvitados(); router.refresh(); }
+  };
+
   // Regenerar link
   const handleRegenerarLink = async (invitado: Invitado) => {
+    if (hasAttendance(invitado)) { notify(attendanceLockMessage); return; }
     if (regeneratingId) return;
     setRegeneratingId(invitado.id);
     try {
@@ -482,15 +505,15 @@ function InvitadosContent() {
       if (!res.ok) throw new Error(data.error || "Error al agregar invitado.");
 
       setPage(1);
-      await fetchInvitados(1);
+      const refreshed = await fetchInvitados(1);
       setModalAgregar(false);
       setFormNombre("");
       setFormGrupo("");
       setFormPases("2");
       setToast({
-        type: "success",
-        title: "Invitado agregado",
-        message: `${data.invitado.nombre} se guardó correctamente.`,
+        type: refreshed === false ? "error" : "success",
+        title: refreshed === false ? "Invitado guardado; lista pendiente de actualizar" : "Invitado agregado",
+        message: refreshed === false ? `${data.invitado.nombre} ya está guardado. Actualiza la lista; no necesitas agregarlo otra vez.` : `${data.invitado.nombre} se guardó correctamente.${debouncedSearch || filtroEstado !== "todos" || filtroEntrada !== "todos" ? " Si no aparece, revisa los filtros o la búsqueda activos." : ""}`,
       });
     } catch (err: unknown) {
       if (err instanceof Error) setFormError(err.message);
@@ -1320,7 +1343,7 @@ function InvitadosContent() {
 
       {permisosResueltos && pasesContratados !== null && (
         <div className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${totalPasesAsignados >= pasesContratados ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
-          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs">{totalPasesAsignados} de {pasesContratados} pases asignados · quedan {Math.max(0, pasesContratados - totalPasesAsignados)}.</p></div>
+          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs">{totalPasesAsignados} de {pasesContratados} pases comprometidos · quedan {Math.max(0, pasesContratados - totalPasesAsignados)}.</p></div>
           {totalPasesAsignados >= pasesContratados && <span className="rounded-full bg-amber-200 px-3 py-1 text-[10px] font-bold uppercase">Límite alcanzado</span>}
         </div>
       )}
@@ -1355,7 +1378,7 @@ function InvitadosContent() {
             <option value="parcial">🟠 Parciales (confirmaron menos)</option>
             <option value="declinado">🔴 Declinados</option>
             <option value="liberados">
-              ♻️ Pases liberados (declinados + parciales)
+              ♻️ Recuperados o disponibles para liberar
             </option>
           </select>
           {qrCheckinEnabled && (
@@ -1496,6 +1519,7 @@ function InvitadosContent() {
                           {" "}
                           / {inv.pases_asignados}
                         </span>
+                        {inv.pases_liberados && <span title="Estos pases ya fueron devueltos al saldo disponible del evento." className="mt-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-emerald-700"><RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0"/>{inv.pases_asignados} {inv.pases_asignados === 1 ? "pase liberado" : "pases liberados"}</span>}
                         {inv.estado === "confirmado" &&
                           (inv.pases_confirmados || 0) > 0 && (
                             <div className="text-[10px] text-stone-600 font-medium mt-0.5 whitespace-nowrap">
@@ -1522,7 +1546,7 @@ function InvitadosContent() {
                           (inv.pases_confirmados || 0) <
                             inv.pases_asignados && (
                             <span
-                              title={`Liberó ${inv.pases_asignados - (inv.pases_confirmados || 0)} ${
+                              title={`${recoveredPasses(inv) > 0 ? "Devueltos al saldo:" : "Reservados hasta el primer ingreso:"} ${inv.pases_asignados - (inv.pases_confirmados || 0)} ${
                                 inv.pases_asignados -
                                   (inv.pases_confirmados || 0) ===
                                 1
@@ -1534,7 +1558,7 @@ function InvitadosContent() {
                               +
                               {inv.pases_asignados -
                                 (inv.pases_confirmados || 0)}{" "}
-                              libre
+                              {recoveredPasses(inv) > 0 ? "devueltos" : "sin confirmar · reservados"}
                             </span>
                           )}
                       </td>
@@ -1681,6 +1705,8 @@ function InvitadosContent() {
 
                               {puedeModificar && (
                                 <>
+                                  {releasablePasses(inv) > 0 && <AsyncButton role="menuitem" onClick={() => { setMenuAbiertoId(null); return handleLiberarPases(inv); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-emerald-800 hover:bg-emerald-50"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-700"/><span>Liberar {inv.pases_asignados} pases</span></AsyncButton>}
+                                  {inv.pases_liberados && <p className="flex items-start gap-2 px-3 py-2 text-xs text-emerald-800"><RotateCcw aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700"/><span>Pases recuperados · confirmación cerrada</span></p>}
                                   {/* Editar */}
                                   <button
                                     role="menuitem"
@@ -1700,7 +1726,7 @@ function InvitadosContent() {
                                     }}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
                                     loading={regeneratingId === inv.id}
-                                    disabled={Boolean(regeneratingId)}
+                                    disabled={Boolean(regeneratingId) || hasAttendance(inv)}
                                     loadingText="Regenerando…"
                                   >
                                     <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
@@ -1794,14 +1820,11 @@ function InvitadosContent() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
             >
-              <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-end">
-                <button type="button" aria-label="Cerrar" onClick={() => setModalAgregar(false)} className="pointer-events-auto flex h-10 w-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white p-0 text-stone-500 shadow-lg hover:bg-stone-100 hover:text-stone-800"><X className="h-5 w-5" /></button>
-              </div>
-              <div className="mb-4 pr-12">
+              <ModalHeader onClose={() => setModalAgregar(false)}>
                 <h3 className="font-serif text-xl font-bold text-stone-900">
                   + Agregar Nuevo Invitado
                 </h3>
-              </div>
+              </ModalHeader>
 
               {formError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4">
@@ -1934,14 +1957,11 @@ function InvitadosContent() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl p-6 shadow-2xl border border-stone-200 relative"
             >
-              <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-end">
-                <button type="button" aria-label="Cerrar" onClick={() => setModalEditar(null)} className="pointer-events-auto flex h-10 w-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white p-0 text-stone-500 shadow-lg hover:bg-stone-100 hover:text-stone-800"><X className="h-5 w-5" /></button>
-              </div>
-              <div className="mb-4 pr-12">
+              <ModalHeader onClose={() => setModalEditar(null)}>
                 <h3 className="font-serif text-xl font-bold text-stone-900">
                   Editar Invitado
                 </h3>
-              </div>
+              </ModalHeader>
 
               {formError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4">
@@ -1986,6 +2006,7 @@ function InvitadosContent() {
                     pattern="[0-9]*"
                     required
                     value={formPases}
+                    disabled={hasAttendance(modalEditar)}
                     onChange={(e) => handleCambiarPases(e.target.value)}
                     aria-invalid={!formPasesValido}
                     className="w-full px-3.5 py-2.5 bg-[#fbf8f4] border border-[#ebd9c4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e05a1b]"
@@ -1995,6 +2016,7 @@ function InvitadosContent() {
                       Ingresa al menos 1 pase.
                     </p>
                   )}
+                  {hasAttendance(modalEditar) && <p className="mt-2 text-xs text-amber-800">{attendanceLockMessage}</p>}
                   {modalEditar.pases_confirmados !== null && (
                     <p className="text-[11px] text-stone-500 mt-1">
                       Confirmados actualmente:{" "}
@@ -2002,19 +2024,7 @@ function InvitadosContent() {
                     </p>
                   )}
 
-                  {modalEditar.estado === "confirmado" &&
-                    modalEditar.pases_ingresados > 0 &&
-                    formPasesValido &&
-                    formPasesNumero > modalEditar.pases_asignados && (
-                      <p className="mt-2 text-xs text-emerald-700">
-                        Se autorizarán{" "}
-                        {formPasesNumero - modalEditar.pases_asignados} pases
-                        adicionales y se generará un nuevo QR. Los{" "}
-                        {modalEditar.pases_ingresados} ingresos anteriores se
-                        conservarán. Abre de nuevo la invitación para obtener el
-                        QR actualizado.
-                      </p>
-                    )}
+
 
                   {/* Aviso informativo de cupo (sin bloquear) */}
                   {evento?.capacidad_total &&
