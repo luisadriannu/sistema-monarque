@@ -432,13 +432,28 @@ export default function WeddingOliveVintage({
     );
   };
 
-  const [qrAvailable, setQrAvailable] = useState(Boolean(qrImage) || !hasAttendance(initialInvitado));
+  const [qrAvailable, setQrAvailable] = useState(
+    Boolean(qrImage) || !hasAttendance(initialInvitado),
+  );
   const { attendance, onRejected } = useInvitationAttendance(token);
-  const attendanceLocked = hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
-  const responseUnchanged = isRsvpUnchanged(invitado, pasesSeleccionados, ninosSeleccionados);
+  const attendanceLocked =
+    hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
+  const responseUnchanged = isRsvpUnchanged(
+    invitado,
+    pasesSeleccionados,
+    ninosSeleccionados,
+  );
 
   const handleSubmit = async (pasesAConfirmar: number = pasesSeleccionados) => {
-    if (enviando || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninosSeleccionados : 0)) return;
+    if (
+      enviando ||
+      isRsvpUnchanged(
+        invitado,
+        pasesAConfirmar,
+        pasesAConfirmar > 0 ? ninosSeleccionados : 0,
+      )
+    )
+      return;
     if (attendanceLocked || evento.expirado || previewMode) return;
     setEnviando(true);
     setErrorEnvio(null);
@@ -461,7 +476,9 @@ export default function WeddingOliveVintage({
           resData.error || "Ocurrió un error al guardar tu respuesta.",
         );
       setInvitado(resData.invitado);
-      setPasesSeleccionados(resData.invitado.pases_confirmados ?? pasesAConfirmar);
+      setPasesSeleccionados(
+        resData.invitado.pases_confirmados ?? pasesAConfirmar,
+      );
       setNinosSeleccionados(resData.invitado.ninos_confirmados ?? 0);
       setMensajeExito(resData.mensaje);
     } catch (err: unknown) {
@@ -500,9 +517,20 @@ export default function WeddingOliveVintage({
           style={{ fontFamily: "var(--font-cy-display)" }}
         >
           {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
-  <a hidden={Boolean(attendance?.escaneado) || !qrAvailable || invitado.estado !== "confirmado" || !(invitado.pases_confirmados && invitado.pases_confirmados > 0)} href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
-)}
-{/* Hero */}
+            <a
+              hidden={
+                Boolean(attendance?.escaneado) ||
+                !qrAvailable ||
+                invitado.estado !== "confirmado" ||
+                !(invitado.pases_confirmados && invitado.pases_confirmados > 0)
+              }
+              href="#pase-qr"
+              className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl"
+            >
+              Ver mi pase QR
+            </a>
+          )}
+          {/* Hero */}
           <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-4 py-6 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)] sm:px-6 sm:py-12">
             <VintageParticles reduceMotion={reduceMotion} />
             <div className="absolute inset-3 border border-[#C9AB68]/45" />
@@ -1277,14 +1305,26 @@ export default function WeddingOliveVintage({
                     ¡Hola, {invitado.nombre}!
                   </h3>
                   <p className="mt-2 text-base text-[#7A8063]">
-                    {(invitado.pases_liberados || attendance?.pases_liberados) ? <>Los {invitado.pases_asignados} {invitado.pases_asignados === 1 ? "pase de esta invitación fue liberado" : "pases de esta invitación fueron liberados"}. Ya no tienes lugares reservados.</> : <>Tienes{" "}
-                    <strong className="text-[#464B38]">
-                      {invitado.pases_asignados}{" "}
-                      {invitado.pases_asignados === 1
-                        ? "pase reservado"
-                        : "pases reservados"}
-                    </strong>{" "}
-                    con mucho cariño.</>}
+                    {invitado.pases_liberados || attendance?.pases_liberados ? (
+                      <>
+                        Los {invitado.pases_asignados}{" "}
+                        {invitado.pases_asignados === 1
+                          ? "pase de esta invitación fue liberado"
+                          : "pases de esta invitación fueron liberados"}
+                        . Ya no tienes lugares reservados.
+                      </>
+                    ) : (
+                      <>
+                        Tienes{" "}
+                        <strong className="text-[#464B38]">
+                          {invitado.pases_asignados}{" "}
+                          {invitado.pases_asignados === 1
+                            ? "pase reservado"
+                            : "pases reservados"}
+                        </strong>{" "}
+                        con mucho cariño.
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -1316,7 +1356,28 @@ export default function WeddingOliveVintage({
                   </div>
                 )}
 
-                {(invitado.pases_liberados || attendance?.pases_liberados) ? <p role="status" className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700">Los anfitriones liberaron los pases de esta invitación después de tu respuesta. La confirmación está cerrada.</p> : attendanceLocked ? <AttendanceLockedNotice ingresados={attendance?.pases_ingresados ?? invitado.pases_ingresados ?? 0} confirmados={attendance?.pases_confirmados ?? invitado.pases_confirmados ?? 0} /> : !evento.expirado ? (
+                {invitado.pases_liberados || attendance?.pases_liberados ? (
+                  <p
+                    role="status"
+                    className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700"
+                  >
+                    Los anfitriones liberaron los pases de esta invitación
+                    después de tu respuesta. La confirmación está cerrada.
+                  </p>
+                ) : attendanceLocked ? (
+                  <AttendanceLockedNotice
+                    ingresados={
+                      attendance?.pases_ingresados ??
+                      invitado.pases_ingresados ??
+                      0
+                    }
+                    confirmados={
+                      attendance?.pases_confirmados ??
+                      invitado.pases_confirmados ??
+                      0
+                    }
+                  />
+                ) : !evento.expirado ? (
                   <div className="space-y-5">
                     {/* Contador adultos */}
                     <div className="text-center space-y-3">
@@ -1448,7 +1509,9 @@ export default function WeddingOliveVintage({
                       disabled={enviando || previewMode || responseUnchanged}
                       className={`w-full py-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${pasesSeleccionados === 0 ? "bg-[#6B3A3A] text-[#F5E9D0] hover:bg-[#5A2E2E]" : "bg-[#37402F] text-[#E0C687] hover:bg-[#464B38]"}`}
                       style={{ fontFamily: "var(--font-cy-utility)" }}
-                     loading={enviando} loadingText="Guardando respuesta…">
+                      loading={enviando}
+                      loadingText="Guardando respuesta…"
+                    >
                       {previewMode ? (
                         <>
                           <Eye className="w-4 h-4" />
@@ -1457,8 +1520,15 @@ export default function WeddingOliveVintage({
                       ) : enviando ? (
                         <span className="inline-block w-4 h-4 border-2 border-[#E0C687]/30 border-t-[#E0C687] rounded-full animate-spin" />
                       ) : responseUnchanged ? (
-  <><CheckCircle2 className="h-4 w-4" /><span>{invitado.estado === "declinado" ? "Ya confirmaste que no asistirás" : "Asistencia confirmada"}</span></>
-) : pasesSeleccionados === 0 ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>
+                            {invitado.estado === "declinado"
+                              ? "Ya confirmaste que no asistirás"
+                              : "Asistencia confirmada"}
+                          </span>
+                        </>
+                      ) : pasesSeleccionados === 0 ? (
                         <>
                           <XCircle className="w-4 h-4" />
                           <span>Confirmar que no podré asistir</span>
@@ -1474,8 +1544,23 @@ export default function WeddingOliveVintage({
                         </>
                       )}
                     </AsyncButton>
-{pasesSeleccionados > 0 && <AsyncButton type="button" onClick={() => handleSubmit(0)} disabled={isRsvpUnchanged(invitado, 0, 0) || enviando || previewMode} loading={enviando} loadingText="Guardando respuesta…" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"><XCircle className="h-4 w-4" />No podré asistir</AsyncButton>}
-
+                    {pasesSeleccionados > 0 && (
+                      <AsyncButton
+                        type="button"
+                        onClick={() => handleSubmit(0)}
+                        disabled={
+                          isRsvpUnchanged(invitado, 0, 0) ||
+                          enviando ||
+                          previewMode
+                        }
+                        loading={enviando}
+                        loadingText="Guardando respuesta…"
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        No podré asistir
+                      </AsyncButton>
+                    )}
 
                     <p
                       className="text-center text-[11px] text-[#9A7837]"
@@ -1503,9 +1588,26 @@ export default function WeddingOliveVintage({
           </section>
 
           {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
-  <InvitationQrPass onAvailabilityChange={setQrAvailable} confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(attendance?.escaneado || (!qrImage && (initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en)))} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
-)}
-{/* Footer */}
+            <InvitationQrPass
+              onAvailabilityChange={setQrAvailable}
+              confirmed={
+                invitado.estado === "confirmado" &&
+                (invitado.pases_confirmados ?? 0) > 0
+              }
+              key={token}
+              token={token}
+              initialScanned={Boolean(
+                attendance?.escaneado ||
+                (!qrImage &&
+                  (initialInvitado.pases_ingresados ||
+                    initialInvitado.ultima_entrada_en)),
+              )}
+              image={qrImage ?? null}
+              guestName={invitado.nombre}
+              passes={invitado.pases_confirmados ?? invitado.pases_asignados}
+            />
+          )}
+          {/* Footer */}
           <footer className="relative overflow-hidden border-t-4 border-double border-[#9A7837]/35 bg-[#CDBD9C] px-6 py-16 text-center">
             <FloralSpray className="-bottom-28 -left-20 h-80 w-52 -rotate-12 opacity-30" />
             <FloralSpray className="-bottom-28 -right-20 h-80 w-52 scale-x-[-1] rotate-12 opacity-30" />
