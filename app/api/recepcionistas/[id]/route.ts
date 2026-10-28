@@ -36,6 +36,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params;
   const target = await prisma.usuario.findFirst({ where: { id, rol: "recepcionista", ...accountScope(user) }, select: { id: true, nombre: true } });
   if (!target) return NextResponse.json({ error: "Cuenta no encontrada." }, { status: 404, headers });
+  if (user.rol === "admin") {
+    // Entries retain their history; the optional scanner reference becomes null.
+    await prisma.usuario.delete({ where: { id: target.id } });
+    return NextResponse.json({ ok: true, message: `${target.nombre} fue eliminado definitivamente. Los registros de ingreso se conservaron.` }, { headers });
+  }
   await prisma.usuario.update({ where: { id }, data: { eliminado_en: new Date(), lector_qr_habilitado: false, session_version: { increment: 1 } } });
   return NextResponse.json({ ok: true, message: `${target.nombre} ya no puede ingresar al sistema.` }, { headers });
 }
