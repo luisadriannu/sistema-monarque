@@ -7,6 +7,7 @@ import carlosYYazmin from "@/app/data/carlosYYazmin";
 import type { EventData } from "@/app/types/EventData";
 import { getCurrentUser } from "@/lib/auth";
 import QRCode from "qrcode";
+import { isEventFinished } from "@/lib/utils";
 import { isOrganizationServiceActive } from "@/lib/organization-access";
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     if (!invitado) return <InvitacionNoDisponible />;
   }
 
-  const expirado = new Date() > new Date(evento.fecha_limite_rsvp);
+  const expirado = new Date() > new Date(evento.fecha_limite_rsvp) || isEventFinished(evento.fecha_evento) || ["borrador", "cancelado", "archivado", "finalizado"].includes(evento.estado);
 
   const storedInvitation = isStoredInvitationData(evento.configuracion_invitacion)
     ? evento.configuracion_invitacion

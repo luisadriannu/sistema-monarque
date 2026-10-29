@@ -123,13 +123,13 @@ export default function InvitationGuestView({
     }
   };
 
-  const { attendance, onRejected } = useInvitationAttendance(token);
+  const { attendance, onRejected, rsvpClosed } = useInvitationAttendance(token);
   const attendanceLocked = hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
   const responseUnchanged = isRsvpUnchanged(invitado, pasesSeleccionados, ninosSeleccionados);
 
   const handleSubmit = async (pasesAConfirmar: number = pasesSeleccionados) => {
     if (enviando || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninosSeleccionados : 0)) return;
-    if (attendanceLocked || evento.expirado) return;
+    if (attendanceLocked || (evento.expirado || rsvpClosed)) return;
     setEnviando(true);
     setErrorEnvio(null);
     setMensajeExito(null);
@@ -281,7 +281,7 @@ export default function InvitationGuestView({
           )}
 
           {/* Controles de Selección de Pases */}
-          {(invitado.pases_liberados || attendance?.pases_liberados) ? <p role="status" className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700">Los anfitriones liberaron los pases de esta invitación después de tu respuesta. La confirmación está cerrada.</p> : attendanceLocked ? <AttendanceLockedNotice ingresados={attendance?.pases_ingresados ?? invitado.pases_ingresados ?? 0} confirmados={attendance?.pases_confirmados ?? invitado.pases_confirmados ?? 0} /> : !evento.expirado ? (
+          {(invitado.pases_liberados || attendance?.pases_liberados) ? <p role="status" className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700">Los anfitriones liberaron los pases de esta invitación después de tu respuesta. La confirmación está cerrada.</p> : attendanceLocked ? <AttendanceLockedNotice ingresados={attendance?.pases_ingresados ?? invitado.pases_ingresados ?? 0} confirmados={attendance?.pases_confirmados ?? invitado.pases_confirmados ?? 0} /> : !(evento.expirado || rsvpClosed) ? (
             <div className="space-y-4 pt-2">
               <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] text-center space-y-3">
                 <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">

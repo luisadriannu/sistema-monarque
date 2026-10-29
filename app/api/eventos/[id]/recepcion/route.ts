@@ -17,14 +17,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const action = body?.action;
   const now = new Date();
   if (action === "abrir") {
-    if (["cancelado", "archivado"].includes(event.estado)) return NextResponse.json({ error: "Un evento cancelado o archivado no puede abrir recepción." }, { status: 409 });
+    if (["borrador", "cancelado", "archivado", "finalizado"].includes(event.estado)) return NextResponse.json({ error: "Solo un evento publicado puede abrir recepción." }, { status: 409 });
     if (event.recepcion_abre_en && now < event.recepcion_abre_en) return NextResponse.json({ error: `La recepción está programada para ${event.recepcion_abre_en.toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}.` }, { status: 409 });
     if (event.recepcion_cierra_en && now > event.recepcion_cierra_en) return NextResponse.json({ error: "La ventana programada de recepción ya finalizó." }, { status: 409 });
-    const updated = await prisma.evento.update({ where: { id }, data: { estado: "recepcion_abierta", recepcion_abre_en: event.recepcion_abre_en || now }, select: { id: true, estado: true, recepcion_abre_en: true, recepcion_cierra_en: true } });
+    const updated = await prisma.evento.update({ where: { id }, data: { recepcion_estado: "abierta", recepcion_abre_en: event.recepcion_abre_en || now }, select: { id: true, estado: true, recepcion_estado: true, recepcion_abre_en: true, recepcion_cierra_en: true } });
     return NextResponse.json({ ok: true, evento: updated, message: "Recepción abierta. Ya se pueden registrar entradas." });
   }
   if (action === "cerrar") {
-    const updated = await prisma.evento.update({ where: { id }, data: { estado: "finalizado", recepcion_cierra_en: now }, select: { id: true, estado: true, recepcion_abre_en: true, recepcion_cierra_en: true } });
+    const updated = await prisma.evento.update({ where: { id }, data: { recepcion_estado: "cerrada" }, select: { id: true, estado: true, recepcion_estado: true, recepcion_abre_en: true, recepcion_cierra_en: true } });
     return NextResponse.json({ ok: true, evento: updated, message: "Recepción cerrada. El escáner quedó bloqueado." });
   }
   return NextResponse.json({ error: "Acción no válida." }, { status: 400 });

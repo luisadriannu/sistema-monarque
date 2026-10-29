@@ -25,6 +25,7 @@ type EventOption = {
   fecha_evento: string;
   lugar: string;
   estado: string;
+  recepcion_estado: "abierta" | "cerrada";
   recepcion_abre_en: string | null;
   recepcion_cierra_en: string | null;
   modo_ingreso: string;
@@ -70,7 +71,8 @@ export default function EntradaScanner({
   const [guest, setGuest] = useState<Guest | null>(null);
   const [code, setCode] = useState("");
   const [amount, setAmount] = useState(1);
-  const [message, setMessage] = useState("");
+  const [{ message, messageSuccess }, setMessageState] = useState({ message: "", messageSuccess: false });
+  function setMessage(message: string, messageSuccess = false) { setMessageState({ message, messageSuccess }); }
   const [entryResult, setEntryResult] = useState<"registered" | "review" | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [totalIngresados, setTotalIngresados] = useState(0);
@@ -199,7 +201,7 @@ export default function EntradaScanner({
       );
       return;
     }
-    if (selectedEvent?.estado !== "recepcion_abierta") {
+    if (selectedEvent?.recepcion_estado !== "abierta") {
       setMessage(
         "La recepción está cerrada. El organizador debe abrirla antes de escanear.",
       );
@@ -255,7 +257,7 @@ export default function EntradaScanner({
     setGuest(d.invitado);
     setEntryResult("registered");
     setManualResults([]);
-    setMessage(d.message || `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`);
+    setMessage(d.message || `Entrada registrada: ${amount} ${amount === 1 ? "persona" : "personas"}.`, true);
     void loadLogs();
     } catch {
       setEntryResult("review");
@@ -299,7 +301,7 @@ export default function EntradaScanner({
       method: "DELETE",
     });
     const data = await response.json();
-    setMessage(data.message || data.error);
+    setMessage(data.message || data.error, response.ok);
     if (response.ok) {
       setGuest(null);
       void loadLogs();
@@ -346,7 +348,7 @@ export default function EntradaScanner({
         ),
       );
       setGuest(null);
-      setMessage(data.message);
+      setMessage(data.message, true);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -417,7 +419,7 @@ export default function EntradaScanner({
                     timeZone: "America/Mexico_City",
                   })}{" "}
                   ·{" "}
-                  {event.estado === "recepcion_abierta" ? "Abierta" : "Cerrada"}
+                  {event.recepcion_estado === "abierta" ? "Abierta" : "Cerrada"}
                 </option>
               ))}
             </select>
@@ -425,17 +427,17 @@ export default function EntradaScanner({
         </div>
         {selectedEvent && (
           <div
-            className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${selectedEvent.estado === "recepcion_abierta" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}
+            className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${selectedEvent.recepcion_estado === "abierta" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}
           >
             <div className="flex items-start gap-2">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
               <p>
                 <strong>
-                  {selectedEvent.estado === "recepcion_abierta"
+                  {selectedEvent.recepcion_estado === "abierta"
                     ? "Recepción abierta:"
                     : "Recepción cerrada:"}
                 </strong>{" "}
-                {selectedEvent.estado === "recepcion_abierta"
+                {selectedEvent.recepcion_estado === "abierta"
                   ? `solo se registrarán invitados de ${selectedEvent.nombre}.`
                   : "no se aceptará ningún código hasta que el organizador la abra."}
               </p>
@@ -445,16 +447,16 @@ export default function EntradaScanner({
                 disabled={changingReception}
                 onClick={() =>
                   changeReception(
-                    selectedEvent.estado === "recepcion_abierta"
+                    selectedEvent.recepcion_estado === "abierta"
                       ? "cerrar"
                       : "abrir",
                   )
                 }
-                className={`mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${selectedEvent.estado === "recepcion_abierta" ? "bg-rose-600" : "bg-emerald-700"}`}
+                className={`mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${selectedEvent.recepcion_estado === "abierta" ? "bg-rose-600" : "bg-emerald-700"}`}
               >
                 {changingReception
                   ? "Actualizando…"
-                  : selectedEvent.estado === "recepcion_abierta"
+                  : selectedEvent.recepcion_estado === "abierta"
                     ? "Cerrar recepción"
                     : "Abrir recepción"}
               </button>
@@ -552,7 +554,7 @@ export default function EntradaScanner({
             onClick={start}
             disabled={
               !selectedEventId ||
-              selectedEvent?.estado !== "recepcion_abierta" ||
+              selectedEvent?.recepcion_estado !== "abierta" ||
               scanning ||
               busy
             }
@@ -568,7 +570,7 @@ export default function EntradaScanner({
                 <Camera />
                 {!selectedEventId
                   ? "Selecciona un evento"
-                  : selectedEvent?.estado !== "recepcion_abierta"
+                  : selectedEvent?.recepcion_estado !== "abierta"
                     ? "Recepción cerrada"
                     : "Abrir cámara"}
               </>
@@ -604,7 +606,7 @@ export default function EntradaScanner({
                       ? `Quedan ${remaining} pases disponibles. Para registrar otra llegada, vuelve a escanear el QR o busca y selecciona nuevamente al invitado.`
                       : "Ya no quedan pases disponibles para este QR. Puedes continuar con el siguiente invitado."
                     : "Antes de volver a confirmar, escanea el QR o busca y selecciona nuevamente al invitado para consultar sus ingresos actuales."}</p>
-                  <button type="button" onClick={start} disabled={busy || scanning || !online || selectedEvent?.estado !== "recepcion_abierta"}
+                  <button type="button" onClick={start} disabled={busy || scanning || !online || selectedEvent?.recepcion_estado !== "abierta"}
                     className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#2b211b] px-4 py-3 font-semibold text-white disabled:opacity-50">
                     <Camera className="h-4 w-4" /> Volver a escanear
                   </button>
@@ -673,13 +675,13 @@ export default function EntradaScanner({
           )}
           {message && (
             <div
-              className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${message.startsWith("Entrada") || message.startsWith("Pases adicionales") ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}
+              role={messageSuccess ? "status" : "alert"}
+              className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${messageSuccess ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}
             >
-              {message.startsWith("Entrada") ||
-              message.startsWith("Pases adicionales") ? (
-                <CheckCircle2 />
+              {messageSuccess ? (
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
               ) : (
-                <XCircle />
+                <XCircle className="h-5 w-5 shrink-0" />
               )}
               {message}
             </div>

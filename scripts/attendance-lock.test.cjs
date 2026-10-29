@@ -11,6 +11,11 @@ function fixture(entered, racing = false) {
   const prisma = { invitado: {
     findUnique: async () => guest,
     updateMany: async ({ where }) => {
+      if (where.token) {
+        assert.ok(where.evento.fecha_limite_rsvp.gte instanceof Date);
+        assert.ok(where.evento.fecha_evento.gte instanceof Date);
+        assert.ok(where.evento.estado.in.includes('publicado'));
+      }
       if (where.pases_ingresados === undefined) { writes++; return { count: 1 }; }
       assert.equal(where.pases_ingresados, 0);
       assert.equal(where.ultima_entrada_en, null);
@@ -32,7 +37,7 @@ function fixture(entered, racing = false) {
     '@/lib/prisma': { default: prisma },
     '@/lib/auth': { getCurrentUser: async () => ({ id: 'admin', rol: 'admin' }) },
     '@/lib/ratelimit': { checkRateLimit: () => true },
-    '@/lib/utils': { isEventFinished: () => false },
+    '@/lib/utils': { isEventFinished: () => false, toDateInputValue: value => new Date(value).toISOString().slice(0, 10) },
     '@/lib/tokens': { generateInvitationToken: () => 'new-token' },
   };
   function load(file) {
@@ -66,7 +71,9 @@ test('Antes del ingreso permite confirmar, cambiar pases y regenerar', async () 
 });
 test('Si el primer escaneo se adelanta al guardado rechaza la modificación', async () => {
   const f = fixture(0, true);
-  assert.equal((await f.load('app/api/rsvp/route.ts').POST(f.request({ token: 'token', pases_confirmados: 15 }))).status, 409);
+  const response = await f.load('app/api/rsvp/route.ts').POST(f.request({ token: 'token', pases_confirmados: 15 }));
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, 'RSVP_CLOSED');
   const edit = f.load('app/api/invitados/[id]/route.ts');
   for (const body of [{ pases_asignados: 20 }, { action: 'regenerar_link' }]) assert.equal((await edit.PUT(f.request(body), { params: Promise.resolve({ id: 'guest' }) })).status, 409);
   assert.equal(f.writes(), 0);

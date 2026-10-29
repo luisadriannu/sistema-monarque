@@ -105,6 +105,7 @@ export async function GET() {
       organizacion: {
         select: {
           nombre: true,
+          qr_checkin_habilitado: true,
           max_invitados_evento: true,
           usuarios: {
             where: { rol: "organizador", eliminado_en: null },

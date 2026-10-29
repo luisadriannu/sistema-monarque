@@ -110,9 +110,7 @@ export async function PUT(request: Request) {
       if (!fecha_limite_rsvp || Number.isNaN(targetDeadline.getTime())) {
         return NextResponse.json({ error: "La fecha límite de confirmación no es válida." }, { status: 400 });
       }
-      if (toDateInputValue(targetDeadline) < toDateInputValue(new Date()) && toDateInputValue(targetDeadline) !== toDateInputValue(existing.fecha_limite_rsvp)) {
-        return NextResponse.json({ error: "La fecha límite de confirmación debe ser hoy o una fecha futura.", code: "RSVP_DATE_PAST" }, { status: 400 });
-      }
+      if (toDateInputValue(targetDeadline) < toDateInputValue(new Date()) && toDateInputValue(targetDeadline) !== toDateInputValue(existing.fecha_limite_rsvp)) return NextResponse.json({ error: "La fecha límite de confirmación debe ser hoy o una fecha futura.", code: "RSVP_DATE_PAST" }, { status: 400 });
     }
 
     if (estado !== undefined && user.rol !== "admin") return NextResponse.json({ error: "Solo el administrador puede cambiar la publicación de la invitación." }, { status: 403 });

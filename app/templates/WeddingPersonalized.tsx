@@ -158,13 +158,13 @@ export default function WeddingPersonalized({
   }, [opened]);
 
   const [qrAvailable, setQrAvailable] = useState(Boolean(qrImage) || !hasAttendance(initialInvitado));
-  const { attendance, onRejected } = useInvitationAttendance(token);
+  const { attendance, onRejected, rsvpClosed } = useInvitationAttendance(token);
   const attendanceLocked = hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
   const responseUnchanged = isRsvpUnchanged(invitado, pases, ninos);
 
   const submitRsvp = async (pasesAConfirmar: number = pases) => {
     if (sending || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninos : 0)) return;
-    if (attendanceLocked || previewMode || evento.expirado) return;
+    if (attendanceLocked || previewMode || (evento.expirado || rsvpClosed)) return;
     setSending(true);
     setFeedback(null);
     setRequestError(null);
@@ -347,7 +347,7 @@ export default function WeddingPersonalized({
                   {feedback && <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
                   {requestError && <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{requestError}</div>}
 
-                  {(invitado.pases_liberados || attendance?.pases_liberados) ? <p role="status" className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700">Los anfitriones liberaron los pases de esta invitación después de tu respuesta. La confirmación está cerrada.</p> : attendanceLocked ? <AttendanceLockedNotice ingresados={attendance?.pases_ingresados ?? invitado.pases_ingresados ?? 0} confirmados={attendance?.pases_confirmados ?? invitado.pases_confirmados ?? 0} /> : !evento.expirado ? (
+                  {(invitado.pases_liberados || attendance?.pases_liberados) ? <p role="status" className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700">Los anfitriones liberaron los pases de esta invitación después de tu respuesta. La confirmación está cerrada.</p> : attendanceLocked ? <AttendanceLockedNotice ingresados={attendance?.pases_ingresados ?? invitado.pases_ingresados ?? 0} confirmados={attendance?.pases_confirmados ?? invitado.pases_confirmados ?? 0} /> : !(evento.expirado || rsvpClosed) ? (
                     <>
                       <Counter
                         label="¿Cuántas personas asistirán?"

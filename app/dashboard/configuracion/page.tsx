@@ -656,10 +656,7 @@ function ConfiguracionContent() {
                     value={fechaLimiteRsvp}
                     onChange={(e) => {
                       const value = e.target.value;
-                      if (value && value < toDateInputValue(new Date())) {
-                        setError("La fecha límite de confirmación debe ser hoy o una fecha futura.");
-                        return;
-                      }
+                      if (value && value < toDateInputValue(new Date())) { setError("La fecha límite de confirmación debe ser hoy o una fecha futura."); return; }
 
                       if (
                         value &&

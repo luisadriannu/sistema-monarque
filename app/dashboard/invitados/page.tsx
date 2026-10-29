@@ -9,6 +9,7 @@ import {
   NAME_ERROR,
 } from "@/lib/names";
 import AsyncButton from "@/components/AsyncButton";
+import { downloadGuestQr } from "@/lib/download-qr";
 import FloatingMenu from "@/components/FloatingMenu";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
@@ -68,6 +69,7 @@ interface Invitado {
 }
 
 interface Evento {
+  modo_ingreso?: string;
   id: string;
   slug: string;
   nombre: string;
@@ -1717,6 +1719,12 @@ function InvitadosContent() {
                                 </a>
                               )}
 
+                              {qrCheckinEnabled && inv.estado === "confirmado" && (inv.pases_confirmados ?? 0) > inv.pases_ingresados && !(evento?.modo_ingreso === "unico" && (inv.pases_ingresados > 0 || inv.ultima_entrada_en)) && (
+                                <AsyncButton role="menuitem" loadingText="Descargando QR…" onClick={async () => {
+                                  try { await downloadGuestQr(inv.token, inv.nombre); setMenuAbiertoId(null); }
+                                  catch (error) { notify(error instanceof Error ? error.message : "No se pudo descargar el QR."); }
+                                }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-emerald-800 hover:bg-emerald-50"><Download className="h-3.5 w-3.5 shrink-0"/><span>Descargar QR</span></AsyncButton>
+                              )}
                               {puedeModificar && (
                                 <>
                                   {releasablePasses(inv) > 0 && <AsyncButton role="menuitem" onClick={() => { setMenuAbiertoId(null); return handleLiberarPases(inv); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-emerald-800 hover:bg-emerald-50"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-700"/><span>Liberar {inv.pases_asignados} pases</span></AsyncButton>}

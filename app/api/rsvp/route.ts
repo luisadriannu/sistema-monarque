@@ -2,7 +2,7 @@ import { hasAttendance, noAttendance, attendanceLockMessage } from "@/lib/attend
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/ratelimit";
-import { isEventFinished } from "@/lib/utils";
+import { isEventFinished, toDateInputValue } from "@/lib/utils";
 import { generateInvitationToken } from "@/lib/tokens";
 
 async function attendanceLockedResponse(id: string) {
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     }
 
     if (["borrador", "cancelado", "archivado", "finalizado"].includes(invitado.evento.estado)) {
-      return NextResponse.json({ error: "El evento no está disponible para recibir confirmaciones." }, { status: 409 });
+      return NextResponse.json({ code: "RSVP_CLOSED", error: "El evento no está disponible para recibir confirmaciones." }, { status: 409 });
     }
 
     if (hasAttendance(invitado)) return attendanceLockedResponse(invitado.id);
@@ -151,6 +151,7 @@ export async function POST(request: Request) {
     if (now > fechaLimite || isEventFinished(invitado.evento.fecha_evento, now)) {
       return NextResponse.json(
         {
+          code: "RSVP_CLOSED",
           error:
             "La fecha límite para confirmar o modificar tu asistencia ha vencido. Por favor comunícate directamente con los anfitriones.",
         },
@@ -199,7 +200,7 @@ export async function POST(request: Request) {
     // RF-20: Si elige 0 -> declinado; si > 0 -> confirmado
     const nuevoEstado = pases === 0 ? "declinado" : "confirmado";
     const changed = await prisma.invitado.updateMany({
-      where: { id: invitado.id, token: token.trim(), ...noAttendance },
+      where: { id: invitado.id, token: token.trim(), ...noAttendance, evento: { fecha_limite_rsvp: { gte: new Date() }, fecha_evento: { gte: new Date(`${toDateInputValue(new Date())}T00:00:00-06:00`) }, estado: { in: ["publicado", "recepcion_abierta"] } } },
       data: {
         pases_confirmados: pases,
         ninos_confirmados: ninos,
@@ -209,7 +210,11 @@ export async function POST(request: Request) {
       },
     });
 
-    if (changed.count !== 1) return attendanceLockedResponse(invitado.id);
+    if (changed.count !== 1) {
+      const current = await prisma.invitado.findUnique({ where: { id: invitado.id }, include: { evento: true } });
+      if (current && hasAttendance(current)) return attendanceLockedResponse(invitado.id);
+      return NextResponse.json({ error: "La confirmación ha cerrado. Tu respuesta no fue modificada.", code: "RSVP_CLOSED" }, { status: 409 });
+    }
     const actualizado = { ...invitado, pases_confirmados: pases, ninos_confirmados: ninos, estado: nuevoEstado, ultima_respuesta_en: new Date() };
     return NextResponse.json({
       ok: true,

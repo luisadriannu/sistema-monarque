@@ -42,6 +42,11 @@ export async function GET(request: Request) {
       invitado.evento.modo_ingreso === "unico" && Boolean(invitado.escaneado_en)
     );
     const confirmado = invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0;
+    if (new URL(request.url).searchParams.get("download") === "1") {
+      if (!confirmado || escaneado) return NextResponse.json({ error: "El pase QR solo puede descargarse después de confirmar asistencia y mientras tenga accesos disponibles." }, { status: 409, headers });
+      const png = await QRCode.toBuffer(`monarque:entrada:${invitado.codigo_entrada}`, { type: "png", width: 800, margin: 4, color: { dark: "#183126", light: "#ffffff" } });
+      return new NextResponse(new Uint8Array(png), { headers: { ...headers, "Content-Type": "image/png", "Content-Disposition": 'attachment; filename="pase-qr.png"', "X-Content-Type-Options": "nosniff" } });
+    }
     const includeQr = new URL(request.url).searchParams.get("qr") === "1";
     const qrImage = includeQr && confirmado && !escaneado
       ? await QRCode.toDataURL(`monarque:entrada:${invitado.codigo_entrada}`, { width: 480, margin: 1, color: { dark: "#183126", light: "#fffaf0" } })

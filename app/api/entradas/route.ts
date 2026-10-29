@@ -53,6 +53,7 @@ export async function GET(request: Request) {
         fecha_evento: true,
         lugar: true,
         estado: true,
+        recepcion_estado: true,
         recepcion_abre_en: true,
         recepcion_cierra_en: true,
         modo_ingreso: true,
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
 
   const eventoActivo = await prisma.evento.findFirst({
     where: { id: eventoId, ...eventScope(user) },
-    select: { id: true, nombre: true, estado: true, modo_ingreso: true, recepcion_abre_en: true, recepcion_cierra_en: true },
+    select: { id: true, nombre: true, estado: true, recepcion_estado: true, modo_ingreso: true, recepcion_abre_en: true, recepcion_cierra_en: true },
   });
   if (!eventoActivo) {
     return NextResponse.json(
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ resultados, evento: eventoActivo }, { headers });
   }
   if (code) {
-    if (eventoActivo.estado !== "recepcion_abierta") return NextResponse.json({ error: "La recepción de este evento está cerrada.", code: "RECEPTION_CLOSED" }, { status: 409, headers });
+    if (eventoActivo.recepcion_estado !== "abierta" || !["publicado", "recepcion_abierta"].includes(eventoActivo.estado)) return NextResponse.json({ error: "La recepción de este evento está cerrada.", code: "RECEPTION_CLOSED" }, { status: 409, headers });
     const invitado = await prisma.invitado.findUnique({ where: { codigo_entrada: code }, select: guestSelect });
     if (!invitado || (user.rol !== "admin" && invitado.evento.usuario.organizacion_id !== user.organizacion_id)) return NextResponse.json({ error: "Código no válido para tu organización." }, { status: 404, headers });
     if (invitado.evento.id !== eventoActivo.id) {
@@ -145,10 +146,10 @@ export async function POST(request: Request) {
 
   const eventoActivo = await prisma.evento.findFirst({
     where: { id: eventoId, ...eventScope(user) },
-    select: { id: true, nombre: true, estado: true, modo_ingreso: true },
+    select: { id: true, nombre: true, estado: true, recepcion_estado: true, modo_ingreso: true },
   });
   if (!eventoActivo) return NextResponse.json({ error: "El evento seleccionado no pertenece a tu organización." }, { status: 403, headers });
-  if (eventoActivo.estado !== "recepcion_abierta") return NextResponse.json({ error: "La recepción de este evento está cerrada.", code: "RECEPTION_CLOSED" }, { status: 409, headers });
+  if (eventoActivo.recepcion_estado !== "abierta" || !["publicado", "recepcion_abierta"].includes(eventoActivo.estado)) return NextResponse.json({ error: "La recepción de este evento está cerrada.", code: "RECEPTION_CLOSED" }, { status: 409, headers });
 
   try {
     const result = await prisma.$transaction(async tx => {

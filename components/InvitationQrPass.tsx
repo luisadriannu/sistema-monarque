@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
+import AsyncButton from "@/components/AsyncButton";
+import { downloadGuestQr } from "@/lib/download-qr";
 
 export default function InvitationQrPass({
   image,
@@ -22,6 +24,7 @@ export default function InvitationQrPass({
   onAvailabilityChange?: (available: boolean) => void;
 }) {
   const [scanned, setScanned] = useState(initialScanned);
+  const [downloadError, setDownloadError] = useState("");
   const lastCheck = useRef(0);
   const [unavailable, setUnavailable] = useState(false);
   const [qrImage, setQrImage] = useState(image);
@@ -106,6 +109,12 @@ export default function InvitationQrPass({
             className="h-56 w-56"
           />
         </div>
+        <AsyncButton onClick={async () => {
+          setDownloadError("");
+          try { await downloadGuestQr(token, guestName); }
+          catch (error) { setDownloadError(error instanceof Error ? error.message : "No se pudo descargar el QR."); }
+        }} loadingText="Preparando QR…" className="mx-auto mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-[#c7aa67]/50 bg-[#fffaf0] px-5 py-3 text-sm font-semibold text-[#183126] transition hover:bg-white"><Download className="h-4 w-4"/>Descargar mi QR</AsyncButton>
+        {downloadError && <p role="alert" className="mx-auto mt-3 max-w-sm text-sm text-[#f5eddc]">{downloadError}</p>}
         </>}
         <p className="mt-5 font-serif text-2xl">{guestName}</p>
         {!scanned && !unavailable && confirmed && serverConfirmed && qrImage && <p className="mt-1 text-[10px] uppercase tracking-[.25em] text-[#c7aa67]">

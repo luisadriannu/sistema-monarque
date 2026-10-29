@@ -50,6 +50,7 @@ model Organizacion {
 }
 
 model Evento {
+  recepcion_estado         String                @default("cerrada") // "abierta" | "cerrada"
   id                       String                @id @default(uuid())
   usuario_id               String
   usuario                  Usuario               @relation(fields: [usuario_id], references: [id], onDelete: Cascade)

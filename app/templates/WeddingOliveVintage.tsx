@@ -435,7 +435,7 @@ export default function WeddingOliveVintage({
   const [qrAvailable, setQrAvailable] = useState(
     Boolean(qrImage) || !hasAttendance(initialInvitado),
   );
-  const { attendance, onRejected } = useInvitationAttendance(token);
+  const { attendance, onRejected, rsvpClosed } = useInvitationAttendance(token);
   const attendanceLocked =
     hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
   const responseUnchanged = isRsvpUnchanged(
@@ -454,7 +454,7 @@ export default function WeddingOliveVintage({
       )
     )
       return;
-    if (attendanceLocked || evento.expirado || previewMode) return;
+    if (attendanceLocked || (evento.expirado || rsvpClosed) || previewMode) return;
     setEnviando(true);
     setErrorEnvio(null);
     setMensajeExito(null);
@@ -1377,7 +1377,7 @@ export default function WeddingOliveVintage({
                       0
                     }
                   />
-                ) : !evento.expirado ? (
+                ) : !(evento.expirado || rsvpClosed) ? (
                   <div className="space-y-5">
                     {/* Contador adultos */}
                     <div className="text-center space-y-3">

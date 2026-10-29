@@ -1,6 +1,7 @@
 "use client";
 import { lettersOnly, nameInputProps } from "@/lib/names";
 import { DIRECT_ORGANIZATION_ID } from "@/lib/management-access";
+import { hasClientQr } from "@/lib/qr-access";
 import AsyncButton from "@/components/AsyncButton";
 import LoadingLink from "@/components/LoadingLink";
 
@@ -11,6 +12,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Crown,
+  QrCode,
   Edit3,
   ExternalLink,
   KeyRound,
@@ -70,7 +72,7 @@ interface UsuarioCliente {
   creado_en: string;
   eliminado_en: string | null;
   organizacion_id: string | null;
-  organizacion: { nombre: string; max_invitados_evento: number; usuarios: { nombre: string }[] } | null;
+  organizacion: { nombre: string; qr_checkin_habilitado: boolean; max_invitados_evento: number; usuarios: { nombre: string }[] } | null;
   eventos: EventoCliente[];
 }
 
@@ -596,6 +598,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                       <span className="min-w-0 break-words">{evento.lugar}</span>
                     </p>
                     <div className="flex flex-wrap items-center gap-3 pt-1">
+                      {hasClientQr(usuario) && <div className="flex w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3"><span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#2b211b]"><QrCode className="h-4 w-4 shrink-0"/>Control de acceso QR</span><span className="shrink-0 rounded-full bg-amber-500 px-2 py-1 text-[10px] font-bold text-white">ACTIVO</span></div>}
                       <LoadingLink
                         href={`/dashboard/invitados?evento_id=${evento.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#2b211b] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#49392f]"
