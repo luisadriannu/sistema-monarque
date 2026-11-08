@@ -507,11 +507,11 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                     <h2 className="mt-1 break-words font-serif text-xl font-bold text-[#2b211b] dark:text-white">{isDirect ? "Clientes directos de Monarque" : organizationLabel(usuario)}</h2>
                     <p className="mt-1 text-xs text-stone-600 dark:text-slate-300">{isDirect ? "Cuentas atendidas directamente por la administración de Monarque." : "Clientes administrados por esta empresa organizadora."}</p>
                   </div>
-                  <span className="dark-preserve w-fit rounded-full bg-white dark:bg-[#132042] dark:border dark:border-[#2b4075] px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-slate-100 shadow-sm">{clientesPorGrupo[groupKey]} {clientesPorGrupo[groupKey] === 1 ? "cliente" : "clientes"}</span>
+                  <span className="dark-preserve w-fit rounded-full bg-white dark:bg-[#232428] dark:border dark:border-[#383a40] px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-slate-100 shadow-sm">{clientesPorGrupo[groupKey]} {clientesPorGrupo[groupKey] === 1 ? "cliente" : "clientes"}</span>
                 </div>
               )}
               <article
-                className="min-w-0 overflow-hidden rounded-3xl border border-[#eadbca] bg-white shadow-sm"
+                className="min-w-0 overflow-hidden rounded-3xl border border-[#eadbca] bg-white shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="flex flex-col items-stretch gap-3 border-b border-[#f3e9de] p-4 sm:p-5">
                   <div className="flex min-w-0 items-start gap-3">
@@ -579,7 +579,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                           {eventTheme.label}
                         </span>
                         {eventoFinalizado && (
-                          <span className="rounded-full bg-stone-100 dark:bg-[#1a2747] dark:border dark:border-slate-600/50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600 dark:text-slate-300">
+                          <span className="rounded-full bg-stone-100 dark:bg-[#232428] dark:border dark:border-[#383a40] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600 dark:text-slate-300">
                             Finalizado
                           </span>
                         )}

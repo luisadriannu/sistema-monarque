@@ -1124,7 +1124,7 @@ function InvitadosContent() {
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 dark:bg-[#1a2747] text-stone-700 dark:text-slate-200 border border-stone-200 dark:border-slate-600/60">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 dark:bg-[#232428] text-stone-700 dark:text-slate-200 border border-stone-200 dark:border-[#383a40]">
         <span className="w-1.5 h-1.5 rounded-full bg-stone-400 dark:bg-slate-400" />
         Pendiente
       </span>
@@ -1282,15 +1282,15 @@ function InvitadosContent() {
       </div>
 
       {permisosResueltos && soloLectura && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
-          <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-[#33220d] px-4 py-3 text-amber-950 dark:text-amber-100">
+          <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <div>
-            <p className="text-sm font-bold">
+            <p className="text-sm font-bold text-amber-950 dark:text-white">
               {vistaAdmin
                 ? "Consulta administrativa"
                 : "Evento finalizado · Solo lectura"}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-800/80">
+            <p className="mt-1 text-xs font-medium leading-relaxed text-amber-900 dark:text-amber-100">
               {vistaAdmin
                 ? "Puedes consultar y exportar la información de los invitados, sin modificar sus registros."
                 : "Puedes consultar y exportar la información, pero ya no es posible agregar, editar, eliminar o compartir invitaciones."}
@@ -1299,7 +1299,7 @@ function InvitadosContent() {
         </div>
       )}
 
-      {permisosResueltos && altasCerradas && <p role="status" className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0"/>El plazo de confirmación ha cerrado. Ya no se pueden agregar ni importar invitados. Puedes seguir consultando la lista y registrando ingresos en recepción.</p>}
+      {permisosResueltos && altasCerradas && <p role="status" className="flex items-start gap-2 rounded-2xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-[#33220d] px-4 py-3 text-sm font-medium text-amber-950 dark:text-amber-100"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"/>El plazo de confirmación ha cerrado. Ya no se pueden agregar ni importar invitados. Puedes seguir consultando la lista y registrando ingresos en recepción.</p>}
       {puedeModificar && limiteInvitados !== null && (
         <div
           className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${limiteInvitadosAlcanzado ? "border-amber-200 bg-amber-50 text-amber-900" : "border-[#eadbca] bg-white text-stone-600"}`}
@@ -1475,7 +1475,7 @@ function InvitadosContent() {
                             <span>Enviado</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 dark:bg-[#1a2747] text-stone-500 dark:text-slate-300 dark:border dark:border-slate-600/50">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 dark:bg-[#232428] text-stone-500 dark:text-slate-300 dark:border dark:border-[#383a40]">
                             <span>Sin enviar</span>
                           </span>
                         )}
@@ -1549,7 +1549,7 @@ function InvitadosContent() {
                               No aplica
                             </span>
                           ) : inv.pases_ingresados <= 0 ? (
-                            <span className="inline-flex rounded-full bg-stone-100 dark:bg-[#1a2747] dark:border dark:border-slate-600/50 px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:text-slate-300">
+                            <span className="inline-flex rounded-full bg-stone-100 dark:bg-[#232428] dark:border dark:border-[#383a40] px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:text-slate-300">
                               No ha llegado
                             </span>
                           ) : inv.pases_ingresados <

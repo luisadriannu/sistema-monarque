@@ -138,7 +138,7 @@ export default async function DashboardPage() {
         className={`rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden transition-all ${
           isBautizo
             ? "dashboard-bautizo-header border border-[#82b4c6] dark:border-[#387892] dark:bg-[#133b4b] shadow-md"
-            : "bg-white dark:bg-[#111c38] border border-[#ebd9c4] dark:border-[#20315c]"
+            : "bg-white dark:bg-[#16171a] border border-[#ebd9c4] dark:border-[#26272b]"
         }`}
         style={isBautizo ? { backgroundColor: "#9DCDDD" } : undefined}
       >
@@ -311,7 +311,7 @@ export default async function DashboardPage() {
 
       {/* Barra de Capacidad del Evento (Dinámica y en tiempo real) */}
       {capacidad > 0 && (
-        <div className="bg-white border border-[#ebd9c4] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3.5">
+        <div className="bg-[#eef2f6] dark:bg-[#16171a] border border-slate-200/90 dark:border-[#26272b] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div>
               <div className="flex items-center gap-2">
@@ -345,7 +345,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Barra de progreso visual segmentada dinámica */}
-          <div className="w-full bg-[#fbf8f4] border border-[#ebd9c4] h-3.5 rounded-full overflow-hidden p-0.5 flex">
+          <div className="dark-preserve w-full bg-white dark:bg-[#0c0d10] border border-slate-300/80 dark:border-[#2b2d31] h-3.5 rounded-full overflow-hidden p-0.5 flex">
             {/* Segmento verde: Confirmados reales (sube al confirmar) */}
             {pctConfirmados > 0 && (
               <div
@@ -367,7 +367,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Leyenda visual rápida de los colores de la barra */}
-          <div className="flex flex-wrap items-center gap-4 text-[11px] text-stone-600 pt-1 border-t border-[#f5ede2]">
+          <div className="flex flex-wrap items-center gap-4 text-[11px] text-stone-600 dark:text-[#dbdee1] pt-2 border-t border-slate-200/90 dark:border-[#26272b]">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
               <span>
@@ -411,64 +411,64 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* 1. Asignados (Pastel Celeste/Azul cielo sólido) */}
+          {/* 1. Asignados (Azul cielo sólido, sin marcos) */}
           <LoadingLink
             href="/dashboard/invitados"
             title="Ver todos los invitados asignados"
-            className="bg-[#e0f2fe] dark:bg-[#0c2340] border border-[#7dd3fc] dark:border-[#1d4ed8]/50 rounded-2xl p-5 shadow-xs hover:border-sky-500 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="dark-preserve bg-[#cbe7fd] dark:bg-[#173b5c] rounded-2xl p-5 shadow-sm hover:shadow-xl hover:shadow-sky-500/15 dark:hover:shadow-sky-950/60 hover:-translate-y-1.5 hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 ease-out cursor-pointer group flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between text-sky-800 dark:text-sky-300 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-sky-950 dark:group-hover:text-white transition-colors">
+              <div className="flex items-center justify-between text-[#0c4a6e] dark:text-[#bae6fd] mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider group-hover:text-[#082f49] dark:group-hover:text-white transition-colors">
                   Asignados
                 </span>
-                <Users className="w-4 h-4 text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform" />
+                <Users className="w-4 h-4 text-[#0284c7] dark:text-[#38bdf8] group-hover:scale-125 group-hover:-rotate-6 transition-transform duration-300 ease-out" />
               </div>
-              <p className="text-3xl sm:text-4xl font-serif font-bold text-sky-950 dark:text-sky-100">
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-[#082f49] dark:text-white group-hover:translate-x-0.5 transition-transform duration-300">
                 {total_asignados}
               </p>
-              <p className="text-xs text-sky-800/80 dark:text-sky-300/80 mt-1 font-medium">
+              <p className="text-xs text-[#0c4a6e] dark:text-[#e0f2fe] mt-1 font-semibold">
                 Pases totales repartidos
               </p>
             </div>
-            <div className="mt-3 pt-2.5 border-t border-sky-300/60 dark:border-sky-800/60 flex items-center justify-between text-[11px] font-semibold text-sky-800 dark:text-sky-300">
+            <div className="mt-3 pt-2.5 border-t border-[#a3d2f7] dark:border-[#214d75] flex items-center justify-between text-[11px] font-bold text-[#075985] dark:text-[#bae6fd]">
               <span>Ver todos</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
             </div>
           </LoadingLink>
 
-          {/* 2. Confirmados (Pastel Menta/Esmeralda sólido) */}
+          {/* 2. Confirmados (Verde esmeralda sólido, sin marcos) */}
           <LoadingLink
             href="/dashboard/invitados?estado=confirmado"
             title="Ver invitados que ya confirmaron asistencia"
-            className="bg-[#dcfce7] dark:bg-[#0c2f24] border border-[#86efac] dark:border-[#059669]/50 rounded-2xl p-5 shadow-xs hover:border-emerald-500 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="dark-preserve bg-[#bbf7d0] dark:bg-[#134635] rounded-2xl p-5 shadow-sm hover:shadow-xl hover:shadow-emerald-500/15 dark:hover:shadow-emerald-950/60 hover:-translate-y-1.5 hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 ease-out cursor-pointer group flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-emerald-950 dark:group-hover:text-white transition-colors">
+              <div className="flex items-center justify-between text-[#064e3b] dark:text-[#a7f3d0] mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider group-hover:text-[#022c22] dark:group-hover:text-white transition-colors">
                   Confirmados
                 </span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                <CheckCircle2 className="w-4 h-4 text-[#059669] dark:text-[#34d399] group-hover:scale-125 group-hover:rotate-6 transition-transform duration-300 ease-out" />
               </div>
-              <p className="text-3xl sm:text-4xl font-serif font-bold text-emerald-950 dark:text-emerald-100">
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-[#022c22] dark:text-white group-hover:translate-x-0.5 transition-transform duration-300">
                 {total_confirmados}
               </p>
 
-              {/* Etiquetas destacadas de adultos y niños */}
-              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-white/90 dark:bg-[#134032] text-emerald-950 dark:text-emerald-200 border border-emerald-300/80 dark:border-emerald-700 font-medium shadow-xs">
+              {/* Etiquetas sólidas de alto contraste para adultos y niños (sin marcos resaltados) */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                <span className="dark-preserve inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-[#047857] text-[#022c22] dark:text-white font-semibold shadow-xs group-hover:scale-[1.03] transition-transform duration-300">
                   <span>👤</span>
                   <span>
-                    <strong className="font-bold text-sm text-emerald-950 dark:text-white">
+                    <strong className="font-extrabold text-sm text-[#022c22] dark:text-white">
                       {total_adultos}
                     </strong>{" "}
                     {total_adultos === 1 ? "adulto" : "adultos"}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-white/90 dark:bg-[#382b13] text-amber-950 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700 font-medium shadow-xs">
+                <span className="dark-preserve inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#fde047] dark:bg-[#b45309] text-[#451a03] dark:text-white font-semibold shadow-xs group-hover:scale-[1.03] transition-transform duration-300 delay-75">
                   <span>🧒</span>
                   <span>
-                    <strong className="font-bold text-sm text-amber-950 dark:text-white">
+                    <strong className="font-extrabold text-sm text-[#451a03] dark:text-white">
                       {total_ninos}
                     </strong>{" "}
                     {total_ninos === 1 ? "niño" : "niños"}
@@ -476,19 +476,19 @@ export default async function DashboardPage() {
                 </span>
               </div>
 
-              {/* Barra fina visual de proporción */}
+              {/* Barra visual sólida de proporción */}
               {total_confirmados > 0 && (
-                <div className="w-full bg-emerald-200/80 dark:bg-emerald-950 h-1.5 rounded-full overflow-hidden flex mt-2.5">
+                <div className="w-full bg-[#86efac] dark:bg-[#09261c] h-2 rounded-full overflow-hidden flex mt-3">
                   <div
                     title={`${total_adultos} adultos`}
-                    className="bg-emerald-600 dark:bg-emerald-400 h-full transition-all"
+                    className="bg-[#059669] dark:bg-[#10b981] h-full transition-all"
                     style={{
                       width: `${(total_adultos / total_confirmados) * 100}%`,
                     }}
                   />
                   <div
                     title={`${total_ninos} niños`}
-                    className="bg-amber-500 dark:bg-amber-400 h-full transition-all"
+                    className="bg-[#d97706] dark:bg-[#f59e0b] h-full transition-all"
                     style={{
                       width: `${(total_ninos / total_confirmados) * 100}%`,
                     }}
@@ -496,100 +496,101 @@ export default async function DashboardPage() {
                 </div>
               )}
             </div>
-            <div className="mt-3 pt-2.5 border-t border-emerald-300/60 dark:border-emerald-800/60 flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+            <div className="mt-3 pt-2.5 border-t border-[#7ce8a3] dark:border-[#1c5943] flex items-center justify-between text-[11px] font-bold text-[#065f46] dark:text-[#a7f3d0]">
               <span>Ver quiénes van</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
             </div>
           </LoadingLink>
 
-          {/* 3. Pases Liberados / Declinados (Pastel Coral/Rosa sólido) */}
+          {/* 3. Pases Liberados / Declinados (Rosa coral sólido, sin marcos) */}
           <LoadingLink
             href="/dashboard/invitados?estado=liberados"
             title="Ver invitados que liberaron pases (declinados o confirmación parcial)"
-            className="bg-[#ffe4e6] dark:bg-[#34141e] border border-[#fda4af] dark:border-[#e11d48]/50 rounded-2xl p-5 shadow-xs hover:border-rose-500 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="dark-preserve bg-[#fecdd3] dark:bg-[#54192a] rounded-2xl p-5 shadow-sm hover:shadow-xl hover:shadow-rose-500/15 dark:hover:shadow-rose-950/60 hover:-translate-y-1.5 hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 ease-out cursor-pointer group flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between text-rose-800 dark:text-rose-300 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-rose-950 dark:group-hover:text-white transition-colors">
+              <div className="flex items-center justify-between text-[#881337] dark:text-[#fecdd3] mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider group-hover:text-[#4c0519] dark:group-hover:text-white transition-colors">
                   Pases Liberados
                 </span>
-                <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform" />
+                <XCircle className="w-4 h-4 text-[#e11d48] dark:text-[#fb7185] group-hover:scale-125 group-hover:rotate-12 transition-transform duration-300 ease-out" />
               </div>
-              <p className="text-3xl sm:text-4xl font-serif font-bold text-rose-950 dark:text-rose-100">
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-[#4c0519] dark:text-white group-hover:translate-x-0.5 transition-transform duration-300">
                 {total_pases_liberados}
               </p>
-              <p className="text-xs text-rose-800/90 dark:text-rose-300/80 mt-1 font-medium leading-relaxed">
+              <p className="text-xs text-[#881337] dark:text-[#ffe4e6] mt-1 font-semibold leading-relaxed">
                 {`${porLiberar} disponibles para liberar de quienes declinaron`}
               </p>
             </div>
-            <div className="mt-3 pt-2.5 border-t border-rose-300/60 dark:border-rose-800/60 flex items-center justify-between text-[11px] font-semibold text-rose-800 dark:text-rose-300">
+            <div className="mt-3 pt-2.5 border-t border-[#fdaab7] dark:border-[#732138] flex items-center justify-between text-[11px] font-bold text-[#9f1239] dark:text-[#fecdd3]">
               <span>Ver quiénes liberaron</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
             </div>
           </LoadingLink>
 
-          {/* 4. Pendientes (Pastel Miel/Ámbar cálido sólido) */}
+          {/* 4. Pendientes (Ámbar cálido sólido, sin marcos) */}
           <LoadingLink
             href="/dashboard/invitados?estado=pendiente"
             title="Ver invitados que aún no confirman ni declinan"
-            className="bg-[#fef3c7] dark:bg-[#33220c] border border-[#fcd34d] dark:border-[#d97706]/50 rounded-2xl p-5 shadow-xs hover:border-amber-500 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            className="dark-preserve bg-[#fde68a] dark:bg-[#52340d] rounded-2xl p-5 shadow-sm hover:shadow-xl hover:shadow-amber-500/15 dark:hover:shadow-amber-950/60 hover:-translate-y-1.5 hover:scale-[1.02] active:scale-[0.99] transition-all duration-300 ease-out cursor-pointer group flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-amber-950 dark:group-hover:text-white transition-colors">
+              <div className="flex items-center justify-between text-[#78350f] dark:text-[#fde68a] mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider group-hover:text-[#451a03] dark:group-hover:text-white transition-colors">
                   Pendientes
                 </span>
-                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+                <Clock className="w-4 h-4 text-[#d97706] dark:text-[#fbbf24] group-hover:scale-125 group-hover:rotate-12 transition-transform duration-300 ease-out" />
               </div>
-              <p className="text-3xl sm:text-4xl font-serif font-bold text-amber-950 dark:text-amber-100">
+              <p className="text-3xl sm:text-4xl font-serif font-bold text-[#451a03] dark:text-white group-hover:translate-x-0.5 transition-transform duration-300">
                 {total_pendientes}
               </p>
-              <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1 font-medium">
+              <p className="text-xs text-[#78350f] dark:text-[#fef3c7] mt-1 font-semibold">
                 Aún sin respuesta
               </p>
             </div>
-            <div className="mt-3 pt-2.5 border-t border-amber-300/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+            <div className="mt-3 pt-2.5 border-t border-[#fbd355] dark:border-[#6e4612] flex items-center justify-between text-[11px] font-bold text-[#92400e] dark:text-[#fde68a]">
               <span>Ver quiénes faltan</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
             </div>
-          </LoadingLink>        </div>
+          </LoadingLink>
+        </div>
       </div>
 
       {qrCheckinEnabled && (
-        <section className="rounded-3xl border border-[#d7e8df] dark:border-[#20315c] bg-[#f7fbf8] dark:bg-[#111c38] p-5 shadow-xs sm:p-6">
+        <section className="rounded-3xl border border-[#cce3d6] dark:border-[#26272b] bg-[#f4faf6] dark:bg-[#16171a] p-5 shadow-xs sm:p-6">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[.2em] text-emerald-700 dark:text-emerald-400">Control de acceso QR</p>
+              <p className="text-[11px] font-bold uppercase tracking-[.2em] text-[#047857] dark:text-[#34d399]">Control de acceso QR</p>
               <h2 className="mt-1 font-serif text-2xl font-bold text-[#183126] dark:text-white">Asistencia en el evento</h2>
-              <p className="mt-1 text-xs text-stone-500 dark:text-slate-300">Pulsa Actualizar asistencia para consultar las últimas entradas.</p>
+              <p className="mt-1 text-xs text-stone-600 dark:text-[#dbdee1]">Pulsa Actualizar asistencia para consultar las últimas entradas.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <AttendanceRefresh />
-              <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300">Ver entradas <ArrowRight className="h-3.5 w-3.5" /></LoadingLink>
+              <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="inline-flex items-center gap-1 text-xs font-bold text-[#047857] dark:text-[#34d399] hover:text-[#064e3b] dark:hover:text-[#6ee7b7]">Ver entradas <ArrowRight className="h-3.5 w-3.5" /></LoadingLink>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="dark-preserve rounded-2xl border border-emerald-200 dark:border-emerald-500/40 bg-white dark:bg-[#0c2e24] p-4 transition hover:border-emerald-400 hover:shadow-sm">
-              <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300"><span className="text-[11px] font-bold uppercase tracking-wider">Ya ingresaron</span><DoorOpen className="h-4 w-4" /></div>
-              <p className="mt-2 font-serif text-3xl font-bold text-emerald-950 dark:text-emerald-100">{total_ingresados}</p>
-              <p className="mt-1 text-xs text-stone-500 dark:text-emerald-200/80">personas registradas</p>
+            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="dark-preserve group rounded-2xl bg-[#d1fae5] dark:bg-[#134635] p-4 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.015] hover:shadow-lg">
+              <div className="flex items-center justify-between text-[#065f46] dark:text-[#a7f3d0]"><span className="text-[11px] font-bold uppercase tracking-wider">Ya ingresaron</span><DoorOpen className="h-4 w-4 transition-transform duration-300 group-hover:scale-125 group-hover:-rotate-6" /></div>
+              <p className="mt-2 font-serif text-3xl font-bold text-[#022c22] dark:text-white">{total_ingresados}</p>
+              <p className="mt-1 text-xs font-semibold text-[#065f46] dark:text-[#d1fae5]">personas registradas</p>
             </LoadingLink>
-            <LoadingLink href="/dashboard/invitados?entrada=sin_ingreso" className="dark-preserve rounded-2xl border border-amber-200 dark:border-amber-500/40 bg-white dark:bg-[#33220c] p-4 transition hover:border-amber-400 hover:shadow-sm">
-              <div className="flex items-center justify-between text-amber-700 dark:text-amber-300"><span className="text-[11px] font-bold uppercase tracking-wider">Pendientes de llegar</span><ScanLine className="h-4 w-4" /></div>
-              <p className="mt-2 font-serif text-3xl font-bold text-amber-950 dark:text-amber-100">{confirmados_pendientes_ingreso}</p>
-              <p className="mt-1 text-xs text-stone-500 dark:text-amber-200/80">pases confirmados pendientes</p>
+            <LoadingLink href="/dashboard/invitados?entrada=sin_ingreso" className="dark-preserve group rounded-2xl bg-[#fef3c7] dark:bg-[#52340d] p-4 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.015] hover:shadow-lg">
+              <div className="flex items-center justify-between text-[#78350f] dark:text-[#fde68a]"><span className="text-[11px] font-bold uppercase tracking-wider">Pendientes de llegar</span><ScanLine className="h-4 w-4 transition-transform duration-300 group-hover:scale-125" /></div>
+              <p className="mt-2 font-serif text-3xl font-bold text-[#451a03] dark:text-white">{confirmados_pendientes_ingreso}</p>
+              <p className="mt-1 text-xs font-semibold text-[#78350f] dark:text-[#fef3c7]">pases confirmados pendientes</p>
             </LoadingLink>
-            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="dark-preserve rounded-2xl border border-sky-200 dark:border-sky-500/40 bg-white dark:bg-[#0f2942] p-4 transition hover:border-sky-400 hover:shadow-sm">
-              <div className="flex items-center justify-between text-sky-700 dark:text-sky-300"><span className="text-[11px] font-bold uppercase tracking-wider">Familias recibidas</span><UserCheck className="h-4 w-4" /></div>
-              <p className="mt-2 font-serif text-3xl font-bold text-sky-950 dark:text-sky-100">{familias_ingresadas}</p>
-              <p className="mt-1 text-xs text-stone-500 dark:text-sky-200/80">registros con al menos una entrada</p>
+            <LoadingLink href="/dashboard/invitados?entrada=ingresaron" className="dark-preserve group rounded-2xl bg-[#cbe7fd] dark:bg-[#173b5c] p-4 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.015] hover:shadow-lg">
+              <div className="flex items-center justify-between text-[#0c4a6e] dark:text-[#bae6fd]"><span className="text-[11px] font-bold uppercase tracking-wider">Familias recibidas</span><UserCheck className="h-4 w-4 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6" /></div>
+              <p className="mt-2 font-serif text-3xl font-bold text-[#082f49] dark:text-white">{familias_ingresadas}</p>
+              <p className="mt-1 text-xs font-semibold text-[#0c4a6e] dark:text-[#e0f2fe]">registros con al menos una entrada</p>
             </LoadingLink>
           </div>
         </section>
       )}
 
       {/* Actividad Reciente */}
-      <div className="bg-white border border-[#ebd9c4] rounded-3xl p-6 sm:p-8 shadow-xs">
+      <div className="bg-[#f4f6f9] dark:bg-[#16171a] border border-slate-200/90 dark:border-[#26272b] rounded-3xl p-6 sm:p-8 shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-[#f5ede2] mb-4">
           <div>
             <h3 className="font-serif font-bold text-xl text-[#2b211b]">
