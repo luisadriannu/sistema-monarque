@@ -55,12 +55,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const negocio = String(body.negocio || "").trim();
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
-  const currentOrganization = await prisma.organizacion.findUnique({ where: { id }, select: { plan: true, servicio_vence_en: true } });
+  const currentOrganization = await prisma.organizacion.findUnique({ where: { id }, select: { plan: true, servicio_vence_en: true, max_recepcionistas: true } });
   if (!currentOrganization) return NextResponse.json({ error: "Organizador no encontrado." }, { status: 404, headers });
   const plan = currentOrganization.plan === "elite" && body.plan === "elite"
     ? "elite"
     : normalizeAvailablePlan(body.plan);
   const preset = planPresets[plan];
+  const maxRecepcionistas = body.max_recepcionistas === undefined ? currentOrganization.max_recepcionistas : body.max_recepcionistas;
+  if (typeof maxRecepcionistas !== "number" || !Number.isInteger(maxRecepcionistas) || maxRecepcionistas < 0 || maxRecepcionistas > 2147483647) {
+    return NextResponse.json({ error: "El cupo de recepcionistas debe ser un número entero mayor o igual a cero." }, { status: 400, headers });
+  }
   const allowedStates = ["activo", "suspendido", "vencido"];
   const estadoServicio = allowedStates.includes(body.estado_servicio) ? body.estado_servicio : "activo";
   const expiryInput = String(body.servicio_vence_en || "");
@@ -80,6 +84,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       plan,
       estado_servicio: estadoServicio,
       servicio_vence_en: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
+      max_recepcionistas: maxRecepcionistas,
       max_clientes: preset.maxClientes,
       max_eventos_activos: preset.maxEventos,
       max_invitados_evento: preset.maxInvitados,

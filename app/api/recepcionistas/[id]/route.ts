@@ -1,3 +1,4 @@
+import { ReceptionCapacityError, withReceptionCapacity } from "@/lib/reception-capacity";
 import { canManageAccounts, accountScope } from "@/lib/management-access";
 import { receptionOrganization } from "@/lib/reception-access";
 import { isValidName, NAME_ERROR } from "@/lib/names";
@@ -23,11 +24,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!nombre || !email.includes("@") || (password && password.length < 10) || !eventIds.length) return NextResponse.json({ error: "Revisa los datos y asigna al menos un evento." }, { status: 400, headers });
   const organizationId = await receptionOrganization(eventIds, user);
   if (!organizationId) return NextResponse.json({ error: "Selecciona eventos permitidos de una misma organización o de Clientes directos." }, { status: 403, headers });
-  await prisma.$transaction(async tx => {
-    await tx.eventoRecepcionista.deleteMany({ where: { usuario_id: id } });
-    await tx.usuario.update({ where: { id }, data: { nombre, email, organizacion_id: organizationId, eliminado_en: null, lector_qr_habilitado: true, session_version: { increment: 1 }, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}), eventos_recepcion: { create: eventIds.map(evento_id => ({ evento_id })) } } });
-  });
-  return NextResponse.json({ ok: true }, { headers });
+  try {
+    await withReceptionCapacity(organizationId, user.rol === "admin", id, async tx => {
+      await tx.eventoRecepcionista.deleteMany({ where: { usuario_id: id } });
+      await tx.usuario.update({ where: { id }, data: { nombre, email, organizacion_id: organizationId, eliminado_en: null, lector_qr_habilitado: true, session_version: { increment: 1 }, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}), eventos_recepcion: { create: eventIds.map(evento_id => ({ evento_id })) } } });
+    });
+    return NextResponse.json({ ok: true }, { headers });
+  } catch (error) {
+    if (error instanceof ReceptionCapacityError) return NextResponse.json({ error: error.message, code: "RECEPTION_CAPACITY_REACHED" }, { status: 403, headers });
+    return NextResponse.json({ error: "No se pudo actualizar la cuenta de recepción. Revisa el correo e inténtalo de nuevo." }, { status: 500, headers });
+  }
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {

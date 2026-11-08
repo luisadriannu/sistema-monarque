@@ -19,7 +19,8 @@
     "test:admin": "node --test scripts/admin-access.test.cjs",
     "test:auth": "node --test scripts/auth-login.test.cjs",
     "test:actions": "node --test scripts/action-loading.test.cjs",
-    "test:navigation": "node --test scripts/navigation-cache.test.cjs"
+    "test:navigation": "node --test scripts/navigation-cache.test.cjs",
+    "test:reception": "node --test scripts/reception-capacity.test.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

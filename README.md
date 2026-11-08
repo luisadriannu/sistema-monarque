@@ -139,3 +139,11 @@ Puedes ingresar directamente con uno de los tokens generados, por ejemplo:
 Antes de desplegar, verifica que la base PostgreSQL tenga el esquema actual de `prisma/schema.prisma`, en particular `Organizacion.qr_checkin_habilitado`, `Invitado.codigo_entrada`, `Invitado.pases_ingresados`, `Invitado.ultima_entrada_en` y la tabla `RegistroEntrada`. Actualizar solo el código o generar Prisma Client no actualiza las tablas. En una base con datos existentes, prepara una migración que asigne códigos únicos a los invitados anteriores antes de exigir el campo obligatorio; respalda la base antes de aplicar cambios.
 
 Validación automatizada sin conexión a base de datos: `npm run test:qr`. Ejecuta los handlers y la página de invitación con persistencia simulada; no sustituye la prueba de cámara y base PostgreSQL en el despliegue.
+
+## Cupo de recepcionistas
+
+El administrador configura `max_recepcionistas` al crear o editar un organizador. Los valores iniciales son 2 (Inicial), 5 (Profesional) y 50 (Agencia). Solo cuentan cuentas activas; desactivar libera cupo y restaurar vuelve a consumirlo. Editar una cuenta activa no consume otro lugar. El administrador puede superar el cupo; el organizador ve el uso en Equipo de recepción y no puede crear ni restaurar cuando está completo.
+
+Antes de ejecutar esta versión contra una base existente, aplica `prisma/migrations/20261108000000_reception_capacity/migration.sql` mediante el procedimiento de migraciones de ese entorno y regenera Prisma Client (`npm run prisma:generate`). La migración conserva todas las cuentas y establece como mínimo el número de recepcionistas activos actuales. Reducir el cupo posteriormente no desactiva cuentas: bloquea nuevas altas y restauraciones hasta liberar capacidad. No basta con desplegar el código: la columna debe existir primero.
+
+Pruebas del cupo sin modificar la base de datos: `npm run test:reception`.

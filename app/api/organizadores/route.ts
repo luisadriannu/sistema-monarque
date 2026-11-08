@@ -44,6 +44,10 @@ export async function POST(request: Request) {
     const password = String(body.password || "");
     const plan = normalizeAvailablePlan(body.plan);
     const preset = planPresets[plan];
+    const maxRecepcionistas = body.max_recepcionistas === undefined ? preset.maxRecepcionistas : body.max_recepcionistas;
+    if (typeof maxRecepcionistas !== "number" || !Number.isInteger(maxRecepcionistas) || maxRecepcionistas < 0 || maxRecepcionistas > 2147483647) {
+      return NextResponse.json({ error: "El cupo de recepcionistas debe ser un número entero mayor o igual a cero." }, { status: 400, headers });
+    }
     const expiryInput = String(body.servicio_vence_en || "");
     if (expiryInput && expiryInput < toDateInputValue(new Date())) {
       return NextResponse.json({ error: "El vencimiento de la licencia debe ser hoy o una fecha futura." }, { status: 400, headers });
@@ -63,6 +67,7 @@ export async function POST(request: Request) {
         plan,
         estado_servicio: "activo",
         servicio_vence_en: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
+        max_recepcionistas: maxRecepcionistas,
         max_clientes: preset.maxClientes,
         max_eventos_activos: preset.maxEventos,
         max_invitados_evento: preset.maxInvitados,
