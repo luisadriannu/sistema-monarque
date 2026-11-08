@@ -63,7 +63,7 @@ export default function FloatingMenu({ anchor, onClose, id, children }: Props) {
 
   return createPortal(
     <div ref={menu} id={id} role="menu" aria-label="Acciones del invitado" onKeyDown={onKeyDown} onClick={event => event.stopPropagation()}
-      className="dashboard-theme fixed z-[45] overflow-y-auto overscroll-contain rounded-xl border border-[#ebd9c4] dark:border-[#223460] bg-white dark:bg-[#111c38] py-1.5 text-left text-xs shadow-xl"
+      className="dashboard-theme fixed z-[45] overflow-y-auto overscroll-contain rounded-xl border border-[#ebd9c4] dark:border-[#2b2d31] bg-white dark:bg-[#16171a] py-1.5 text-left text-xs shadow-xl"
       style={position ? { ...position, boxSizing: "border-box" } : { visibility: "hidden", width: 192 }}>
       {children}
     </div>, document.body,

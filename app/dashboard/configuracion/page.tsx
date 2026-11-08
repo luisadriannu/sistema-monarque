@@ -512,13 +512,13 @@ function ConfiguracionContent() {
       </div>
 
       {eventoFinalizado && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-[#33220d] px-4 py-3 text-amber-950 dark:text-amber-100">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <div>
-            <p className="text-sm font-bold">
+            <p className="text-sm font-bold text-amber-950 dark:text-white">
               Evento finalizado · Solo lectura
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-800/80">
+            <p className="mt-1 text-xs font-medium leading-relaxed text-amber-900 dark:text-amber-100">
               Puedes consultar estos ajustes, pero ya no es posible modificarlos
               después del día del evento.
             </p>
@@ -772,12 +772,12 @@ function ConfiguracionContent() {
                   <p className="mt-3 text-xs leading-relaxed text-stone-500">Aquí solo preparas el texto. Para enviarlo, entra a <strong>Invitados</strong> y elige <strong>WhatsApp</strong> en la persona o familia que deseas invitar.</p>
                 </div>
 
-                <details className="group rounded-2xl border border-stone-200 dark:border-[#223460]">
+                <details className="group rounded-2xl border border-stone-200 dark:border-[#2b2d31]">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-semibold text-stone-800 [&::-webkit-details-marker]:hidden">
                     <span>Personalizar mensaje <span className="font-normal text-stone-400">(opcional)</span></span>
                     <span className="text-emerald-700 dark:text-[#00a884]"><span className="group-open:hidden">Editar</span><span className="hidden group-open:inline">Cerrar</span></span>
                   </summary>
-                  <div className="space-y-4 border-t border-stone-100 dark:border-[#223460] p-4">
+                  <div className="space-y-4 border-t border-stone-100 dark:border-[#2b2d31] p-4">
                     <label htmlFor="plantilla-whatsapp" className="block text-sm font-semibold text-stone-800">Escribe con tus propias palabras</label>
                     <p id="mensaje-ayuda" className="text-xs leading-relaxed text-stone-500">Las etiquetas entre llaves se cambian por los datos de cada invitado al compartir. Consérvalas en el texto. Si borras alguna, puedes volver a añadirla con los botones.</p>
                     <textarea
@@ -800,7 +800,7 @@ function ConfiguracionContent() {
                       <div className="flex flex-wrap gap-2">{variablesMensaje.map(variable => {
                         const Icon = variable.icon;
                         const incluida = plantillaMensaje.includes(variable.token);
-                        return <button key={variable.token} type="button" onClick={() => insertarVariable(variable.token)} title={incluida ? "Ver este dato en el texto" : `Añadir ${variable.label.toLowerCase()}`} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition ${incluida ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-[#0c3627] dark:text-emerald-200" : "border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-[#243563] dark:text-slate-300 dark:hover:bg-[#162447]"}`}><Icon className="h-3.5 w-3.5"/>{variable.label}{incluida && <CheckCircle className="h-3 w-3"/>}</button>;
+                        return <button key={variable.token} type="button" onClick={() => insertarVariable(variable.token)} title={incluida ? "Ver este dato en el texto" : `Añadir ${variable.label.toLowerCase()}`} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition ${incluida ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-[#0c3627] dark:text-emerald-200" : "border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-[#2b2d31] dark:text-slate-300 dark:hover:bg-[#232428]"}`}><Icon className="h-3.5 w-3.5"/>{variable.label}{incluida && <CheckCircle className="h-3 w-3"/>}</button>;
                       })}</div>
                     </div>
                     {variablesObligatoriasFaltantes.length > 0 && <p role="status" className="rounded-xl bg-amber-50 dark:bg-[#3b250b] dark:border dark:border-amber-500/40 p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-200">Tu texto no incluye: <strong>{variablesObligatoriasFaltantes.map(variable => variable.label.toLowerCase()).join(", ")}</strong>. Usa los botones para añadir esos datos.</p>}
@@ -834,7 +834,7 @@ function ConfiguracionContent() {
 
           {/* Botón de guardado */}
           <div className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 lg:left-[calc(16rem+2rem)] lg:right-8">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] dark:border-[#243563] bg-white/95 dark:bg-[#111c38]/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] dark:border-[#2b2d31] bg-white/95 dark:bg-[#16171a]/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
               <div className="hidden min-w-0 sm:block">
                 <p className="text-xs font-bold text-[#2b211b]">
                   Configuración del evento

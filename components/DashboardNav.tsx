@@ -175,7 +175,7 @@ export default function DashboardNav({
   return (
     <>
       {/* Mobile Topbar */}
-      <div className="lg:hidden bg-white border-b border-stone-200 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-40">
+      <div className="lg:hidden bg-white dark:bg-[#111214] border-b border-stone-200 dark:border-[#222428] px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full overflow-hidden border border-[#ebd9c4] shrink-0">
             <Image
@@ -213,7 +213,7 @@ export default function DashboardNav({
 
       {/* Desktop Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-[#ebd9c4]/70 flex flex-col justify-between transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#111214] border-r border-[#ebd9c4]/70 dark:border-[#222428] flex flex-col justify-between transition-transform duration-200 lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -340,7 +340,7 @@ export default function DashboardNav({
         </div>
 
         {/* Footer de usuario */}
-        <div className="p-4 border-t border-[#f5ede2] dark:border-[#1e2c52] bg-[#fbf8f4]/60 dark:bg-[#0a1126]">
+        <div className="p-4 border-t border-[#f5ede2] dark:border-[#1e1f22] bg-white dark:bg-[#090a0c]">
           <div className="flex items-center justify-between">
             <div className="truncate pr-2">
               <p className="flex items-center gap-2 text-xs font-semibold text-stone-900">
