@@ -34,20 +34,13 @@ export default function EventTypeIcon({
   }
 
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
+    <span
+      className={`inline-flex items-center justify-center select-none font-normal leading-none shrink-0 ${className}`}
+      style={{ width: "auto", minWidth: "1em" }}
+      role="img"
+      aria-label="Boda"
     >
-      <circle cx="8.5" cy="14" r="5" />
-      <circle cx="15.5" cy="14" r="5" />
-      <path d="m12 6-2-2 2-2 2 2-2 2Z" />
-      <path d="M12 6v2" />
-    </svg>
+      👰💐
+    </span>
   );
 }

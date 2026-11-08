@@ -523,7 +523,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                         "--chip-text": eventTheme.accentStrong,
                       } as React.CSSProperties}
                     >
-                      <EventTypeIcon type={eventType} className="h-5 w-5" />
+                      <EventTypeIcon type={eventType} className="h-5 w-auto text-sm" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h2 className="break-words font-serif text-lg font-bold leading-snug text-[#2b211b]">
@@ -850,6 +850,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                             const option = eventTypeThemes[type];
                             const selected = form.tipoEvento === type;
                             const isBautizo = type === "bautizo";
+                            const isBoda = type === "boda";
                             return (
                               <button
                                 key={type}
@@ -858,8 +859,10 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                                 aria-checked={selected}
                                 onClick={() => {
                                   updateField("tipoEvento", type);
-                                  if (!editingId && isBautizo && !form.eventoNombre) {
+                                  if (!editingId && isBautizo && (!form.eventoNombre || form.eventoNombre === "👰💐 BODA DE ")) {
                                     updateField("eventoNombre", "👼🏻🤍 BAUTIZO DE ");
+                                  } else if (!editingId && isBoda && (!form.eventoNombre || form.eventoNombre === "👼🏻🤍 BAUTIZO DE ")) {
+                                    updateField("eventoNombre", "👰💐 BODA DE ");
                                   }
                                 }}
                                 className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-4 text-center transition-all ${
@@ -871,26 +874,34 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                                   backgroundColor: selected
                                     ? isBautizo
                                       ? "#9DCDDD"
-                                      : option.soft
+                                      : isBoda
+                                        ? "#FDE6EC"
+                                        : option.soft
                                     : undefined,
                                   borderColor: selected
                                     ? isBautizo
                                       ? "#6fa5b7"
-                                      : option.accent
+                                      : isBoda
+                                        ? "#C84B73"
+                                        : option.accent
                                     : isBautizo
                                       ? "#9DCDDD"
-                                      : option.softBorder,
+                                      : isBoda
+                                        ? "#F5B8C8"
+                                        : option.softBorder,
                                   color: selected
                                     ? isBautizo
                                       ? "#163442"
-                                      : option.accentStrong
+                                      : isBoda
+                                        ? "#4A192C"
+                                        : option.accentStrong
                                     : undefined,
-                                  "--tw-ring-color": isBautizo ? "#9DCDDD" : option.accent,
+                                  "--tw-ring-color": isBautizo ? "#9DCDDD" : isBoda ? "#F5B8C8" : option.accent,
                                 } as React.CSSProperties}
                               >
                                 <EventTypeIcon
                                   type={type}
-                                  className={isBautizo ? "h-7 w-auto text-xl" : "h-7 w-7"}
+                                  className={isBautizo || isBoda ? "h-7 w-auto text-xl" : "h-7 w-7"}
                                   strokeWidth={1.7}
                                 />
                                 <span className="text-[11px] font-bold">
@@ -1107,10 +1118,11 @@ function Field({
 function SystemThemePreview({ eventType }: { eventType: EventType }) {
   const palette = eventTypeThemes[eventType];
   const isBautizo = eventType === "bautizo";
+  const isBoda = eventType === "boda";
   return (
     <div
       className="overflow-hidden rounded-2xl border shadow-sm transition-all"
-      style={{ borderColor: isBautizo ? "#82b4c6" : palette.softBorder }}
+      style={{ borderColor: isBautizo ? "#82b4c6" : isBoda ? "#f3b6c6" : palette.softBorder }}
     >
       <div className="flex min-h-40 bg-white">
         <div
@@ -1128,27 +1140,34 @@ function SystemThemePreview({ eventType }: { eventType: EventType }) {
           </div>
         </div>
         <div
-          className="flex-1 p-5 transition-colors"
-          style={{ backgroundColor: isBautizo ? "#9DCDDD" : palette.soft }}
+          className={`relative flex-1 p-5 transition-colors ${isBoda ? "bg-cover bg-center bg-no-repeat" : ""}`}
+          style={
+            isBoda
+              ? { backgroundImage: "url('/boda-header.jpg?v=2')" }
+              : { backgroundColor: isBautizo ? "#9DCDDD" : palette.soft }
+          }
         >
-          <div className="flex items-center justify-between gap-3">
+          {isBoda && (
+            <div className="dark-preserve absolute inset-0 bg-white/30 dark:bg-black/55 pointer-events-none" />
+          )}
+          <div className="relative z-10 flex items-center justify-between gap-3">
             <div>
               <p
                 className="text-[9px] font-bold uppercase tracking-[.2em]"
-                style={{ color: isBautizo ? "#144254" : palette.accentStrong }}
+                style={{ color: isBautizo ? "#144254" : isBoda ? "#8F2D4E" : palette.accentStrong }}
               >
                 Vista del panel
               </p>
               <p
                 className="mt-1 flex items-center gap-2 font-serif text-xl"
-                style={{ color: isBautizo ? "#0e2c39" : palette.ink }}
+                style={{ color: isBautizo ? "#0e2c39" : isBoda ? "#4A192C" : palette.ink }}
               >
                 <EventTypeIcon type={eventType} className="h-5 w-auto" />
-                {isBautizo ? "BAUTIZO DE..." : `Evento · ${palette.label}`}
+                {isBautizo ? "BAUTIZO DE..." : isBoda ? "BODA DE..." : `Evento · ${palette.label}`}
               </p>
             </div>
             <div className="flex gap-1.5">
-              {[isBautizo ? "#9DCDDD" : palette.accent, palette.accentStrong, palette.softBorder].map(
+              {[isBautizo ? "#9DCDDD" : isBoda ? "#FDE6EC" : palette.accent, palette.accentStrong, palette.softBorder].map(
                 (color) => (
                   <span
                     key={color}
@@ -1159,7 +1178,7 @@ function SystemThemePreview({ eventType }: { eventType: EventType }) {
               )}
             </div>
           </div>
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="relative z-10 mt-5 grid grid-cols-3 gap-2">
             {["Resumen", "Invitados", "Confirmados"].map((label, index) => (
               <div
                 key={label}

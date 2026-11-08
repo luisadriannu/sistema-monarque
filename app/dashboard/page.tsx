@@ -58,6 +58,7 @@ export default async function DashboardPage() {
   const eventType = getEventTypeFromConfig(evento.configuracion_invitacion);
   const eventTheme = eventTypeThemes[eventType];
   const isBautizo = eventType === "bautizo";
+  const isBoda = eventType === "boda";
   const invitados = evento.invitados;
 
   // Cálculo de los 4 números clave:
@@ -138,14 +139,24 @@ export default async function DashboardPage() {
         className={`rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden transition-all ${
           isBautizo
             ? "dashboard-bautizo-header border border-[#82b4c6] dark:border-[#387892] dark:bg-[#133b4b] shadow-md"
-            : "bg-white dark:bg-[#16171a] border border-[#ebd9c4] dark:border-[#26272b]"
+            : isBoda
+              ? "dashboard-boda-header border border-[#e8c2cc] dark:border-[#4a353d] shadow-md bg-cover bg-center bg-no-repeat"
+              : "bg-white dark:bg-[#16171a] border border-[#ebd9c4] dark:border-[#26272b]"
         }`}
-        style={isBautizo ? { backgroundColor: "#9DCDDD" } : undefined}
+        style={
+          isBautizo
+            ? { backgroundColor: "#9DCDDD" }
+            : isBoda
+              ? { backgroundImage: "url('/boda-header.jpg?v=2')" }
+              : undefined
+        }
       >
-        {isBautizo ? (
+        {isBoda ? (
+          <div className="dark-preserve absolute inset-0 bg-white/30 dark:bg-black/55 pointer-events-none transition-colors duration-200" />
+        ) : isBautizo ? (
           <>
-            <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-white/35 via-white/10 to-transparent rounded-bl-full pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-white/20 via-transparent to-transparent rounded-tr-full pointer-events-none" />
+            <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-white/40 via-white/10 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-white/25 via-transparent to-transparent rounded-tr-full pointer-events-none" />
           </>
         ) : (
           <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-[#ffedd5]/50 via-[#fbf8f4]/30 to-transparent rounded-bl-full pointer-events-none" />
@@ -155,19 +166,31 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2 mb-2">
             <span
               className={`text-[11px] uppercase tracking-widest font-semibold ${
-                isBautizo ? "text-[#144254] dark:text-sky-300" : "text-[#e05a1b]"
+                isBautizo
+                  ? "text-[#144254] dark:text-sky-300"
+                  : isBoda
+                    ? "text-[#2b0d18] dark:text-white font-bold"
+                    : "text-[#e05a1b]"
               }`}
             >
               Control de Pases e Invitaciones
             </span>
             <span
               className={`w-1 h-1 rounded-full ${
-                isBautizo ? "bg-[#2c667d] dark:bg-sky-300" : "bg-[#dec0a2]"
+                isBautizo
+                  ? "bg-[#2c667d] dark:bg-sky-300"
+                  : isBoda
+                    ? "bg-[#C84B73] dark:bg-pink-300"
+                    : "bg-[#dec0a2]"
               }`}
             />
             <span
               className={`text-[11px] font-medium ${
-                isBautizo ? "text-[#1b4859] dark:text-sky-200/90" : "text-stone-400"
+                isBautizo
+                  ? "text-[#1b4859] dark:text-sky-200/90"
+                  : isBoda
+                    ? "text-[#2b0d18] dark:text-white font-semibold"
+                    : "text-stone-400"
               }`}
             >
               Monarque Elite
@@ -175,7 +198,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3.5">
-            {isBautizo ? (
+            {isBautizo || isBoda ? (
               <EventTypeIcon
                 type={eventType}
                 className="text-3xl sm:text-4xl shrink-0"
@@ -198,7 +221,11 @@ export default async function DashboardPage() {
             )}
             <h1
               className={`font-serif text-3xl font-bold tracking-tight sm:text-4xl ${
-                isBautizo ? "text-[#0e2c39] dark:text-white" : "text-[#2b211b]"
+                isBautizo
+                  ? "text-[#0e2c39] dark:text-white"
+                  : isBoda
+                    ? "text-[#1f0911] dark:text-white"
+                    : "text-[#2b211b]"
               }`}
             >
               {evento.nombre}
@@ -207,13 +234,21 @@ export default async function DashboardPage() {
 
           <p
             className={`text-sm mt-1 font-medium ${
-              isBautizo ? "text-[#1b4859] dark:text-sky-100" : "text-stone-600"
+              isBautizo
+                ? "text-[#1b4859] dark:text-sky-100"
+                : isBoda
+                  ? "text-[#240a14] dark:text-white font-semibold"
+                  : "text-stone-600"
             }`}
           >
             Anfitriones:{" "}
             <span
               className={`font-semibold ${
-                isBautizo ? "text-[#0d2733] dark:text-white" : "text-stone-800"
+                isBautizo
+                  ? "text-[#0d2733] dark:text-white"
+                  : isBoda
+                    ? "text-[#14040a] dark:text-white font-bold"
+                    : "text-stone-800"
               }`}
             >
               {evento.anfitriones}
@@ -225,17 +260,31 @@ export default async function DashboardPage() {
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border ${
                 isBautizo
                   ? "bg-white/85 dark:bg-[#0d2936]/90 backdrop-blur-sm border-white/60 dark:border-sky-400/30 text-[#144254] dark:text-sky-100 shadow-xs"
-                  : "bg-[#fbf8f4] border-[#ebd9c4] text-stone-600"
+                  : isBoda
+                    ? "bg-white/85 dark:bg-[#240d17]/90 backdrop-blur-sm border-white/70 dark:border-pink-400/35 text-[#5C1F36] dark:text-pink-100 shadow-xs"
+                    : "bg-[#fbf8f4] border-[#ebd9c4] text-stone-600"
               }`}
             >
               <Calendar
                 className={`w-3.5 h-3.5 ${
-                  isBautizo ? "text-[#1e586f] dark:text-sky-300" : "text-[#e05a1b]"
+                  isBautizo
+                    ? "text-[#1e586f] dark:text-sky-300"
+                    : isBoda
+                      ? "text-[#B83B64] dark:text-pink-300"
+                      : "text-[#e05a1b]"
                 }`}
               />
               <span>
                 Fecha del evento:{" "}
-                <strong className={isBautizo ? "text-[#0d2733] dark:text-white" : ""}>
+                <strong
+                  className={
+                    isBautizo
+                      ? "text-[#0d2733] dark:text-white"
+                      : isBoda
+                        ? "text-[#3D1222] dark:text-white"
+                        : ""
+                  }
+                >
                   {formatDateLongMx(evento.fecha_evento)}
                 </strong>
               </span>
@@ -244,17 +293,27 @@ export default async function DashboardPage() {
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border ${
                 isBautizo
                   ? "bg-white/85 dark:bg-[#0d2936]/90 backdrop-blur-sm border-white/60 dark:border-sky-400/30 text-[#144254] dark:text-sky-100 shadow-xs"
-                  : "bg-[#fbf8f4] border-[#ebd9c4] text-stone-600"
+                  : isBoda
+                    ? "bg-white/85 dark:bg-[#240d17]/90 backdrop-blur-sm border-white/70 dark:border-pink-400/35 text-[#5C1F36] dark:text-pink-100 shadow-xs"
+                    : "bg-[#fbf8f4] border-[#ebd9c4] text-stone-600"
               }`}
             >
               <MapPin
                 className={`w-3.5 h-3.5 ${
-                  isBautizo ? "text-[#1e586f] dark:text-sky-300" : "text-[#e05a1b]"
+                  isBautizo
+                    ? "text-[#1e586f] dark:text-sky-300"
+                    : isBoda
+                      ? "text-[#B83B64] dark:text-pink-300"
+                      : "text-[#e05a1b]"
                 }`}
               />
               <span
                 className={`max-w-sm ${
-                  isBautizo ? "text-[#0d2733] dark:text-white font-medium" : ""
+                  isBautizo
+                    ? "text-[#0d2733] dark:text-white font-medium"
+                    : isBoda
+                      ? "text-[#3D1222] dark:text-white font-medium"
+                      : ""
                 }`}
               >
                 {evento.lugar}
@@ -265,23 +324,49 @@ export default async function DashboardPage() {
 
         {/* Alerta de Fecha Límite */}
         <div
-          className={`mt-6 pt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t ${
-            isBautizo ? "border-[#82b4c6]/70 dark:border-sky-400/30" : "border-[#f5ede2]"
+          className={`relative z-10 mt-6 pt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t ${
+            isBautizo
+              ? "border-[#82b4c6]/70 dark:border-sky-400/30"
+              : isBoda
+                ? "border-[#b88a96]/70 dark:border-white/40"
+                : "border-[#f5ede2]"
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
             <AlertCircle
               className={`w-4 h-4 shrink-0 ${
                 rsvpVencido
                   ? "text-rose-600 dark:text-rose-400"
                   : diffDays <= 5
-                    ? isBautizo ? "text-amber-800 dark:text-amber-300" : "text-[#e05a1b]"
-                    : isBautizo ? "text-[#144254] dark:text-sky-300" : "text-[#c59b4c]"
+                    ? isBautizo || isBoda
+                      ? "text-amber-900 dark:text-amber-300"
+                      : "text-[#e05a1b]"
+                    : isBautizo
+                      ? "text-[#0d2733] dark:text-white"
+                      : isBoda
+                        ? "text-[#1f0911] dark:text-white"
+                        : "text-[#c59b4c]"
               }`}
             />
-            <span className={isBautizo ? "text-[#144254] dark:text-sky-100 font-medium" : "text-stone-700"}>
+            <span
+              className={
+                isBautizo
+                  ? "text-[#0d2733] dark:text-white font-semibold"
+                  : isBoda
+                    ? "text-[#1a070e] dark:text-white font-semibold"
+                    : "text-stone-800 dark:text-white font-semibold"
+              }
+            >
               Fecha límite de confirmación:{" "}
-              <strong className={isBautizo ? "text-[#0d2733] dark:text-white" : ""}>
+              <strong
+                className={
+                  isBautizo
+                    ? "text-[#071921] dark:text-white font-extrabold"
+                    : isBoda
+                      ? "text-[#120308] dark:text-white font-extrabold"
+                      : "text-stone-950 dark:text-white font-extrabold"
+                }
+              >
                 {formatDateMx(evento.fecha_limite_rsvp)}
               </strong>{" "}
               (hasta las 23:59 hrs)
@@ -290,15 +375,17 @@ export default async function DashboardPage() {
 
           <div>
             {rsvpVencido ? (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 dark:border dark:border-rose-700/60 shadow-xs">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/90 text-rose-900 dark:text-white dark:border dark:border-rose-400/60 shadow-xs">
                 Plazo cerrado automáticamente
               </span>
             ) : (
               <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-xs ${
+                className={`dark-preserve inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm ${
                   isBautizo
-                    ? "bg-white dark:bg-sky-400/20 text-[#144254] dark:text-sky-100 dark:border dark:border-sky-400/35"
-                    : "bg-[#ffedd5] text-[#c2410c]"
+                    ? "bg-white dark:bg-sky-400/25 text-[#0a222c] dark:text-white border border-[#7ab0c4] dark:border-sky-300/50"
+                    : isBoda
+                      ? "bg-white/95 dark:bg-white/20 dark:backdrop-blur-md text-[#1f0911] dark:text-white border border-[#c99aa7] dark:border-white/45"
+                      : "bg-[#ffedd5] dark:bg-orange-500/25 text-[#7c2d12] dark:text-white"
                 }`}
               >
                 Plazo abierto: quedan {diffDays}{" "}

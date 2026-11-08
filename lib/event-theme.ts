@@ -1,11 +1,11 @@
 export const eventTypeThemes = {
   boda: {
     label: "Boda",
-    accent: "#A75D67",
-    accentStrong: "#7C3F4A",
-    soft: "#F8E8EB",
-    softBorder: "#EBC7CD",
-    ink: "#422B31",
+    accent: "#C84B73",
+    accentStrong: "#8F2D4E",
+    soft: "#FDE6EC",
+    softBorder: "#F5B8C8",
+    ink: "#4A192C",
   },
   cumpleanos: {
     label: "Cumpleaños",

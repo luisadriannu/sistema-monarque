@@ -458,6 +458,32 @@ body {
   border-color: rgba(125, 211, 252, 0.35) !important;
 }
 
+/* Cabecera de Boda en modo oscuro (con imagen de fondo y velo negro transparente) */
+.dark .dashboard-boda-header {
+  border-color: rgba(244, 114, 182, 0.35) !important;
+  color: #fdf2f8 !important;
+}
+.dark .dashboard-boda-header h1 {
+  color: #ffffff !important;
+}
+.dark .dashboard-boda-header p,
+.dark .dashboard-boda-header span,
+.dark .dashboard-boda-header strong {
+  color: #ffffff !important;
+}
+.dark .dashboard-boda-header [class~="bg-white/85"] {
+  background-color: rgba(15, 16, 20, 0.78) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #fce7f3 !important;
+}
+.dark .dashboard-boda-header [class~="bg-white/85"] strong,
+.dark .dashboard-boda-header [class~="bg-white/85"] span {
+  color: #ffffff !important;
+}
+.dark .dashboard-boda-header [class~="border-[#f3b6c6]/80"] {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
 /* Inputs, textareas y selects (Discord Input #111214) */
 .dark .dashboard-theme input:not([type="checkbox"]):not([type="radio"]),
 .dark .dashboard-theme select,
