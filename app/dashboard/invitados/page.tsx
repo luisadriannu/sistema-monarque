@@ -181,7 +181,6 @@ function InvitadosContent() {
   const [formGrupo, setFormGrupo] = useState("");
   const [formPases, setFormPases] = useState("2");
   const [guardando, setGuardando] = useState(false);
-  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const formPasesNumero = Number(formPases);
@@ -433,43 +432,6 @@ function InvitadosContent() {
     const data = await response.json();
     notify(response.ok ? data.message : data.error);
     if (response.ok) { await fetchInvitados(); router.refresh(); }
-  };
-
-  // Regenerar link
-  const handleRegenerarLink = async (invitado: Invitado) => {
-    if (altasCerradas) { notify("El plazo de confirmación ha cerrado. No se puede reiniciar la confirmación regenerando el enlace."); return; }
-    if (hasAttendance(invitado)) { notify(attendanceLockMessage); return; }
-    if (regeneratingId) return;
-    setRegeneratingId(invitado.id);
-    try {
-      if (
-        !(await confirmDialog(
-          `¿Regenerar el enlace de ${invitado.nombre}? El enlace y QR anteriores dejarán de funcionar. Su estado volverá a Pendiente, se borrará su confirmación y tendrás que compartir el nuevo enlace. Los ingresos registrados en recepción se conservarán.`,
-        ))
-      )
-        return;
-      const response = await fetch(`/api/invitados/${invitado.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "regenerar_link" }),
-      });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "No se pudo regenerar el enlace.");
-      await fetchInvitados();
-      notify(
-        data.message ||
-          "Enlace regenerado con éxito. Recuerda compartir el nuevo enlace.",
-      );
-    } catch (error) {
-      setToast({
-        type: "error",
-        title: "No se pudo regenerar el enlace",
-        message: error instanceof Error ? error.message : "Inténtalo de nuevo.",
-      });
-    } finally {
-      setRegeneratingId(null);
-    }
   };
 
   // Guardar nuevo invitado
@@ -1739,21 +1701,6 @@ function InvitadosContent() {
                                     <span>Editar datos</span>
                                   </button>
 
-                                  {/* Regenerar link */}
-                                  <AsyncButton
-                                    role="menuitem"
-                                    onClick={() => {
-                                      setMenuAbiertoId(null);
-                                      return handleRegenerarLink(inv);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-amber-800 hover:bg-amber-50"
-                                    loading={regeneratingId === inv.id}
-                                    disabled={Boolean(regeneratingId) || hasAttendance(inv) || altasCerradas}
-                                    loadingText="Regenerando…"
-                                  >
-                                    <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
-                                    <span>Regenerar link</span>
-                                  </AsyncButton>
 
                                   <div className="h-[1px] bg-stone-100 my-1" />
 
@@ -1983,6 +1930,7 @@ function InvitadosContent() {
               )}
 
               <form onSubmit={handleGuardarEditar} className="space-y-4">
+                <p className="rounded-xl bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-800">El enlace que ya compartiste seguirá funcionando. Al abrirlo nuevamente, el invitado verá los datos actualizados; no necesitas enviarle otro enlace. Los mensajes y archivos enviados anteriormente no se modifican.</p>
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
                     Nombre del invitado o familia

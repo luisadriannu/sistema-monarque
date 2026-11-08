@@ -690,7 +690,7 @@ function ConfiguracionContent() {
                 >
                   {fechaLimitePosteriorEvento
                     ? `Selecciona una fecha igual o anterior al día del evento (${formatDateMx(evento.fecha_evento)}).`
-                    : "Al concluir este día a las 23:59 hrs, el botón de confirmar se bloqueará automáticamente para los invitados. Si extiendes el plazo más adelante, solo cambia esta fecha y el sistema se reabrirá al instante."}
+                    : "Al concluir este día a las 23:59 hrs, se cerrarán las confirmaciones de los invitados. Define esta fecha con cuidado: una vez vencido el plazo, no podrás ampliarlo desde tu cuenta. Para solicitar un cambio, contacta a tu organizador o a la administración de Monarque."}
                 </p>
               </div>
 

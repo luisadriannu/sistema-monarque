@@ -46,6 +46,9 @@ export async function PUT(
 
   try {
     const body = await request.json();
+    if (body.action === "regenerar_link" && user.rol === "clienta") {
+      return NextResponse.json({ error: "La regeneración de enlaces no está disponible para esta cuenta. Edita los datos del invitado: el enlace compartido seguirá funcionando.", code: "LINK_REGENERATION_DISABLED" }, { status: 403 });
+    }
     if (body.action === "liberar_pases") {
       const changed = await prisma.invitado.updateMany({ where: { id, estado: "declinado", ...noAttendance }, data: { pases_liberados: true } });
       if (changed.count !== 1) return NextResponse.json({ error: "Solo puedes liberar pases de un invitado que declinó y aún no tiene ingresos ni pases liberados." }, { status: 409 });
