@@ -6,7 +6,7 @@ const ts = require('typescript');
 function load() {
   const exports = {};
   const source = ts.transpileModule(fs.readFileSync('lib/request-busy.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
-  vm.runInNewContext(source, { exports, URL, Request });
+  vm.runInNewContext(source, { exports, URL, Request, Headers });
   return exports;
 }
 test('Bloquea escrituras locales, pero no lecturas, heartbeat ni dominios externos', () => {
@@ -44,4 +44,16 @@ test('Libera el bloqueo ante un fallo de red', async () => {
   const fetcher = trackBusyRequests(async () => { throw Error('network'); }, 'https://monarque.test', n => counts.push(n));
   await assert.rejects(fetcher('/api/usuarios/1', { method: 'DELETE' }), /network/);
   assert.deepEqual(counts, [1, 0]);
+});
+
+test('Registrar el envío al copiar no activa el loader global', async () => {
+  const { trackBusyRequests, blocksDashboard } = load();
+  const origin = 'https://monarque.test';
+  const init = { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Monarque-Background': '1' }, body: JSON.stringify({ action: 'marcar_enviado' }) };
+  const counts = [];
+  const fetcher = trackBusyRequests(async () => Response.json({ ok: true }), origin, n => counts.push(n));
+  assert.equal((await fetcher('/api/invitados/1', init)).status, 200);
+  assert.deepEqual(counts, []);
+  assert.equal(blocksDashboard(new Request(origin + '/api/invitados/1', init), undefined, origin), false);
+  assert.equal(blocksDashboard('/api/invitados/1', { method: 'PUT' }, origin), true);
 });

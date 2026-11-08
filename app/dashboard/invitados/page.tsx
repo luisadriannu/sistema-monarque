@@ -389,7 +389,7 @@ function InvitadosContent() {
     try {
       const res = await fetch(`/api/invitados/${invitadoId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Monarque-Background": "1" },
         body: JSON.stringify({ action: "marcar_enviado" }),
       });
       if (res.ok) {
@@ -411,10 +411,11 @@ function InvitadosContent() {
     try {
       await navigator.clipboard.writeText(texto);
       setCopiadoId(invitado.id);
-      setTimeout(() => setCopiadoId(null), 2500);
-      await registrarEnvio(invitado.id);
+      setTimeout(() => setCopiadoId(current => current === invitado.id ? null : current), 2500);
+      void registrarEnvio(invitado.id);
     } catch (e) {
       console.error("Error al copiar texto", e);
+      setToast({ type: "error", title: "No se pudo copiar", message: "Permite el acceso al portapapeles e inténtalo nuevamente." });
     }
   };
 
@@ -1597,11 +1598,11 @@ function InvitadosContent() {
                         ) : (
                           <div className="inline-flex items-center gap-1.5">
                             {/* Copiar Mensaje */}
-                            <AsyncButton
+                            <button
+                              type="button"
                               onClick={() => handleCopiarMensaje(inv)}
                               title="Copiar mensaje personalizado con enlace"
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-700 rounded-lg border border-stone-200 transition-colors text-xs font-medium shadow-xs"
-                              loadingText="Copiando…"
                             >
                               {copiadoId === inv.id ? (
                                 <>
@@ -1616,7 +1617,7 @@ function InvitadosContent() {
                                   <span className="text-[11px]">Copiar</span>
                                 </>
                               )}
-                            </AsyncButton>
+                            </button>
 
                             {/* WhatsApp: Visible SOLO si aún no ha confirmado o declinado */}
                             {!yaRespondio && (

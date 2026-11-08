@@ -1,6 +1,8 @@
 // Only user-triggered writes block the dashboard; background reads/heartbeats do not.
 export function blocksDashboard(input: RequestInfo | URL, init: RequestInit | undefined, origin: string) {
   const request = typeof Request !== "undefined" && input instanceof Request ? input : null;
+  const headers = new Headers(init?.headers ?? request?.headers);
+  if (headers.get("X-Monarque-Background") === "1") return false;
   const url = new URL(request ? request.url : String(input), origin);
   const method = (init?.method || request?.method || "GET").toUpperCase();
   return url.origin === origin && url.pathname.startsWith("/api/") && url.pathname !== "/api/auth/activity" && ["POST", "PUT", "PATCH", "DELETE"].includes(method);
