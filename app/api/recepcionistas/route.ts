@@ -1,3 +1,4 @@
+import { ReceptionCapacityError, withReceptionCapacity } from "@/lib/reception-capacity";
 import { canManageAccounts, accountScope } from "@/lib/management-access";
 import { receptionOrganization } from "@/lib/reception-access";
 import { hasClientQr } from "@/lib/qr-access";
@@ -32,7 +33,9 @@ export async function GET() {
       orderBy: { fecha_evento: "desc" },
     }),
   ]);
-  return NextResponse.json({ recepcionistas, eventos: eventos.filter(event => hasClientQr(event.usuario)) }, { headers });
+  const capacity = user.rol === "admin" ? null : await prisma.organizacion.findUniqueOrThrow({ where: { id: user.organizacion_id! }, select: { max_recepcionistas: true } });
+  const limites = capacity ? { usados: recepcionistas.filter(item => !item.eliminado_en).length, maximos: capacity.max_recepcionistas } : null;
+  return NextResponse.json({ limites, recepcionistas, eventos: eventos.filter(event => hasClientQr(event.usuario)) }, { headers });
 }
 
 export async function POST(request: Request) {
@@ -50,15 +53,17 @@ export async function POST(request: Request) {
   const organizationId = await receptionOrganization(eventIds, user);
   if (!organizationId) return NextResponse.json({ error: "Selecciona eventos permitidos de una misma organización o de Clientes directos." }, { status: 403, headers });
   try {
-    const created = await prisma.usuario.create({
+    const passwordHash = await bcrypt.hash(password, 12);
+    const created = await withReceptionCapacity(organizationId, user.rol === "admin", undefined, tx => tx.usuario.create({
       data: {
-        nombre, email, passwordHash: await bcrypt.hash(password, 12), rol: "recepcionista", organizacion_id: organizationId, lector_qr_habilitado: true,
+        nombre, email, passwordHash, rol: "recepcionista", organizacion_id: organizationId, lector_qr_habilitado: true,
         eventos_recepcion: { create: eventIds.map(evento_id => ({ evento_id })) },
       },
       select: { id: true, nombre: true, email: true },
-    });
+    }));
     return NextResponse.json({ ok: true, recepcionista: created }, { status: 201, headers });
   } catch (error) {
+    if (error instanceof ReceptionCapacityError) return NextResponse.json({ error: error.message, code: "RECEPTION_CAPACITY_REACHED" }, { status: 403, headers });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "Ese correo ya está registrado." }, { status: 409, headers });
     return NextResponse.json({ error: "No se pudo crear la cuenta de recepción." }, { status: 500, headers });
   }

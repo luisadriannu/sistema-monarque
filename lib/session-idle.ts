@@ -3,8 +3,8 @@ import { SignJWT, jwtVerify } from "jose";
 export const SESSION_COOKIE = "monarque_session";
 export const IDLE_COOKIE = "monarque_activity";
 export function idleTimeoutSeconds() {
-  const minutes = Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES || 60);
-  return (Number.isFinite(minutes) && minutes > 0 ? minutes : 60) * 60;
+  const minutes = Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES || 1440);
+  return (Number.isFinite(minutes) && minutes > 0 ? minutes : 1440) * 60;
 }
 export function sessionKey() {
   const secret = process.env.JWT_SECRET?.trim();

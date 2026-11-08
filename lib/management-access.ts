@@ -17,6 +17,7 @@ export const directOrganizationData = {
   plan: "elite",
   estado_servicio: "activo",
   qr_checkin_habilitado: true,
+  max_recepcionistas: 2147483647,
   max_clientes: 2147483647,
   max_eventos_activos: 2147483647,
   max_invitados_evento: 2147483647,

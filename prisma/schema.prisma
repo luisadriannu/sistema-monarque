@@ -38,6 +38,7 @@ model Organizacion {
   estado_servicio       String    @default("activo") // "activo" | "suspendido" | "vencido"
   servicio_inicia_en    DateTime  @default(now())
   servicio_vence_en     DateTime?
+  max_recepcionistas    Int       @default(5)
   max_clientes          Int       @default(50)
   max_eventos_activos   Int       @default(50)
   max_invitados_evento  Int       @default(2000)
