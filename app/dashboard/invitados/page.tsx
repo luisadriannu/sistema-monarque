@@ -1131,39 +1131,39 @@ function InvitadosContent() {
             title={`Confirmó ${conf} de ${inv.pases_asignados} pases. Liberó ${inv.pases_asignados - conf} ${
               inv.pases_asignados - conf === 1 ? "pase" : "pases"
             }`}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-[#3b250b] text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-500/50"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400" />
             Parcial
           </span>
         );
       }
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-[#0c3627] text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-500/50">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
           Confirmado
         </span>
       );
     }
     if (inv.estado === "declinado") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 dark:bg-[#3d1320] text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-500/50">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 dark:bg-rose-400" />
           Declinado
         </span>
       );
     }
     if (inv.estado === "visto") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-[#0f2945] text-blue-800 dark:text-sky-200 border border-blue-200 dark:border-sky-500/50">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-sky-400" />
           Visto
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 border border-stone-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 dark:bg-[#1a2747] text-stone-700 dark:text-slate-200 border border-stone-200 dark:border-slate-600/60">
+        <span className="w-1.5 h-1.5 rounded-full bg-stone-400 dark:bg-slate-400" />
         Pendiente
       </span>
     );
@@ -1358,9 +1358,9 @@ function InvitadosContent() {
       )}
 
       {permisosResueltos && pasesContratados !== null && (
-        <div className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${totalPasesAsignados >= pasesContratados ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
-          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs">{totalPasesAsignados} de {pasesContratados} pases comprometidos · quedan {Math.max(0, pasesContratados - totalPasesAsignados)}.</p></div>
-          {totalPasesAsignados >= pasesContratados && <span className="rounded-full bg-amber-200 px-3 py-1 text-[10px] font-bold uppercase">Límite alcanzado</span>}
+        <div className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 ${totalPasesAsignados >= pasesContratados ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/45 dark:bg-[#36240c] dark:text-amber-100" : "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/45 dark:bg-[#0c2f24] dark:text-emerald-100"}`}>
+          <div><p className="text-sm font-bold">Pases contratados</p><p className="mt-1 text-xs opacity-90">{totalPasesAsignados} de {pasesContratados} pases comprometidos · quedan {Math.max(0, pasesContratados - totalPasesAsignados)}.</p></div>
+          {totalPasesAsignados >= pasesContratados && <span className="rounded-full bg-amber-200 dark:bg-amber-500/30 dark:text-amber-100 px-3 py-1 text-[10px] font-bold uppercase">Límite alcanzado</span>}
         </div>
       )}
 
@@ -1419,7 +1419,7 @@ function InvitadosContent() {
               type="button"
               onClick={() => void fetchInvitados()}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/45 bg-emerald-50 dark:bg-[#0c3627] px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-[#124936] transition-colors disabled:opacity-50"
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
@@ -1507,13 +1507,13 @@ function InvitadosContent() {
                         {inv.enviado_en ? (
                           <span
                             title={`Enviado el ${formatDateTimeMx(inv.enviado_en)}`}
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#ffedd5] text-[#c2410c]"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#ffedd5] text-[#c2410c] dark:border dark:border-sky-500/40"
                           >
                             <Send className="w-3 h-3" />
                             <span>Enviado</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-500">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 dark:bg-[#1a2747] text-stone-500 dark:text-slate-300 dark:border dark:border-slate-600/50">
                             <span>Sin enviar</span>
                           </span>
                         )}
@@ -1535,7 +1535,7 @@ function InvitadosContent() {
                           {" "}
                           / {inv.pases_asignados}
                         </span>
-                        {inv.pases_liberados && <span title="Estos pases ya fueron devueltos al saldo disponible del evento." className="mt-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-emerald-700"><RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0"/>{inv.pases_asignados} {inv.pases_asignados === 1 ? "pase liberado" : "pases liberados"}</span>}
+                        {inv.pases_liberados && <span title="Estos pases ya fueron devueltos al saldo disponible del evento." className="mt-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400"><RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0"/>{inv.pases_asignados} {inv.pases_asignados === 1 ? "pase liberado" : "pases liberados"}</span>}
                         {inv.estado === "confirmado" &&
                           (inv.pases_confirmados || 0) > 0 && (
                             <div className="text-[10px] text-stone-600 font-medium mt-0.5 whitespace-nowrap">
@@ -1569,7 +1569,7 @@ function InvitadosContent() {
                                   ? "pase"
                                   : "pases"
                               }`}
-                              className="block text-[10px] text-amber-700 font-semibold mt-0.5"
+                              className="block text-[10px] text-amber-700 dark:text-amber-400 font-semibold mt-0.5"
                             >
                               +
                               {inv.pases_asignados -
@@ -1587,13 +1587,13 @@ function InvitadosContent() {
                               No aplica
                             </span>
                           ) : inv.pases_ingresados <= 0 ? (
-                            <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600">
+                            <span className="inline-flex rounded-full bg-stone-100 dark:bg-[#1a2747] dark:border dark:border-slate-600/50 px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:text-slate-300">
                               No ha llegado
                             </span>
                           ) : inv.pases_ingresados <
                             (inv.pases_confirmados ?? 0) ? (
                             <div>
-                              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">
+                              <span className="inline-flex rounded-full border border-amber-200 dark:border-amber-500/50 bg-amber-50 dark:bg-[#3b250b] px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:text-amber-200">
                                 Parcial · {inv.pases_ingresados}/
                                 {inv.pases_confirmados}
                               </span>
@@ -1605,7 +1605,7 @@ function InvitadosContent() {
                             </div>
                           ) : (
                             <div>
-                              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                              <span className="inline-flex rounded-full border border-emerald-200 dark:border-emerald-500/50 bg-emerald-50 dark:bg-[#0c3627] px-2.5 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-200">
                                 Completo · {inv.pases_ingresados}/
                                 {inv.pases_confirmados}
                               </span>

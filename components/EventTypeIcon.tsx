@@ -1,4 +1,4 @@
-import { CakeSlice, Church, Crown } from "lucide-react";
+import { CakeSlice, Crown } from "lucide-react";
 import type { EventType } from "@/lib/event-theme";
 
 interface EventTypeIconProps {
@@ -17,7 +17,16 @@ export default function EventTypeIcon({
   }
 
   if (type === "bautizo") {
-    return <Church className={className} strokeWidth={strokeWidth} />;
+    return (
+      <span
+        className={`inline-flex items-center justify-center select-none font-normal leading-none shrink-0 ${className}`}
+        style={{ width: "auto", minWidth: "1em" }}
+        role="img"
+        aria-label="Bautizo"
+      >
+        👼🏻🤍
+      </span>
+    );
   }
 
   if (type === "xv") {

@@ -200,3 +200,300 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .dashboard-modal-enter, .dashboard-modal-enter > :is(form, div) { animation: none; }
 }
+
+/* ==========================================================================
+   MODO OSCURO - AZUL NOCHE MONARQUE
+   ========================================================================== */
+.event-theme-chip {
+  background-color: var(--chip-bg);
+  border-color: var(--chip-border);
+  color: var(--chip-text);
+}
+
+.dark .event-theme-chip {
+  background-color: color-mix(in srgb, var(--chip-border) 22%, #132246) !important;
+  border-color: color-mix(in srgb, var(--chip-border) 65%, #334155) !important;
+  color: color-mix(in srgb, var(--chip-border) 75%, #ffffff) !important;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+.dark body,
+.dark .dashboard-theme {
+  background-color: #0b132b !important;
+  color: #f1f5f9 !important;
+}
+
+/* Sidebar de navegación y cabecera móvil */
+.dark .dashboard-theme aside,
+.dark .dashboard-theme div[class*="lg:hidden"][class*="bg-white"] {
+  background-color: #0e1730 !important;
+  border-color: #1e2c52 !important;
+}
+
+/* Enlaces del menú lateral */
+.dark .dashboard-theme .dashboard-menu-link {
+  color: #cbd5e1 !important;
+}
+.dark .dashboard-theme .dashboard-menu-link:hover {
+  background-color: #162347 !important;
+  color: #ffffff !important;
+}
+
+/* Botones oscuros y elemento activo del menú lateral (bg-[#2b211b]) */
+.dark .dashboard-theme [class~="bg-[#2b211b]"] {
+  background-color: #1c2e5c !important;
+  border: 1px solid #355196 !important;
+  color: #ffffff !important;
+}
+.dark .dashboard-theme button[class~="bg-[#2b211b]"]:hover,
+.dark .dashboard-theme a[class~="bg-[#2b211b]"]:hover {
+  background-color: #253c78 !important;
+}
+
+/* Tarjetas y superficies blancas */
+.dark .dashboard-theme [class~="bg-white"]:not(.dark-preserve) {
+  background-color: #111c38 !important;
+  border-color: #20315c !important;
+  color: #f1f5f9 !important;
+}
+
+/* Fondos secundarios, barras inferiores y filas alternadas */
+.dark .dashboard-theme [class~="bg-[#fbf8f4]"],
+.dark .dashboard-theme [class~="bg-[#fbf8f4]/60"],
+.dark .dashboard-theme [class~="bg-[#fbf8f4]/70"],
+.dark .dashboard-theme [class~="bg-[#faf8f5]"],
+.dark .dashboard-theme [class~="bg-[#f7fbf8]"],
+.dark .dashboard-theme [class~="bg-[#fcfaf7]"],
+.dark .dashboard-theme [class~="bg-[#fffaf5]"],
+.dark .dashboard-theme [class~="bg-[#fffdf9]"],
+.dark .dashboard-theme [class~="bg-[#fffdfb]"],
+.dark .dashboard-theme [class~="bg-stone-50"],
+.dark .dashboard-theme [class~="bg-stone-100"] {
+  background-color: #142040 !important;
+  border-color: #223563 !important;
+}
+
+.dark .dashboard-theme [class~="bg-stone-200"] {
+  background-color: #1e2f59 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Contenedores e iconos cálidos (naranja/durazno suave en admin, filtros, invitados) */
+.dark .dashboard-theme [class~="bg-[#f6efe7]"],
+.dark .dashboard-theme [class~="bg-[#fff4e9]"],
+.dark .dashboard-theme [class~="bg-orange-50"] {
+  background-color: #291c1c !important;
+  border-color: rgba(249, 115, 22, 0.4) !important;
+  color: #fdba74 !important;
+}
+
+/* Contenedores semánticos (Ámbar / Esmeralda / Rosa / Azul) en modo oscuro */
+.dark .dashboard-theme [class~="bg-amber-50"],
+.dark .dashboard-theme [class~="bg-amber-100"] {
+  background-color: #2e200f !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: #fde68a !important;
+}
+
+.dark .dashboard-theme [class~="bg-emerald-50"],
+.dark .dashboard-theme [class~="bg-emerald-50/95"],
+.dark .dashboard-theme [class~="bg-emerald-100"] {
+  background-color: #0c3125 !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #a7f3d0 !important;
+}
+
+.dark .dashboard-theme [class~="bg-rose-50"],
+.dark .dashboard-theme [class~="bg-rose-50/70"],
+.dark .dashboard-theme [class~="bg-rose-50/95"],
+.dark .dashboard-theme [class~="bg-rose-100"] {
+  background-color: #361320 !important;
+  border-color: rgba(244, 63, 94, 0.45) !important;
+  color: #fecdd3 !important;
+}
+
+.dark .dashboard-theme [class~="bg-blue-50"],
+.dark .dashboard-theme [class~="bg-sky-50"] {
+  background-color: #0f2945 !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  color: #bae6fd !important;
+}
+
+/* Píldoras y fondos suaves del tema (ej. Enviado, etiqueta de rol, avatares) */
+.dark .dashboard-theme [class~="bg-[#ffedd5]"] {
+  background-color: color-mix(in srgb, var(--dashboard-accent) 28%, #101e3d) !important;
+  color: color-mix(in srgb, var(--dashboard-accent) 35%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--dashboard-accent) 50%, #1e293b) !important;
+}
+
+/* Textos de acento del tema y naranjas administrativos más brillantes */
+.dark .dashboard-theme [class~="text-[#e05a1b]"],
+.dark .dashboard-theme [class~="text-[#d9480f]"],
+.dark .dashboard-theme [class~="text-[#c2410c]"],
+.dark .dashboard-theme [class~="text-[#86583d]"] {
+  color: color-mix(in srgb, var(--dashboard-accent) 38%, #ffffff) !important;
+}
+
+.dark .dashboard-theme [class~="text-[#d65318]"],
+.dark .dashboard-theme [class~="text-[#a04d24]"],
+.dark .dashboard-theme [class~="text-[#9a653f]"],
+.dark .dashboard-theme [class~="text-orange-700"],
+.dark .dashboard-theme [class~="text-orange-800"],
+.dark .dashboard-theme [class~="text-orange-900"] {
+  color: #fb923c !important;
+}
+
+/* Bordes en azul noche y bordes semánticos */
+.dark .dashboard-theme [class~="border-[#ebd9c4]"],
+.dark .dashboard-theme [class~="border-[#f5ede2]"],
+.dark .dashboard-theme [class~="border-[#eadbca]"],
+.dark .dashboard-theme [class~="border-[#ead7c4]"],
+.dark .dashboard-theme [class~="border-[#e7d8c8]"],
+.dark .dashboard-theme [class~="border-[#f0e4d8]"],
+.dark .dashboard-theme [class~="border-[#f3e9de]"],
+.dark .dashboard-theme [class~="border-[#fed7aa]"],
+.dark .dashboard-theme [class~="border-[#dec0a2]"],
+.dark .dashboard-theme [class~="border-[#e1cdb8]"],
+.dark .dashboard-theme [class~="border-[#dfcbb5]"],
+.dark .dashboard-theme [class~="border-[#decfbe]"],
+.dark .dashboard-theme [class~="border-stone-100"],
+.dark .dashboard-theme [class~="border-stone-200"],
+.dark .dashboard-theme [class~="border-stone-300"] {
+  border-color: #20315c !important;
+}
+
+.dark .dashboard-theme [class~="border-orange-200"] {
+  border-color: rgba(249, 115, 22, 0.4) !important;
+}
+.dark .dashboard-theme [class~="border-amber-200"],
+.dark .dashboard-theme [class~="border-amber-300"] {
+  border-color: rgba(245, 158, 11, 0.45) !important;
+}
+.dark .dashboard-theme [class~="border-emerald-200"],
+.dark .dashboard-theme [class~="border-emerald-300"] {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+}
+.dark .dashboard-theme [class~="border-rose-100"],
+.dark .dashboard-theme [class~="border-rose-200"] {
+  border-color: rgba(244, 63, 94, 0.45) !important;
+}
+
+/* Tipografía de alto contraste en modo oscuro */
+.dark .dashboard-theme [class~="text-stone-900"],
+.dark .dashboard-theme [class~="text-[#2b211b]"],
+.dark .dashboard-theme [class~="text-[#183126]"],
+.dark .dashboard-theme [class~="text-stone-800"] {
+  color: #f8fafc !important;
+}
+
+.dark .dashboard-theme [class~="text-stone-700"],
+.dark .dashboard-theme [class~="text-stone-600"] {
+  color: #cbd5e1 !important;
+}
+
+.dark .dashboard-theme [class~="text-stone-500"],
+.dark .dashboard-theme [class~="text-stone-400"] {
+  color: #94a3b8 !important;
+}
+
+/* Salvaguardas para números y textos semánticos oscuros (-950/-900/-800/-700) */
+.dark .dashboard-theme [class~="text-emerald-950"],
+.dark .dashboard-theme [class~="text-emerald-900"] {
+  color: #d1fae5 !important;
+}
+.dark .dashboard-theme [class~="text-emerald-800"],
+.dark .dashboard-theme [class~="text-emerald-700"] {
+  color: #6ee7b7 !important;
+}
+.dark .dashboard-theme [class~="text-amber-950"],
+.dark .dashboard-theme [class~="text-amber-900"] {
+  color: #fef3c7 !important;
+}
+.dark .dashboard-theme [class~="text-amber-800"],
+.dark .dashboard-theme [class~="text-amber-700"] {
+  color: #fcd34d !important;
+}
+.dark .dashboard-theme [class~="text-rose-950"],
+.dark .dashboard-theme [class~="text-rose-900"] {
+  color: #ffe4e6 !important;
+}
+.dark .dashboard-theme [class~="text-rose-800"],
+.dark .dashboard-theme [class~="text-rose-700"] {
+  color: #fda4af !important;
+}
+.dark .dashboard-theme [class~="text-sky-950"],
+.dark .dashboard-theme [class~="text-sky-900"] {
+  color: #e0f2fe !important;
+}
+.dark .dashboard-theme [class~="text-sky-800"],
+.dark .dashboard-theme [class~="text-sky-700"],
+.dark .dashboard-theme [class~="text-blue-800"] {
+  color: #7dd3fc !important;
+}
+
+/* Cabecera de Bautizo en modo oscuro */
+.dark .dashboard-bautizo-header {
+  background-color: #133b4b !important;
+  border-color: #387892 !important;
+  color: #f0f9fc !important;
+}
+.dark .dashboard-bautizo-header h1 {
+  color: #ffffff !important;
+}
+.dark .dashboard-bautizo-header p {
+  color: #e0f4fa !important;
+}
+.dark .dashboard-bautizo-header [class~="bg-white/85"] {
+  background-color: rgba(11, 34, 45, 0.88) !important;
+  border-color: rgba(125, 211, 252, 0.35) !important;
+  color: #e0f4fa !important;
+}
+.dark .dashboard-bautizo-header [class~="bg-white/85"] strong,
+.dark .dashboard-bautizo-header [class~="bg-white/85"] span {
+  color: #ffffff !important;
+}
+.dark .dashboard-bautizo-header [class~="border-[#82b4c6]/70"] {
+  border-color: rgba(125, 211, 252, 0.3) !important;
+}
+
+/* Inputs, textareas y selects */
+.dark .dashboard-theme input:not([type="checkbox"]):not([type="radio"]),
+.dark .dashboard-theme select,
+.dark .dashboard-theme textarea {
+  background-color: #0d162e !important;
+  border-color: #243563 !important;
+  color: #f8fafc !important;
+}
+
+.dark .dashboard-theme input::placeholder,
+.dark .dashboard-theme textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Tablas y registros */
+.dark .dashboard-theme table th {
+  background-color: #142040 !important;
+  color: #cbd5e1 !important;
+  border-color: #20315c !important;
+}
+
+.dark .dashboard-theme table td {
+  border-color: #1a284e !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dashboard-theme tr:hover td {
+  background-color: #162447 !important;
+}
+
+/* Modales y diálogos */
+.dark .dashboard-theme [role="dialog"] [class~="bg-white"],
+.dark .dashboard-theme [role="alertdialog"] [class~="bg-white"],
+.dark .dashboard-theme .dashboard-modal-enter > [class~="bg-white"] {
+  background-color: #111c38 !important;
+  border-color: #22335c !important;
+  color: #f8fafc !important;
+}

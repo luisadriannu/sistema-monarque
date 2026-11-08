@@ -23,7 +23,7 @@ export default function RequestOverlay({ navigating = false }: { navigating?: bo
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, []);
-  return createPortal(<div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="request-overlay-title" aria-describedby="request-overlay-description" className="fixed inset-0 z-[1000] flex items-center justify-center bg-stone-950/45 p-5 backdrop-blur-sm outline-none">
+  return createPortal(<div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="request-overlay-title" aria-describedby="request-overlay-description" className="dashboard-theme fixed inset-0 z-[1000] flex items-center justify-center bg-stone-950/45 p-5 backdrop-blur-sm outline-none">
     <div role="status" className="w-full max-w-xs rounded-3xl border border-stone-200 bg-white px-6 py-8 text-center shadow-2xl">
       <LoaderCircle aria-hidden="true" className="mx-auto mb-4 h-10 w-10 animate-spin text-[#e05a1b] motion-reduce:animate-none"/>
       <h2 id="request-overlay-title" className="font-serif text-xl font-semibold text-stone-900">{navigating ? "Cargando sección" : "Procesando solicitud"}</h2>

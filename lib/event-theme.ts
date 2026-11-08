@@ -17,11 +17,11 @@ export const eventTypeThemes = {
   },
   bautizo: {
     label: "Bautizo",
-    accent: "#4F86A6",
-    accentStrong: "#35667F",
-    soft: "#E8F3F8",
-    softBorder: "#C5DFEA",
-    ink: "#203B49",
+    accent: "#3A7490",
+    accentStrong: "#255166",
+    soft: "#EAF3F7",
+    softBorder: "#9DCDDD",
+    ink: "#163442",
   },
   xv: {
     label: "XV años",

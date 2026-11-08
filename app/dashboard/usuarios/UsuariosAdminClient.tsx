@@ -501,13 +501,13 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
             return (
               <Fragment key={usuario.id}>
               {showGroupHeader && (
-                <div className={`col-span-full mt-2 flex flex-col gap-2 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${isDirect ? "border-orange-200 bg-orange-50" : "border-emerald-200 bg-emerald-50"}`}>
+                <div className={`col-span-full mt-2 flex flex-col gap-2 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${isDirect ? "border-orange-200 bg-orange-50 dark:border-orange-500/40 dark:bg-[#261a1d]" : "border-emerald-200 bg-emerald-50 dark:border-emerald-500/40 dark:bg-[#0c2d25]"}`}>
                   <div>
-                    <p className={`text-[10px] font-bold uppercase tracking-[.18em] ${isDirect ? "text-orange-700" : "text-emerald-700"}`}>{isDirect ? "Gestión interna" : "Organizador"}</p>
-                    <h2 className="mt-1 break-words font-serif text-xl font-bold text-[#2b211b]">{isDirect ? "Clientes directos de Monarque" : organizationLabel(usuario)}</h2>
-                    <p className="mt-1 text-xs text-stone-600">{isDirect ? "Cuentas atendidas directamente por la administración de Monarque." : "Clientes administrados por esta empresa organizadora."}</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-[.18em] ${isDirect ? "text-orange-700 dark:text-orange-300" : "text-emerald-700 dark:text-emerald-300"}`}>{isDirect ? "Gestión interna" : "Organizador"}</p>
+                    <h2 className="mt-1 break-words font-serif text-xl font-bold text-[#2b211b] dark:text-white">{isDirect ? "Clientes directos de Monarque" : organizationLabel(usuario)}</h2>
+                    <p className="mt-1 text-xs text-stone-600 dark:text-slate-300">{isDirect ? "Cuentas atendidas directamente por la administración de Monarque." : "Clientes administrados por esta empresa organizadora."}</p>
                   </div>
-                  <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-sm">{clientesPorGrupo[groupKey]} {clientesPorGrupo[groupKey] === 1 ? "cliente" : "clientes"}</span>
+                  <span className="dark-preserve w-fit rounded-full bg-white dark:bg-[#132042] dark:border dark:border-[#2b4075] px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-slate-100 shadow-sm">{clientesPorGrupo[groupKey]} {clientesPorGrupo[groupKey] === 1 ? "cliente" : "clientes"}</span>
                 </div>
               )}
               <article
@@ -516,12 +516,12 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                 <div className="flex flex-col items-stretch gap-3 border-b border-[#f3e9de] p-4 sm:p-5">
                   <div className="flex min-w-0 items-start gap-3">
                     <div
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
+                      className="event-theme-chip flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
                       style={{
-                        backgroundColor: eventTheme.soft,
-                        borderColor: eventTheme.softBorder,
-                        color: eventTheme.accentStrong,
-                      }}
+                        "--chip-bg": eventTheme.soft,
+                        "--chip-border": eventTheme.softBorder,
+                        "--chip-text": eventTheme.accentStrong,
+                      } as React.CSSProperties}
                     >
                       <EventTypeIcon type={eventType} className="h-5 w-5" />
                     </div>
@@ -565,12 +565,12 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                       </span>
                       <div className="flex min-w-0 flex-wrap gap-1.5">
                         <span
-                          className="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
+                          className="event-theme-chip rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
                           style={{
-                            backgroundColor: eventTheme.soft,
-                            borderColor: eventTheme.softBorder,
-                            color: eventTheme.accentStrong,
-                          }}
+                            "--chip-bg": eventTheme.soft,
+                            "--chip-border": eventTheme.softBorder,
+                            "--chip-text": eventTheme.accentStrong,
+                          } as React.CSSProperties}
                         >
                           <EventTypeIcon
                             type={eventType}
@@ -579,14 +579,14 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                           {eventTheme.label}
                         </span>
                         {eventoFinalizado && (
-                          <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600">
+                          <span className="rounded-full bg-stone-100 dark:bg-[#1a2747] dark:border dark:border-slate-600/50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-stone-600 dark:text-slate-300">
                             Finalizado
                           </span>
                         )}
-                        <span className="rounded-full bg-[#f6efe7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9a653f]">
+                        <span className="rounded-full bg-[#f6efe7] dark:bg-[#2c1f1b] dark:border dark:border-orange-500/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9a653f] dark:text-orange-300">
                           {evento._count.invitados} invitados
                         </span>
-                        {clientPassLimit(usuario, evento) !== null && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Límite: {clientPassLimit(usuario, evento)} pases</span>}
+                        {clientPassLimit(usuario, evento) !== null && <span className="rounded-full bg-emerald-50 dark:bg-[#0c3627] dark:border dark:border-emerald-500/45 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">Límite: {clientPassLimit(usuario, evento)} pases</span>}
                       </div>
                     </div>
                     <p className="flex items-start gap-2">
@@ -598,7 +598,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                       <span className="min-w-0 break-words">{evento.lugar}</span>
                     </p>
                     <div className="flex flex-wrap items-center gap-3 pt-1">
-                      {hasClientQr(usuario) && <div className="flex w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3"><span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#2b211b]"><QrCode className="h-4 w-4 shrink-0"/>Control de acceso QR</span><span className="shrink-0 rounded-full bg-amber-500 px-2 py-1 text-[10px] font-bold text-white">ACTIVO</span></div>}
+                      {hasClientQr(usuario) && <div className="flex w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-amber-300 dark:border-amber-500/45 bg-amber-50 dark:bg-[#2d2010] px-4 py-3"><span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#2b211b] dark:text-amber-100"><QrCode className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400"/>Control de acceso QR</span><span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-xs">ACTIVO</span></div>}
                       <LoadingLink
                         href={`/dashboard/invitados?evento_id=${evento.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#2b211b] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#49392f]"
@@ -740,13 +740,21 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                       Evento asignado
                     </h3>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <Field label="Nombre del evento" required>
+                      <Field
+                        label="Nombre del evento"
+                        hint={form.tipoEvento === "bautizo" ? "Ejemplo: 👼🏻🤍 BAUTIZO DE..." : undefined}
+                        required
+                      >
                         <input
                           value={form.eventoNombre}
                           onChange={(e) =>
                             updateField("eventoNombre", e.target.value)
                           }
-                          placeholder="Boda Laura & Miguel"
+                          placeholder={
+                            form.tipoEvento === "bautizo"
+                              ? "👼🏻🤍 BAUTIZO DE..."
+                              : "Boda Laura & Miguel"
+                          }
                           required
                           className={inputClass}
                         />
@@ -841,13 +849,19 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                           {eventTypeOptions.map((type) => {
                             const option = eventTypeThemes[type];
                             const selected = form.tipoEvento === type;
+                            const isBautizo = type === "bautizo";
                             return (
                               <button
                                 key={type}
                                 type="button"
                                 role="radio"
                                 aria-checked={selected}
-                                onClick={() => updateField("tipoEvento", type)}
+                                onClick={() => {
+                                  updateField("tipoEvento", type);
+                                  if (!editingId && isBautizo && !form.eventoNombre) {
+                                    updateField("eventoNombre", "👼🏻🤍 BAUTIZO DE ");
+                                  }
+                                }}
                                 className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-4 text-center transition-all ${
                                   selected
                                     ? "shadow-md ring-2 ring-offset-1"
@@ -855,20 +869,28 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                                 }`}
                                 style={{
                                   backgroundColor: selected
-                                    ? option.soft
+                                    ? isBautizo
+                                      ? "#9DCDDD"
+                                      : option.soft
                                     : undefined,
                                   borderColor: selected
-                                    ? option.accent
-                                    : option.softBorder,
+                                    ? isBautizo
+                                      ? "#6fa5b7"
+                                      : option.accent
+                                    : isBautizo
+                                      ? "#9DCDDD"
+                                      : option.softBorder,
                                   color: selected
-                                    ? option.accentStrong
+                                    ? isBautizo
+                                      ? "#163442"
+                                      : option.accentStrong
                                     : undefined,
-                                  "--tw-ring-color": option.accent,
+                                  "--tw-ring-color": isBautizo ? "#9DCDDD" : option.accent,
                                 } as React.CSSProperties}
                               >
                                 <EventTypeIcon
                                   type={type}
-                                  className="h-7 w-7"
+                                  className={isBautizo ? "h-7 w-auto text-xl" : "h-7 w-7"}
                                   strokeWidth={1.7}
                                 />
                                 <span className="text-[11px] font-bold">
@@ -1084,10 +1106,11 @@ function Field({
 
 function SystemThemePreview({ eventType }: { eventType: EventType }) {
   const palette = eventTypeThemes[eventType];
+  const isBautizo = eventType === "bautizo";
   return (
     <div
-      className="overflow-hidden rounded-2xl border shadow-sm"
-      style={{ borderColor: palette.softBorder }}
+      className="overflow-hidden rounded-2xl border shadow-sm transition-all"
+      style={{ borderColor: isBautizo ? "#82b4c6" : palette.softBorder }}
     >
       <div className="flex min-h-40 bg-white">
         <div
@@ -1104,25 +1127,28 @@ function SystemThemePreview({ eventType }: { eventType: EventType }) {
             <div className="h-7 rounded-lg bg-white/10" />
           </div>
         </div>
-        <div className="flex-1 p-5" style={{ backgroundColor: palette.soft }}>
+        <div
+          className="flex-1 p-5 transition-colors"
+          style={{ backgroundColor: isBautizo ? "#9DCDDD" : palette.soft }}
+        >
           <div className="flex items-center justify-between gap-3">
             <div>
               <p
                 className="text-[9px] font-bold uppercase tracking-[.2em]"
-                style={{ color: palette.accentStrong }}
+                style={{ color: isBautizo ? "#144254" : palette.accentStrong }}
               >
                 Vista del panel
               </p>
               <p
                 className="mt-1 flex items-center gap-2 font-serif text-xl"
-                style={{ color: palette.ink }}
+                style={{ color: isBautizo ? "#0e2c39" : palette.ink }}
               >
-                <EventTypeIcon type={eventType} className="h-5 w-5" />
-                Evento · {palette.label}
+                <EventTypeIcon type={eventType} className="h-5 w-auto" />
+                {isBautizo ? "BAUTIZO DE..." : `Evento · ${palette.label}`}
               </p>
             </div>
             <div className="flex gap-1.5">
-              {[palette.accent, palette.accentStrong, palette.softBorder].map(
+              {[isBautizo ? "#9DCDDD" : palette.accent, palette.accentStrong, palette.softBorder].map(
                 (color) => (
                   <span
                     key={color}
@@ -1135,15 +1161,22 @@ function SystemThemePreview({ eventType }: { eventType: EventType }) {
           </div>
           <div className="mt-5 grid grid-cols-3 gap-2">
             {["Resumen", "Invitados", "Confirmados"].map((label, index) => (
-              <div key={label} className="rounded-xl bg-white p-3 shadow-sm">
+              <div
+                key={label}
+                className="rounded-xl bg-white/90 backdrop-blur-xs p-3 shadow-sm"
+              >
                 <div
                   className="h-1.5 rounded-full"
                   style={{
                     backgroundColor:
-                      index === 0 ? palette.accent : palette.softBorder,
+                      index === 0
+                        ? palette.accent
+                        : isBautizo
+                          ? "#BCE1ED"
+                          : palette.softBorder,
                   }}
                 />
-                <p className="mt-2 truncate text-[8px] font-bold uppercase text-stone-400">
+                <p className="mt-2 truncate text-[8px] font-bold uppercase text-stone-500">
                   {label}
                 </p>
               </div>

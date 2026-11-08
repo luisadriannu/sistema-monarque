@@ -24,6 +24,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import EventTypeIcon from "@/components/EventTypeIcon";
+import ThemeToggle from "@/components/ThemeToggle";
 import type { EventType } from "@/lib/event-theme";
 
 interface DashboardNavProps {
@@ -195,16 +196,19 @@ export default function DashboardNav({
             </span>
           </div>
         </div>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-stone-600 hover:text-stone-900"
-        >
-          {mobileMenuOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
-          )}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle compact />
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-stone-600 hover:text-stone-900 dark:text-stone-300 dark:hover:text-white"
+          >
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Desktop Sidebar */}
@@ -304,16 +308,16 @@ export default function DashboardNav({
 
           {/* Soporte directo para clientes */}
           {user.rol === "clienta" && (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4">
+            <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200/80 dark:border-[#1f3b34] bg-gradient-to-br from-emerald-50 to-white dark:from-[#112229] dark:to-[#0b141a] p-4 shadow-xs">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 dark:bg-[#00a884] text-white shadow-sm">
                   <Headset className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-serif text-sm font-bold leading-tight text-[#2b211b]">
+                  <p className="font-serif text-sm font-bold leading-tight text-[#2b211b] dark:text-[#e9edef]">
                     ¿Necesitas ayuda?
                   </p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+                  <p className="mt-1 text-[11px] leading-relaxed text-stone-500 dark:text-[#8696a0]">
                     Escríbenos y te ayudaremos con tu evento.
                   </p>
                 </div>
@@ -322,17 +326,21 @@ export default function DashboardNav({
                 href="https://wa.me/522206283499?text=Hola%20Monarque%2C%20necesito%20ayuda%20con%20mi%20invitaci%C3%B3n."
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 dark:bg-[#005c4b] dark:border dark:border-[#00a884]/50 px-3 py-2.5 text-[11px] font-semibold text-white dark:text-[#e9edef] shadow-sm transition-colors hover:bg-emerald-700 dark:hover:bg-[#007a63] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
               >
-                <MessageCircle className="h-3.5 w-3.5" />
+                <MessageCircle className="h-3.5 w-3.5 dark:text-[#25d366]" />
                 Escribir por WhatsApp
               </a>
             </div>
           )}
         </div>
 
+        <div className="px-4 pb-3">
+          <ThemeToggle />
+        </div>
+
         {/* Footer de usuario */}
-        <div className="p-4 border-t border-[#f5ede2] bg-[#fbf8f4]/60">
+        <div className="p-4 border-t border-[#f5ede2] dark:border-[#1e2c52] bg-[#fbf8f4]/60 dark:bg-[#0a1126]">
           <div className="flex items-center justify-between">
             <div className="truncate pr-2">
               <p className="flex items-center gap-2 text-xs font-semibold text-stone-900">
@@ -355,7 +363,7 @@ export default function DashboardNav({
               onClick={openLogoutModal}
               title="Cerrar sesión"
               aria-label="Cerrar sesión"
-              className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              className="p-2 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
             </button>

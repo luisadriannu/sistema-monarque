@@ -757,7 +757,7 @@ function ConfiguracionContent() {
           {/* Mensaje de WhatsApp: vista previa primero, edición opcional. */}
           <section className="rounded-3xl border border-[#ebd9c4] bg-white p-5 shadow-xs sm:p-7">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><MessageSquare className="h-5 w-5"/></div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-[#00a884]/20 text-emerald-700 dark:text-[#00a884]"><MessageSquare className="h-5 w-5"/></div>
               <div>
                 <h2 className="font-serif text-xl font-bold text-[#2b211b]">Mensaje de WhatsApp para tus invitados</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">Este texto acompaña el enlace cuando compartes una invitación desde la lista de Invitados.</p>
@@ -772,12 +772,12 @@ function ConfiguracionContent() {
                   <p className="mt-3 text-xs leading-relaxed text-stone-500">Aquí solo preparas el texto. Para enviarlo, entra a <strong>Invitados</strong> y elige <strong>WhatsApp</strong> en la persona o familia que deseas invitar.</p>
                 </div>
 
-                <details className="group rounded-2xl border border-stone-200">
+                <details className="group rounded-2xl border border-stone-200 dark:border-[#223460]">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-semibold text-stone-800 [&::-webkit-details-marker]:hidden">
                     <span>Personalizar mensaje <span className="font-normal text-stone-400">(opcional)</span></span>
-                    <span className="text-emerald-700"><span className="group-open:hidden">Editar</span><span className="hidden group-open:inline">Cerrar</span></span>
+                    <span className="text-emerald-700 dark:text-[#00a884]"><span className="group-open:hidden">Editar</span><span className="hidden group-open:inline">Cerrar</span></span>
                   </summary>
-                  <div className="space-y-4 border-t border-stone-100 p-4">
+                  <div className="space-y-4 border-t border-stone-100 dark:border-[#223460] p-4">
                     <label htmlFor="plantilla-whatsapp" className="block text-sm font-semibold text-stone-800">Escribe con tus propias palabras</label>
                     <p id="mensaje-ayuda" className="text-xs leading-relaxed text-stone-500">Las etiquetas entre llaves se cambian por los datos de cada invitado al compartir. Consérvalas en el texto. Si borras alguna, puedes volver a añadirla con los botones.</p>
                     <textarea
@@ -800,11 +800,11 @@ function ConfiguracionContent() {
                       <div className="flex flex-wrap gap-2">{variablesMensaje.map(variable => {
                         const Icon = variable.icon;
                         const incluida = plantillaMensaje.includes(variable.token);
-                        return <button key={variable.token} type="button" onClick={() => insertarVariable(variable.token)} title={incluida ? "Ver este dato en el texto" : `Añadir ${variable.label.toLowerCase()}`} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition ${incluida ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}><Icon className="h-3.5 w-3.5"/>{variable.label}{incluida && <CheckCircle className="h-3 w-3"/>}</button>;
+                        return <button key={variable.token} type="button" onClick={() => insertarVariable(variable.token)} title={incluida ? "Ver este dato en el texto" : `Añadir ${variable.label.toLowerCase()}`} className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition ${incluida ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-[#0c3627] dark:text-emerald-200" : "border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-[#243563] dark:text-slate-300 dark:hover:bg-[#162447]"}`}><Icon className="h-3.5 w-3.5"/>{variable.label}{incluida && <CheckCircle className="h-3 w-3"/>}</button>;
                       })}</div>
                     </div>
-                    {variablesObligatoriasFaltantes.length > 0 && <p role="status" className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">Tu texto no incluye: <strong>{variablesObligatoriasFaltantes.map(variable => variable.label.toLowerCase()).join(", ")}</strong>. Usa los botones para añadir esos datos.</p>}
-                    {variablesDuplicadas.length > 0 && <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800"><p>Hay datos que aparecen más de una vez en tu texto.</p><button type="button" onClick={limpiarVariablesDuplicadas} className="mt-2 font-semibold underline underline-offset-2">Dejar cada dato una sola vez</button></div>}
+                    {variablesObligatoriasFaltantes.length > 0 && <p role="status" className="rounded-xl bg-amber-50 dark:bg-[#3b250b] dark:border dark:border-amber-500/40 p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-200">Tu texto no incluye: <strong>{variablesObligatoriasFaltantes.map(variable => variable.label.toLowerCase()).join(", ")}</strong>. Usa los botones para añadir esos datos.</p>}
+                    {variablesDuplicadas.length > 0 && <div className="rounded-xl bg-amber-50 dark:bg-[#3b250b] dark:border dark:border-amber-500/40 p-3 text-xs text-amber-800 dark:text-amber-200"><p>Hay datos que aparecen más de una vez en tu texto.</p><button type="button" onClick={limpiarVariablesDuplicadas} className="mt-2 font-semibold underline underline-offset-2">Dejar cada dato una sola vez</button></div>}
                     <p className="text-xs text-stone-500">Al terminar, pulsa <strong>Guardar configuración</strong>.</p>
                   </div>
                 </details>
@@ -815,15 +815,15 @@ function ConfiguracionContent() {
                   <p className="text-sm font-semibold text-stone-800">Así se verá al compartir</p>
                   <p className="mt-1 text-xs text-stone-500">Ejemplo con Familia Gómez Pérez y 4 pases. Cada invitado recibirá sus propios datos.</p>
                 </div>
-                <div className="overflow-hidden rounded-2xl border border-[#d6d7d1] bg-[#e9e4dc]">
-                  <div className="flex items-center gap-3 border-b border-stone-200 bg-[#f7f7f5] px-4 py-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><UserRound className="h-4 w-4"/></span>
-                    <div><p className="text-sm font-semibold text-stone-800">Familia Gómez Pérez</p><p className="text-[11px] text-stone-400">Vista de ejemplo</p></div>
+                <div className="overflow-hidden rounded-2xl border border-[#d6d7d1] dark:border-[#222e35] bg-[#e9e4dc] dark:bg-[#0b141a] shadow-inner">
+                  <div className="flex items-center gap-3 border-b border-stone-200 dark:border-[#222e35] bg-[#f7f7f5] dark:bg-[#202c33] px-4 py-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-[#00a884]/25 text-emerald-700 dark:text-[#00a884]"><UserRound className="h-4 w-4"/></span>
+                    <div><p className="text-sm font-semibold text-stone-800 dark:text-[#e9edef]">Familia Gómez Pérez</p><p className="text-[11px] text-stone-400 dark:text-[#8696a0]">Vista de ejemplo</p></div>
                   </div>
                   <div className="p-4 sm:p-5">
-                    <div className="ml-auto max-w-[95%] rounded-2xl rounded-tr-sm bg-[#d9fdd3] px-4 py-3 shadow-sm">
-                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-stone-800">{previewMensaje || "Escribe un mensaje para ver el ejemplo aquí."}</p>
-                      <div className="mt-2 flex justify-end gap-1 text-[10px] text-stone-500"><span>10:30 a. m.</span><span className="font-bold text-sky-500">✓✓</span></div>
+                    <div className="ml-auto max-w-[95%] rounded-2xl rounded-tr-sm bg-[#d9fdd3] dark:bg-[#005c4b] dark:border dark:border-[#007a63]/50 px-4 py-3 shadow-sm">
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-stone-800 dark:text-[#e9edef]">{previewMensaje || "Escribe un mensaje para ver el ejemplo aquí."}</p>
+                      <div className="mt-2 flex justify-end gap-1 text-[10px] text-stone-500 dark:text-[#b6d9d1]"><span>10:30 a. m.</span><span className="font-bold text-sky-500 dark:text-[#53bdeb]">✓✓</span></div>
                     </div>
                   </div>
                 </div>
@@ -834,7 +834,7 @@ function ConfiguracionContent() {
 
           {/* Botón de guardado */}
           <div className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 lg:left-[calc(16rem+2rem)] lg:right-8">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] bg-white/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-[#ead7c4] dark:border-[#243563] bg-white/95 dark:bg-[#111c38]/95 p-3 shadow-2xl shadow-stone-900/15 backdrop-blur-md">
               <div className="hidden min-w-0 sm:block">
                 <p className="text-xs font-bold text-[#2b211b]">
                   Configuración del evento

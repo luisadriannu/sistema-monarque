@@ -47,7 +47,7 @@ export default async function DashboardLayout({
 
   return (
     <div
-      className="dashboard-theme min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col lg:flex-row"
+      className="dashboard-theme min-h-screen bg-[#faf8f5] dark:bg-[#0b132b] text-stone-900 dark:text-stone-100 flex flex-col lg:flex-row transition-colors duration-200"
       style={themeVariables}
     >
       <DashboardNav
