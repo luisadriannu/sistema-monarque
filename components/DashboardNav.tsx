@@ -213,11 +213,11 @@ export default function DashboardNav({
 
       {/* Desktop Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#111214] border-r border-[#ebd9c4]/70 dark:border-[#222428] flex flex-col justify-between transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#111214] border-r border-[#ebd9c4]/70 dark:border-[#222428] flex flex-col transition-transform duration-200 lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="overflow-y-auto p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {/* Logo Monarque con mariposa y tipografía */}
           <div className="flex items-center gap-3 mb-8 pb-5 border-b border-[#f5ede2]">
             <div className="w-12 h-12 rounded-full overflow-hidden border border-[#ebd9c4] shadow-xs shrink-0 bg-white">
@@ -335,6 +335,7 @@ export default function DashboardNav({
           )}
         </div>
 
+        <div className="shrink-0">
         <div className="px-4 pb-3">
           <ThemeToggle />
         </div>
@@ -368,6 +369,7 @@ export default function DashboardNav({
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+        </div>
         </div>
       </aside>
 
