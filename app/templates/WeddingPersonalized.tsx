@@ -1,10 +1,9 @@
 "use client";
 import useInvitationAttendance from "@/components/useInvitationAttendance";
 import AttendanceLockedNotice from "@/components/AttendanceLockedNotice";
-import { hasAttendance, attendanceLockMessage } from "@/lib/attendance-lock";
+import { hasAttendance } from "@/lib/attendance-lock";
 import AsyncButton from "@/components/AsyncButton";
 import { isRsvpUnchanged } from "@/lib/rsvp-state";
-
 import { CSSProperties, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -83,7 +82,10 @@ function EventCountdown({ date }: { date: string }) {
         [remaining.hours, "Horas"],
         [remaining.minutes, "Minutos"],
       ].map(([value, label]) => (
-        <div key={label} className="rounded-2xl border border-[var(--secondary)] bg-[var(--surface)]/80 px-2 py-4 text-center shadow-sm">
+        <div
+          key={label}
+          className="rounded-2xl border border-[var(--secondary)] bg-[var(--surface)]/80 px-2 py-4 text-center shadow-sm"
+        >
           <span className="block font-serif text-3xl text-[var(--primary)] sm:text-4xl">
             {String(value).padStart(2, "0")}
           </span>
@@ -157,14 +159,26 @@ export default function WeddingPersonalized({
     };
   }, [opened]);
 
-  const [qrAvailable, setQrAvailable] = useState(Boolean(qrImage) || !hasAttendance(initialInvitado));
+  const [qrAvailable, setQrAvailable] = useState(
+    Boolean(qrImage) || !hasAttendance(initialInvitado),
+  );
   const { attendance, onRejected, rsvpClosed } = useInvitationAttendance(token);
-  const attendanceLocked = hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
+  const attendanceLocked =
+    hasAttendance(invitado) || Boolean(attendance?.confirmacion_bloqueada);
   const responseUnchanged = isRsvpUnchanged(invitado, pases, ninos);
 
   const submitRsvp = async (pasesAConfirmar: number = pases) => {
-    if (sending || isRsvpUnchanged(invitado, pasesAConfirmar, pasesAConfirmar > 0 ? ninos : 0)) return;
-    if (attendanceLocked || previewMode || (evento.expirado || rsvpClosed)) return;
+    if (
+      sending ||
+      isRsvpUnchanged(
+        invitado,
+        pasesAConfirmar,
+        pasesAConfirmar > 0 ? ninos : 0,
+      )
+    )
+      return;
+    if (attendanceLocked || previewMode || evento.expirado || rsvpClosed)
+      return;
     setSending(true);
     setFeedback(null);
     setRequestError(null);
@@ -180,13 +194,18 @@ export default function WeddingPersonalized({
       });
       const result = await response.json();
       if (!response.ok) onRejected(result);
-      if (!response.ok) throw new Error(result.error || "No se pudo guardar tu respuesta.");
+      if (!response.ok)
+        throw new Error(result.error || "No se pudo guardar tu respuesta.");
       setInvitado(result.invitado);
       setPases(result.invitado.pases_confirmados ?? pasesAConfirmar);
       setNinos(result.invitado.ninos_confirmados ?? 0);
       setFeedback(result.mensaje);
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : "No se pudo guardar tu respuesta.");
+      setRequestError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar tu respuesta.",
+      );
     } finally {
       setSending(false);
     }
@@ -202,10 +221,27 @@ export default function WeddingPersonalized({
       };
 
   return (
-    <div style={style} className="min-h-screen bg-[var(--background)] text-[var(--ink)]">
-{opened && qrEnabled && !previewMode && invitado.estado !== "declinado" && (
-  <a hidden={Boolean(attendance?.escaneado) || !qrAvailable || invitado.estado !== "confirmado" || !(invitado.pases_confirmados && invitado.pases_confirmados > 0)} href="#pase-qr" className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl">Ver mi pase QR</a>
-)}
+    <div
+      style={style}
+      className="min-h-screen bg-[var(--background)] text-[var(--ink)]"
+    >
+      {opened &&
+        qrEnabled &&
+        !previewMode &&
+        invitado.estado !== "declinado" && (
+          <a
+            hidden={
+              Boolean(attendance?.escaneado) ||
+              !qrAvailable ||
+              invitado.estado !== "confirmado" ||
+              !(invitado.pases_confirmados && invitado.pases_confirmados > 0)
+            }
+            href="#pase-qr"
+            className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl"
+          >
+            Ver mi pase QR
+          </a>
+        )}
 
       <AnimatePresence mode="wait">
         {!opened ? (
@@ -233,7 +269,9 @@ export default function WeddingPersonalized({
                 {hasPair ? (
                   <>
                     {firstName}
-                    <span className="my-3 block text-3xl italic text-[var(--accent)]">&</span>
+                    <span className="my-3 block text-3xl italic text-[var(--accent)]">
+                      &
+                    </span>
                     {secondName}
                   </>
                 ) : (
@@ -254,11 +292,17 @@ export default function WeddingPersonalized({
             </motion.div>
           </motion.main>
         ) : (
-          <motion.main key="invitation" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <motion.main
+            key="invitation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
             <section className="relative flex min-h-[88vh] items-center overflow-hidden px-5 py-24 text-center">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,var(--secondary),transparent_42%),radial-gradient(circle_at_bottom_right,var(--secondary),transparent_38%)] opacity-80" />
               <motion.div {...reveal} className="relative mx-auto max-w-3xl">
-                <p className="text-3xl text-[var(--accent)]">{theme.ornament}</p>
+                <p className="text-3xl text-[var(--accent)]">
+                  {theme.ornament}
+                </p>
                 <p className="mt-5 text-[10px] font-bold uppercase tracking-[.35em] text-[var(--muted)]">
                   Una fecha para recordar
                 </p>
@@ -285,17 +329,32 @@ export default function WeddingPersonalized({
             <section className="bg-[var(--surface)] px-5 py-20">
               <motion.div {...reveal} className="mx-auto max-w-4xl">
                 <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-[.3em] text-[var(--accent)]">Reserva la fecha</p>
-                  <h2 className="mt-3 font-serif text-4xl text-[var(--primary)] sm:text-5xl">La celebración</h2>
+                  <p className="text-[10px] font-bold uppercase tracking-[.3em] text-[var(--accent)]">
+                    Reserva la fecha
+                  </p>
+                  <h2 className="mt-3 font-serif text-4xl text-[var(--primary)] sm:text-5xl">
+                    La celebración
+                  </h2>
                 </div>
                 <div className="mt-12 grid gap-4 md:grid-cols-3">
-                  <Detail icon={CalendarDays} title="Fecha" value={formatDateLongMx(evento.fecha_evento)} />
-                  <Detail icon={Clock3} title="Hora" value={data.event.startsAt || "Horario por confirmar"} />
+                  <Detail
+                    icon={CalendarDays}
+                    title="Fecha"
+                    value={formatDateLongMx(evento.fecha_evento)}
+                  />
+                  <Detail
+                    icon={Clock3}
+                    title="Hora"
+                    value={data.event.startsAt || "Horario por confirmar"}
+                  />
                   <Detail icon={MapPin} title="Lugar" value={evento.lugar} />
                 </div>
                 {data.event.dressCode && (
                   <p className="mt-8 text-center text-sm text-[var(--muted)]">
-                    Código de vestimenta: <strong className="text-[var(--primary)]">{data.event.dressCode}</strong>
+                    Código de vestimenta:{" "}
+                    <strong className="text-[var(--primary)]">
+                      {data.event.dressCode}
+                    </strong>
                   </p>
                 )}
               </motion.div>
@@ -306,18 +365,31 @@ export default function WeddingPersonalized({
                 <motion.div {...reveal} className="mx-auto max-w-2xl">
                   <div className="text-center">
                     <Sparkles className="mx-auto h-5 w-5 text-[var(--accent)]" />
-                    <h2 className="mt-3 font-serif text-4xl text-[var(--primary)]">Nuestro programa</h2>
+                    <h2 className="mt-3 font-serif text-4xl text-[var(--primary)]">
+                      Nuestro programa
+                    </h2>
                   </div>
                   <div className="mt-10 space-y-3">
                     {data.event.itinerary?.map((item, index) => (
-                      <div key={`${item.hour}-${item.title}`} className="flex gap-4 rounded-2xl border border-[var(--secondary)] bg-[var(--surface)] p-5 shadow-sm">
+                      <div
+                        key={`${item.hour}-${item.title}`}
+                        className="flex gap-4 rounded-2xl border border-[var(--secondary)] bg-[var(--surface)] p-5 shadow-sm"
+                      >
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-bold text-white">
                           {index + 1}
                         </span>
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[var(--accent)]">{item.hour}</p>
-                          <h3 className="mt-1 font-serif text-xl text-[var(--primary)]">{item.title}</h3>
-                          {item.description && <p className="mt-1 text-sm text-[var(--muted)]">{item.description}</p>}
+                          <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[var(--accent)]">
+                            {item.hour}
+                          </p>
+                          <h3 className="mt-1 font-serif text-xl text-[var(--primary)]">
+                            {item.title}
+                          </h3>
+                          {item.description && (
+                            <p className="mt-1 text-sm text-[var(--muted)]">
+                              {item.description}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -329,25 +401,80 @@ export default function WeddingPersonalized({
             <section className="bg-[var(--primary)] px-5 py-20 text-white">
               <motion.div {...reveal} className="mx-auto max-w-xl">
                 <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-[.3em] text-[var(--accent)]">Confirmación de asistencia</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[.3em] text-[var(--accent)]">
+                    Confirmación de asistencia
+                  </p>
                   <h2 className="mt-3 font-serif text-4xl">Tu invitación</h2>
-                  <p className="mt-5 font-serif text-2xl italic">¡Hola, {invitado.nombre}!</p>
+                  <p className="mt-5 font-serif text-2xl italic">
+                    ¡Hola, {invitado.nombre}!
+                  </p>
                   <p className="mt-2 text-sm text-white/70">
-                    {(invitado.pases_liberados || attendance?.pases_liberados) ? <><strong className="text-white">{invitado.pases_asignados} {invitado.pases_asignados === 1 ? "pase liberado" : "pases liberados"}</strong>. Ya no tienes lugares reservados.</> : <>Tienes <strong className="text-white">{invitado.pases_asignados} {invitado.pases_asignados === 1 ? "pase reservado" : "pases reservados"}</strong>.</>}
+                    {invitado.pases_liberados || attendance?.pases_liberados ? (
+                      <>
+                        <strong className="text-white">
+                          {invitado.pases_asignados}{" "}
+                          {invitado.pases_asignados === 1
+                            ? "pase liberado"
+                            : "pases liberados"}
+                        </strong>
+                        . Ya no tienes lugares reservados.
+                      </>
+                    ) : (
+                      <>
+                        Tienes{" "}
+                        <strong className="text-white">
+                          {invitado.pases_asignados}{" "}
+                          {invitado.pases_asignados === 1
+                            ? "pase reservado"
+                            : "pases reservados"}
+                        </strong>
+                        .
+                      </>
+                    )}
                   </p>
                 </div>
 
                 {previewMode && (
                   <div className="mx-auto mt-6 flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[.16em]">
-                    <Eye className="h-3.5 w-3.5" /> Vista previa · Sin cambios reales
+                    <Eye className="h-3.5 w-3.5" /> Vista previa · Sin cambios
+                    reales
                   </div>
                 )}
 
                 <div className="mt-8 space-y-5 rounded-3xl bg-[var(--surface)] p-6 text-[var(--ink)] shadow-2xl sm:p-8">
-                  {feedback && <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{feedback}</div>}
-                  {requestError && <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{requestError}</div>}
+                  {feedback && (
+                    <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+                      {feedback}
+                    </div>
+                  )}
+                  {requestError && (
+                    <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
+                      {requestError}
+                    </div>
+                  )}
 
-                  {(invitado.pases_liberados || attendance?.pases_liberados) ? <p role="status" className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700">Los anfitriones liberaron los pases de esta invitación después de tu respuesta. La confirmación está cerrada.</p> : attendanceLocked ? <AttendanceLockedNotice ingresados={attendance?.pases_ingresados ?? invitado.pases_ingresados ?? 0} confirmados={attendance?.pases_confirmados ?? invitado.pases_confirmados ?? 0} /> : !(evento.expirado || rsvpClosed) ? (
+                  {invitado.pases_liberados || attendance?.pases_liberados ? (
+                    <p
+                      role="status"
+                      className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-700"
+                    >
+                      Los anfitriones liberaron los pases de esta invitación
+                      después de tu respuesta. La confirmación está cerrada.
+                    </p>
+                  ) : attendanceLocked ? (
+                    <AttendanceLockedNotice
+                      ingresados={
+                        attendance?.pases_ingresados ??
+                        invitado.pases_ingresados ??
+                        0
+                      }
+                      confirmados={
+                        attendance?.pases_confirmados ??
+                        invitado.pases_confirmados ??
+                        0
+                      }
+                    />
+                  ) : !(evento.expirado || rsvpClosed) ? (
                     <>
                       <Counter
                         label="¿Cuántas personas asistirán?"
@@ -373,13 +500,49 @@ export default function WeddingPersonalized({
                         onClick={() => submitRsvp()}
                         disabled={sending || previewMode || responseUnchanged}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-4 text-xs font-bold uppercase tracking-[.18em] text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
-                       loading={sending} loadingText="Guardando respuesta…">
-                        {previewMode ? <Eye className="h-4 w-4" /> : pases === 0 ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                        {previewMode ? "Formulario deshabilitado" : sending ? "Guardando…" : responseUnchanged ? (invitado.estado === "declinado" ? "Ya confirmaste que no asistirás" : "Asistencia confirmada") : pases === 0 ? "No podré asistir" : "Confirmar asistencia"}
+                        loading={sending}
+                        loadingText="Guardando respuesta…"
+                      >
+                        {previewMode ? (
+                          <Eye className="h-4 w-4" />
+                        ) : pases === 0 ? (
+                          <XCircle className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        {previewMode
+                          ? "Formulario deshabilitado"
+                          : sending
+                            ? "Guardando…"
+                            : responseUnchanged
+                              ? invitado.estado === "declinado"
+                                ? "Ya confirmaste que no asistirás"
+                                : "Asistencia confirmada"
+                              : pases === 0
+                                ? "No podré asistir"
+                                : "Confirmar asistencia"}
                       </AsyncButton>
-{pases > 0 && <AsyncButton type="button" onClick={() => submitRsvp(0)} disabled={isRsvpUnchanged(invitado, 0, 0) || sending || previewMode} loading={sending} loadingText="Guardando respuesta…" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"><XCircle className="h-4 w-4" />No podré asistir</AsyncButton>}
+                      {pases > 0 && (
+                        <AsyncButton
+                          type="button"
+                          onClick={() => submitRsvp(0)}
+                          disabled={
+                            isRsvpUnchanged(invitado, 0, 0) ||
+                            sending ||
+                            previewMode
+                          }
+                          loading={sending}
+                          loadingText="Guardando respuesta…"
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800 transition hover:bg-rose-100 disabled:opacity-60"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          No podré asistir
+                        </AsyncButton>
+                      )}
 
-                      <p className="text-center text-[10px] text-[var(--muted)]">Fecha límite: {formatDateMx(evento.fecha_limite_rsvp)}</p>
+                      <p className="text-center text-[10px] text-[var(--muted)]">
+                        Fecha límite: {formatDateMx(evento.fecha_limite_rsvp)}
+                      </p>
                     </>
                   ) : (
                     <div className="text-center text-sm text-[var(--muted)]">
@@ -392,9 +555,26 @@ export default function WeddingPersonalized({
             </section>
 
             {qrEnabled && !previewMode && invitado.estado !== "declinado" && (
-  <InvitationQrPass onAvailabilityChange={setQrAvailable} confirmed={invitado.estado === "confirmado" && (invitado.pases_confirmados ?? 0) > 0} key={token} token={token} initialScanned={Boolean(attendance?.escaneado || (!qrImage && (initialInvitado.pases_ingresados || initialInvitado.ultima_entrada_en)))} image={qrImage ?? null} guestName={invitado.nombre} passes={invitado.pases_confirmados ?? invitado.pases_asignados} />
-)}
-<footer className="bg-[var(--background)] px-5 py-12 text-center">
+              <InvitationQrPass
+                onAvailabilityChange={setQrAvailable}
+                confirmed={
+                  invitado.estado === "confirmado" &&
+                  (invitado.pases_confirmados ?? 0) > 0
+                }
+                key={token}
+                token={token}
+                initialScanned={Boolean(
+                  attendance?.escaneado ||
+                  (!qrImage &&
+                    (initialInvitado.pases_ingresados ||
+                      initialInvitado.ultima_entrada_en)),
+                )}
+                image={qrImage ?? null}
+                guestName={invitado.nombre}
+                passes={invitado.pases_confirmados ?? invitado.pases_asignados}
+              />
+            )}
+            <footer className="bg-[var(--background)] px-5 py-12 text-center">
               <p className="font-serif text-3xl text-[var(--primary)]">
                 {hasPair ? (
                   <>
@@ -406,7 +586,9 @@ export default function WeddingPersonalized({
                   singleTitle
                 )}
               </p>
-              <p className="mt-3 text-[9px] font-bold uppercase tracking-[.28em] text-[var(--muted)]">Monarque · Invitaciones Web</p>
+              <p className="mt-3 text-[9px] font-bold uppercase tracking-[.28em] text-[var(--muted)]">
+                Monarque · Invitaciones Web
+              </p>
             </footer>
           </motion.main>
         )}
@@ -415,11 +597,21 @@ export default function WeddingPersonalized({
   );
 }
 
-function Detail({ icon: Icon, title, value }: { icon: typeof CalendarDays; title: string; value: string }) {
+function Detail({
+  icon: Icon,
+  title,
+  value,
+}: {
+  icon: typeof CalendarDays;
+  title: string;
+  value: string;
+}) {
   return (
     <div className="rounded-3xl border border-[var(--secondary)] bg-[var(--background)] p-6 text-center">
       <Icon className="mx-auto h-5 w-5 text-[var(--accent)]" />
-      <p className="mt-4 text-[9px] font-bold uppercase tracking-[.22em] text-[var(--muted)]">{title}</p>
+      <p className="mt-4 text-[9px] font-bold uppercase tracking-[.22em] text-[var(--muted)]">
+        {title}
+      </p>
       <p className="mt-2 font-serif text-xl text-[var(--primary)]">{value}</p>
     </div>
   );
@@ -440,14 +632,34 @@ function Counter({
 }) {
   return (
     <div className="text-center">
-      <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[var(--muted)]">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[var(--muted)]">
+        {label}
+      </p>
       <div className="mt-3 flex items-center justify-center gap-5">
-        <button type="button" disabled={disabled || value <= 0} onClick={() => onChange(value - 1)} className="h-11 w-11 rounded-full border border-[var(--secondary)] text-xl text-[var(--primary)] disabled:opacity-30">−</button>
+        <button
+          type="button"
+          disabled={disabled || value <= 0}
+          onClick={() => onChange(value - 1)}
+          className="h-11 w-11 rounded-full border border-[var(--secondary)] text-xl text-[var(--primary)] disabled:opacity-30"
+        >
+          −
+        </button>
         <div className="w-16">
-          <span className="block font-serif text-4xl text-[var(--primary)]">{value}</span>
-          <span className="text-[9px] uppercase text-[var(--muted)]">de {max}</span>
+          <span className="block font-serif text-4xl text-[var(--primary)]">
+            {value}
+          </span>
+          <span className="text-[9px] uppercase text-[var(--muted)]">
+            de {max}
+          </span>
         </div>
-        <button type="button" disabled={disabled || value >= max} onClick={() => onChange(value + 1)} className="h-11 w-11 rounded-full border border-[var(--secondary)] text-xl text-[var(--primary)] disabled:opacity-30">+</button>
+        <button
+          type="button"
+          disabled={disabled || value >= max}
+          onClick={() => onChange(value + 1)}
+          className="h-11 w-11 rounded-full border border-[var(--secondary)] text-xl text-[var(--primary)] disabled:opacity-30"
+        >
+          +
+        </button>
       </div>
     </div>
   );

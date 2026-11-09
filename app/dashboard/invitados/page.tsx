@@ -1387,7 +1387,7 @@ function InvitadosContent() {
               <RefreshCw
                 className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
               />
-              Actualizar entradas
+              Actualizar
             </button>
           )}
           <select
