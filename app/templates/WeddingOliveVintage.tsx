@@ -121,7 +121,7 @@ function VintageParticles({ reduceMotion }: { reduceMotion: boolean | null }) {
 function FloralSpray({ className = "" }: { className?: string }) {
   return (
     <Image
-      src="/pictures/wedding/ivory-rose-spray.png"
+      src="/pictures/wedding/watercolor-olive-spray.png"
       alt=""
       aria-hidden
       width={1024}
@@ -190,7 +190,7 @@ function OpeningCover({
         duration: reduceMotion ? 0.15 : 0.75,
         ease: [0.22, 1, 0.36, 1],
       }}
-      className={`${display.variable} ${utility.variable} fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#293025] px-5 py-8 text-center`}
+      className={`${display.variable} ${utility.variable} fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#6C7854] px-5 py-8 text-center`}
       style={{ fontFamily: "var(--font-cy-display)" }}
     >
       <Image
@@ -201,7 +201,7 @@ function OpeningCover({
         className="object-cover opacity-30 sepia-[.45] saturate-[.65] scale-105"
         sizes="100vw"
       />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(61,70,50,.38),rgba(25,30,22,.94)_72%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(133,144,110,.35),rgba(108,120,84,.9)_72%)]" />
       <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(244,226,180,.18)_0.7px,transparent_0.7px)] [background-size:7px_7px]" />
       <VintageParticles reduceMotion={reduceMotion} />
 
@@ -212,7 +212,7 @@ function OpeningCover({
         className="relative flex min-h-[min(760px,90dvh)] w-full max-w-lg flex-col items-center justify-center px-3 py-10"
       >
         <Image
-          src="/pictures/wedding/ivory-rose-corner.png"
+          src="/pictures/wedding/watercolor-olive-spray.png"
           alt=""
           aria-hidden
           width={1300}
@@ -220,7 +220,7 @@ function OpeningCover({
           className="pointer-events-none absolute -left-28 -top-20 h-64 w-72 -rotate-6 object-contain opacity-75 drop-shadow-[0_12px_20px_rgba(0,0,0,.3)]"
         />
         <Image
-          src="/pictures/wedding/ivory-rose-corner.png"
+          src="/pictures/wedding/watercolor-olive-spray.png"
           alt=""
           aria-hidden
           width={1300}
@@ -531,12 +531,12 @@ export default function WeddingOliveVintage({
             </a>
           )}
           {/* Hero */}
-          <section className="relative flex min-h-[100svh] items-center justify-center bg-[#37402F] px-4 py-6 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)] sm:px-6 sm:py-12">
+          <section className="relative flex min-h-[100svh] items-center justify-center bg-[#6C7854] px-4 py-6 [background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018)_0,rgba(255,255,255,.018)_1px,transparent_1px,transparent_7px)] sm:px-6 sm:py-12">
             <VintageParticles reduceMotion={reduceMotion} />
             <div className="absolute inset-3 border border-[#C9AB68]/45" />
             <div className="absolute inset-5 border border-[#C9AB68]/15" />
             <Image
-              src="/pictures/wedding/ivory-rose-corner.png"
+              src="/pictures/wedding/watercolor-olive-spray.png"
               alt=""
               aria-hidden
               width={1300}
@@ -544,7 +544,7 @@ export default function WeddingOliveVintage({
               className="pointer-events-none absolute -left-24 -top-20 h-64 w-72 -rotate-6 object-contain opacity-40"
             />
             <Image
-              src="/pictures/wedding/ivory-rose-corner.png"
+              src="/pictures/wedding/watercolor-olive-spray.png"
               alt=""
               aria-hidden
               width={1300}
@@ -608,7 +608,7 @@ export default function WeddingOliveVintage({
                 className="absolute inset-x-3 bottom-4 border border-[#B69959]/55 bg-[#F3E9D8]/[.94] px-4 py-5 shadow-[0_24px_55px_rgba(17,23,14,.38)] backdrop-blur-[3px] before:absolute before:inset-2 before:border before:border-[#99814C]/25 sm:inset-x-10 sm:bottom-10 sm:px-10 sm:py-8"
               >
                 <Image
-                  src="/pictures/wedding/ivory-rose-corner.png"
+                  src="/pictures/wedding/watercolor-olive-spray.png"
                   alt=""
                   aria-hidden
                   width={1300}
@@ -616,7 +616,7 @@ export default function WeddingOliveVintage({
                   className="pointer-events-none absolute -left-14 -top-14 h-36 w-40 -rotate-6 object-contain drop-shadow-[0_8px_10px_rgba(54,60,43,.16)]"
                 />
                 <Image
-                  src="/pictures/wedding/ivory-rose-corner.png"
+                  src="/pictures/wedding/watercolor-olive-spray.png"
                   alt=""
                   aria-hidden
                   width={1300}
@@ -777,7 +777,7 @@ export default function WeddingOliveVintage({
           )}
 
           {/* Galería completa */}
-          <section className="relative overflow-hidden bg-[#30382B] px-5 py-28 text-[#F7F0E2]">
+          <section className="relative overflow-hidden bg-[#6C7854] px-5 py-28 text-[#F7F0E2]">
             <div className="absolute inset-4 rounded-[3rem] border border-[#D2B777]/20" />
             <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(226,204,150,.22)_0.7px,transparent_0.7px)] [background-size:10px_10px]" />
             <motion.div {...reveal} className="relative mx-auto max-w-5xl">
@@ -1014,7 +1014,7 @@ export default function WeddingOliveVintage({
           </section>
 
           {/* Mapa */}
-          <section className="relative overflow-hidden bg-[#2C3326] px-5 py-28">
+          <section className="relative overflow-hidden bg-[#6C7854] px-5 py-28">
             <VintageParticles reduceMotion={reduceMotion} />
             <FloralSpray className="-left-28 bottom-0 h-[30rem] w-72 -rotate-6 opacity-[.12]" />
             <div className="absolute inset-0">
@@ -1026,7 +1026,7 @@ export default function WeddingOliveVintage({
                 className="object-cover object-center opacity-20 blur-sm sepia-[.6] saturate-[.5]"
                 sizes="100vw"
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-[#2C3326]/90 via-[#2C3326]/70 to-[#1F261C]/95" />
+              <div className="absolute inset-0 bg-gradient-to-b from-[#6C7854]/95 via-[#6C7854]/85 to-[#596647]/95" />
             </div>
 
             <motion.div {...reveal} className="relative mx-auto max-w-3xl">
@@ -1044,6 +1044,7 @@ export default function WeddingOliveVintage({
               </div>
 
               <div className="relative mx-auto max-w-xl">
+                {data.location.reception === "Finca San José" && <>
                 <div className="absolute -inset-x-3 -top-3 h-[466px] rounded-t-[16rem] rounded-b-[2.75rem] border border-[#D2B777]/30 sm:h-[526px]" />
                 <div className="relative h-[460px] overflow-hidden rounded-t-[15rem] rounded-b-[2.25rem] border-[5px] border-[#D6C294] bg-[#D6C294] shadow-[0_38px_90px_rgba(0,0,0,.58)] sm:h-[520px]">
                   <iframe
@@ -1072,6 +1073,7 @@ export default function WeddingOliveVintage({
                   </div>
                 </div>
 
+                </>}
                 <motion.div
                   initial={reduceMotion ? false : { opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -1094,7 +1096,7 @@ export default function WeddingOliveVintage({
                       </p>
                     </div>
                     <a
-                      href="https://maps.google.com/?q=Finca+San+Jose"
+                      href={`https://maps.google.com/?q=${encodeURIComponent(data.location.reception)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#3E4635] px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#E8D194] transition-transform hover:scale-[1.03]"
@@ -1110,7 +1112,7 @@ export default function WeddingOliveVintage({
 
           {/* Familia */}
           {data.family &&
-            (data.family.groomParents || data.family.brideParents) && (
+            [data.family.groomParents, data.family.brideParents].some(parents => parents?.father || parents?.mother) && (
               <section className="relative overflow-hidden px-6 py-24 before:absolute before:inset-4 before:border before:border-[#9A7837]/20">
                 <FloralSpray className="-right-24 top-1/2 h-[28rem] w-72 -translate-y-1/2 scale-x-[-1] opacity-25" />
                 <motion.div {...reveal} className="mx-auto max-w-3xl">
@@ -1162,7 +1164,7 @@ export default function WeddingOliveVintage({
             )}
 
           {/* Countdown */}
-          <section className="relative overflow-hidden bg-[#3E4635] px-8 py-20 text-center text-[#F5F0E7] [background-image:radial-gradient(rgba(214,190,133,.08)_1px,transparent_1px)] [background-size:12px_12px]">
+          <section className="relative overflow-hidden bg-[#6C7854] px-8 py-20 text-center text-[#F5F0E7] [background-image:radial-gradient(rgba(214,190,133,.08)_1px,transparent_1px)] [background-size:12px_12px]">
             <VintageParticles reduceMotion={reduceMotion} />
             <FloralSpray className="-right-20 -top-20 h-80 w-52 rotate-12 opacity-[.16]" />
             <div className="absolute inset-4 border-4 border-double border-[#D2B777]/30" />
@@ -1181,11 +1183,11 @@ export default function WeddingOliveVintage({
           </section>
 
           {/* Itinerario */}
-          {data.event.itinerary && (
+          {data.event.itinerary && data.event.itinerary.length > 0 && (
             <section className="relative overflow-hidden bg-[#E5D9C2] px-5 py-28">
               <div className="absolute inset-4 rounded-[2.5rem] border border-[#9A7837]/20" />
               <Image
-                src="/pictures/wedding/ivory-rose-corner.png"
+                src="/pictures/wedding/watercolor-olive-spray.png"
                 alt=""
                 aria-hidden
                 width={1300}
@@ -1193,7 +1195,7 @@ export default function WeddingOliveVintage({
                 className="pointer-events-none absolute -left-28 -top-16 h-72 w-80 -rotate-6 object-contain opacity-30"
               />
               <Image
-                src="/pictures/wedding/ivory-rose-corner.png"
+                src="/pictures/wedding/watercolor-olive-spray.png"
                 alt=""
                 aria-hidden
                 width={1300}
@@ -1507,7 +1509,7 @@ export default function WeddingOliveVintage({
                       type="button"
                       onClick={() => handleSubmit()}
                       disabled={enviando || previewMode || responseUnchanged}
-                      className={`w-full py-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${pasesSeleccionados === 0 ? "bg-[#6B3A3A] text-[#F5E9D0] hover:bg-[#5A2E2E]" : "bg-[#37402F] text-[#E0C687] hover:bg-[#464B38]"}`}
+                      className={`w-full py-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${pasesSeleccionados === 0 ? "bg-[#6B3A3A] text-[#F5E9D0] hover:bg-[#5A2E2E]" : "bg-[#6C7854] text-white hover:bg-[#464B38]"}`}
                       style={{ fontFamily: "var(--font-cy-utility)" }}
                       loading={enviando}
                       loadingText="Guardando respuesta…"

@@ -15,6 +15,8 @@ import {
   QrCode,
   Edit3,
   ExternalLink,
+  Eye,
+  EyeOff,
   KeyRound,
   Mail,
   MapPin,
@@ -146,6 +148,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
   const [clientFilter, setClientFilter] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -219,6 +222,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
       return;
     }
     setEditingId(null);
+    setShowTemporaryPassword(false);
     const todayInMexico = toDateTimeInputValue(new Date()).slice(0, 10);
     const nextMidnight = new Date(`${todayInMexico}T00:00:00-06:00`);
     nextMidnight.setTime(nextMidnight.getTime() + 24 * 60 * 60 * 1000);
@@ -719,7 +723,7 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                         <div className="relative">
                           <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
                           <input
-                            type="password"
+                            type={isAdmin && !editingId && showTemporaryPassword ? "text" : "password"}
                             minLength={10}
                             value={form.password}
                             onChange={(e) =>
@@ -727,8 +731,18 @@ export default function UsuariosAdminClient({ isAdmin = false }: { isAdmin?: boo
                             }
                             required={!editingId}
                             autoComplete="new-password"
-                            className={`${inputClass} pl-10`}
+                            className={`${inputClass} pl-10 ${isAdmin && !editingId ? "pr-12" : ""}`}
                           />
+                          {isAdmin && !editingId && (
+                            <button
+                              type="button"
+                              onClick={() => setShowTemporaryPassword(visible => !visible)}
+                              aria-label={showTemporaryPassword ? "Ocultar contraseña temporal" : "Mostrar contraseña temporal"}
+                              className="absolute inset-y-0 right-1 flex w-10 items-center justify-center rounded-lg text-stone-500 hover:text-stone-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e05a1b]"
+                            >
+                              {showTemporaryPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+                            </button>
+                          )}
                         </div>
                       </Field>
                     </div>

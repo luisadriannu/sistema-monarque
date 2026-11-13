@@ -85,6 +85,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
     : {};
 
   const isCarlosYazminInvitation = evento.slug === "boda-yazmin-y-cesar";
+  const useVintageDesign = isCarlosYazminInvitation || storedInvitation.design?.variant === "oliveVintage";
 
   // La boda original conserva su diseño editorial y fotografías locales. Los
   // demás eventos se construyen únicamente con su propia configuración para
@@ -128,14 +129,14 @@ export default async function InvitationPage({ params, searchParams }: PageProps
           dressCode: storedInvitation.event?.dressCode,
           itinerary: storedInvitation.event?.itinerary || [],
         },
-        media: { coverImage: "", gallery: [] },
+        media: useVintageDesign ? carlosYYazmin.media : { coverImage: "", gallery: [] },
         location: {
           event: storedInvitation.location?.event || "Lugar del evento",
           reception: evento.lugar,
         },
         contact: storedInvitation.contact,
         family: storedInvitation.family,
-        design: { variant: "generic" },
+        design: useVintageDesign ? { variant: "oliveVintage" } : { variant: "generic" },
       };
 
   const invitadoData = {
@@ -181,7 +182,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
       })
     : null;
 
-  return <>{isCarlosYazminInvitation ? (
+  return <>{useVintageDesign ? (
       <WeddingOliveVintage {...invitationProps} qrEnabled={qrEnabled} qrImage={qrImage} />
     ) : (
       <WeddingPersonalized {...invitationProps} qrEnabled={qrEnabled} qrImage={qrImage} />
