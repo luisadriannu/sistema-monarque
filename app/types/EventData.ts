@@ -18,11 +18,18 @@ export interface EventData {
   };
   media: {
     coverImage: string;
+    heroImage?: string;
+    envelopeImage?: string;
     gallery: string[];
+    carousel?: string[];
+    storyPhotos?: { label: string; photos: [string, string] }[];
+    musicUrl?: string;
   };
   location: {
     event?: string;
     reception: string;
+    mapsUrl?: string;
+    mapEmbedUrl?: string;
   };
   contact?: {
     phone?: string;

@@ -2,6 +2,7 @@
 import useInvitationAttendance from "@/components/useInvitationAttendance";
 import AttendanceLockedNotice from "@/components/AttendanceLockedNotice";
 import { hasAttendance } from "@/lib/attendance-lock";
+import InvitationMusic, { useInvitationMusic } from "@/components/InvitationMusic";
 import AsyncButton from "@/components/AsyncButton";
 import { isRsvpUnchanged } from "@/lib/rsvp-state";
 import { CSSProperties, useEffect, useState } from "react";
@@ -115,6 +116,7 @@ export default function WeddingPersonalized({
   const secondName = (names[1] || "").trim().split(/\s+/)[0];
   const singleTitle = (data.event.name || evento.anfitriones).trim();
   const [opened, setOpened] = useState(false);
+  const { audioRef, playMusic } = useInvitationMusic();
   const [invitado, setInvitado] = useState(initialInvitado);
   const [pases, setPases] = useState(
     initialInvitado.pases_confirmados ?? initialInvitado.pases_asignados,
@@ -225,6 +227,7 @@ export default function WeddingPersonalized({
       style={style}
       className="min-h-screen bg-[var(--background)] text-[var(--ink)]"
     >
+      <InvitationMusic src={data.media.musicUrl} audioRef={audioRef} visible={opened} themeClassName="border-[var(--secondary)] bg-[var(--primary)] text-white focus-visible:outline-[var(--secondary)]" />
       {opened &&
         qrEnabled &&
         !previewMode &&
@@ -283,7 +286,10 @@ export default function WeddingPersonalized({
               </p>
               <button
                 type="button"
-                onClick={() => setOpened(true)}
+                onClick={() => {
+                  playMusic();
+                  setOpened(true);
+                }}
                 className="mt-10 inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--accent)] px-7 py-3 text-[11px] font-bold uppercase tracking-[.2em] text-[var(--primary)] transition hover:brightness-110"
               >
                 <Heart className="h-4 w-4" />

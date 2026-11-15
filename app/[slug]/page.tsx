@@ -15,12 +15,35 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+const yazminPhotoFolder = "/pictures/wedding/yazmin-y-carlos";
+const yazminStudioPhotos = Array.from(
+  { length: 8 },
+  (_, index) => yazminPhotoFolder + "/jazmin-y-carlos-" + (index + 1) + ".jpg",
+);
+const yazminWeddingMedia: EventData["media"] = {
+  coverImage: yazminStudioPhotos[0],
+  envelopeImage: yazminStudioPhotos[1],
+  musicUrl: "/music/yazmin-y-carlos/the-cello-song.mp3",
+  gallery: yazminStudioPhotos,
+};
+
+const yazminWeddingItinerary: NonNullable<EventData["event"]["itinerary"]> = [
+  { hour: "7:00 p. m. – 8:00 p. m.", title: "Boda civil" },
+  { hour: "8:00 p. m. – 8:30 p. m.", title: "Cóctel de bienvenida" },
+  { hour: "8:30 p. m. – 9:30 p. m.", title: "Protocolo" },
+  { hour: "9:30 p. m. – 10:30 p. m.", title: "Cena" },
+  { hour: "10:30 p. m. – 10:40 p. m.", title: "Partida de pastel" },
+  { hour: "10:40 p. m.", title: "Fiesta" },
+  { hour: "1:00 a. m.", title: "Término de la fiesta", description: "Gracias por su preferencia" },
+];
+
 interface PageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ id?: string; token?: string; preview?: string }>;
 }
 
 type StoredInvitationData = Omit<Partial<EventData>, "event" | "location" | "media"> & {
+  media?: Pick<EventData["media"], "musicUrl">;
   event?: Partial<EventData["event"]>;
   location?: Partial<EventData["location"]>;
 };
@@ -42,7 +65,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   const evento = await prisma.evento.findUnique({
     where: { slug },
-    include: { usuario: { select: { organizacion: true, organizacion_id: true, lector_qr_habilitado: true } } },
+    include: { usuario: { select: { email: true, organizacion: true, organizacion_id: true, lector_qr_habilitado: true } } },
   });
   if (!evento) return <InvitacionNoDisponible />;
   if (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) return <InvitacionNoDisponible />;
@@ -86,10 +109,13 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   const isCarlosYazminInvitation = evento.slug === "boda-yazmin-y-cesar";
   const useVintageDesign = isCarlosYazminInvitation || storedInvitation.design?.variant === "oliveVintage";
+  const useYazminPhotos = useVintageDesign && evento.slug === "boda-de-yazmin-y-carlos" && evento.usuario.email === "yazmin@monarque.com";
 
   // La boda original conserva su diseño editorial y fotografías locales. Los
   // demás eventos se construyen únicamente con su propia configuración para
   // que nunca hereden nombres, imágenes o contenido de otra clienta.
+  const storedMusic = storedInvitation.media?.musicUrl;
+  const musicUrl = typeof storedMusic === "string" ? storedMusic.trim() : undefined;
   const eventData: EventData = isCarlosYazminInvitation
     ? {
         ...carlosYYazmin,
@@ -104,7 +130,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
           ...storedInvitation.event,
           date: evento.fecha_evento.toISOString(),
         },
-        media: carlosYYazmin.media,
+        media: { ...carlosYYazmin.media, musicUrl: musicUrl ?? carlosYYazmin.media.musicUrl },
         location: {
           ...carlosYYazmin.location,
           ...storedInvitation.location,
@@ -120,19 +146,28 @@ export default async function InvitationPage({ params, searchParams }: PageProps
             storedInvitation.event?.name ||
             evento.anfitriones.replace(/\s+y\s+/i, " & "),
           date: evento.fecha_evento.toISOString(),
-          startsAt: storedInvitation.event?.startsAt,
+          startsAt: useYazminPhotos ? "7:00 p. m." : storedInvitation.event?.startsAt,
           ceremonyHour: storedInvitation.event?.ceremonyHour,
           partyHour: storedInvitation.event?.partyHour,
           phrase:
             storedInvitation.event?.phrase ||
             "Nos encantará compartir contigo este momento especial.",
           dressCode: storedInvitation.event?.dressCode,
-          itinerary: storedInvitation.event?.itinerary || [],
+          itinerary: useYazminPhotos ? yazminWeddingItinerary : storedInvitation.event?.itinerary || [],
         },
-        media: useVintageDesign ? carlosYYazmin.media : { coverImage: "", gallery: [] },
+        media: {
+          ...(useYazminPhotos
+            ? yazminWeddingMedia
+            : useVintageDesign ? carlosYYazmin.media : { coverImage: "", gallery: [] }),
+          musicUrl: musicUrl ?? (useYazminPhotos ? yazminWeddingMedia.musicUrl : undefined),
+        },
         location: {
           event: storedInvitation.location?.event || "Lugar del evento",
-          reception: evento.lugar,
+          reception: useYazminPhotos ? "El Centro Bar & Snacks" : evento.lugar,
+          ...(useYazminPhotos && {
+            mapsUrl: "https://maps.app.goo.gl/eXMuA9tgUcXQb7Ze9",
+            mapEmbedUrl: "https://www.google.com/maps?q=18.1574625%2C-100.4991203&output=embed",
+          }),
         },
         contact: storedInvitation.contact,
         family: storedInvitation.family,

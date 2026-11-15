@@ -2,6 +2,7 @@
 import useInvitationAttendance from "@/components/useInvitationAttendance";
 import AttendanceLockedNotice from "@/components/AttendanceLockedNotice";
 import { hasAttendance, attendanceLockMessage } from "@/lib/attendance-lock";
+import InvitationMusic, { useInvitationMusic } from "@/components/InvitationMusic";
 import AsyncButton from "@/components/AsyncButton";
 import { isRsvpUnchanged } from "@/lib/rsvp-state";
 
@@ -144,17 +145,6 @@ function VintageDivider() {
   );
 }
 
-function WeddingRings() {
-  return (
-    <div className="relative h-14 w-24" aria-hidden="true">
-      <span className="absolute left-2 top-3 h-11 w-11 -rotate-12 rounded-full border-2 border-[#DABF7C] shadow-[inset_0_0_0_2px_rgba(93,73,35,.28),0_3px_10px_rgba(0,0,0,.2)]" />
-      <span className="absolute right-2 top-3 h-11 w-11 rotate-12 rounded-full border-2 border-[#E7CF91] shadow-[inset_0_0_0_2px_rgba(93,73,35,.28),0_3px_10px_rgba(0,0,0,.2)]" />
-      <span className="absolute right-[1.15rem] top-1 h-4 w-4 rotate-45 border border-[#EAD9AB] bg-[#FFF8E8]/90 shadow-[0_0_12px_rgba(244,224,170,.65)]" />
-      <span className="absolute right-[1.42rem] top-[.14rem] h-2.5 w-2.5 rotate-45 border border-white/80" />
-    </div>
-  );
-}
-
 function OpeningCover({
   groom,
   bride,
@@ -178,113 +168,67 @@ function OpeningCover({
 
   return (
     <motion.section
-      key="opening-cover"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={
-        reduceMotion
-          ? { opacity: 0 }
-          : { opacity: 0, scale: 1.035, filter: "blur(7px)" }
-      }
-      transition={{
-        duration: reduceMotion ? 0.15 : 0.75,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      className={`${display.variable} ${utility.variable} fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#6C7854] px-5 py-8 text-center`}
+      exit={{ opacity: 0, transition: reduceMotion ? { duration: 0.12 } : { delay: 2.1, duration: 0.4 } }}
+      className={`${display.variable} ${utility.variable} fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-[#303b2b] text-center [background-image:radial-gradient(ellipse_at_center,#58654a,transparent_72%)]`}
       style={{ fontFamily: "var(--font-cy-display)" }}
     >
-      <Image
-        src={image}
-        alt=""
-        fill
-        priority
-        className="object-cover opacity-30 sepia-[.45] saturate-[.65] scale-105"
-        sizes="100vw"
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(133,144,110,.35),rgba(108,120,84,.9)_72%)]" />
-      <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(244,226,180,.18)_0.7px,transparent_0.7px)] [background-size:7px_7px]" />
-      <VintageParticles reduceMotion={reduceMotion} />
-
-      <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 1, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-        className="relative flex min-h-[min(760px,90dvh)] w-full max-w-lg flex-col items-center justify-center px-3 py-10"
-      >
-        <Image
-          src="/pictures/wedding/watercolor-olive-spray.png"
-          alt=""
-          aria-hidden
-          width={1300}
-          height={1221}
-          className="pointer-events-none absolute -left-28 -top-20 h-64 w-72 -rotate-6 object-contain opacity-75 drop-shadow-[0_12px_20px_rgba(0,0,0,.3)]"
-        />
-        <Image
-          src="/pictures/wedding/watercolor-olive-spray.png"
-          alt=""
-          aria-hidden
-          width={1300}
-          height={1221}
-          className="pointer-events-none absolute -bottom-24 -right-28 h-72 w-80 rotate-[174deg] object-contain opacity-70 drop-shadow-[0_12px_20px_rgba(0,0,0,.3)]"
-        />
-
-        <p
-          className="relative text-[9px] font-bold uppercase tracking-[0.5em] text-[#E5CE94]"
-          style={{ fontFamily: "var(--font-cy-utility)" }}
-        >
-          Nuestra boda
-        </p>
-        <div className="relative my-5 flex items-center gap-4 text-[#D9BD79]">
-          <span className="h-px w-16 bg-current opacity-45" />
-          <WeddingRings />
-          <span className="h-px w-16 bg-current opacity-45" />
+      <div className="relative isolate mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-6 py-12 sm:px-12">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-3 -z-10 overflow-hidden rounded-[5rem] border border-[#E6CF9C]/35 sm:inset-5">
+          <div className="absolute inset-2 rounded-[4.5rem] border border-[#E6CF9C]/15" />
+          <Image src="/pictures/wedding/watercolor-olive-spray.png" alt="" width={1300} height={1221} className="absolute -left-10 -top-10 w-40 -rotate-12 opacity-55 sm:w-60" />
+          <Image src="/pictures/wedding/watercolor-olive-spray.png" alt="" width={1300} height={1221} className="absolute -bottom-10 -right-10 w-40 rotate-[168deg] opacity-55 sm:w-60" />
         </div>
-        <h1 className="relative max-w-md text-[clamp(3.15rem,14vw,5.5rem)] font-medium leading-[.88] text-[#FFF9EE] [text-shadow:0_5px_30px_rgba(0,0,0,.55)]">
-          {openingNames}
-        </h1>
-        <p
-          className="relative mt-7 text-[9px] font-bold uppercase tracking-[0.3em] text-[#F1DEAA]"
-          style={{ fontFamily: "var(--font-cy-utility)" }}
-        >
-          {date}
-        </p>
-
-        <div className="relative mt-16 h-48 w-full max-w-sm drop-shadow-[0_25px_40px_rgba(0,0,0,.38)]">
-          <div className="absolute inset-x-4 bottom-0 h-40 rounded-b-xl bg-[#D7C7A7]" />
-          <div className="absolute inset-x-4 bottom-0 h-40 bg-[#E8DDC7] [clip-path:polygon(0_0,50%_58%,100%_0,100%_100%,0_100%)]" />
-          <div className="absolute inset-x-4 top-0 h-32 bg-[#CDBB98] [clip-path:polygon(0_0,100%_0,50%_100%)]" />
-          <div className="absolute left-8 right-8 top-[-2.25rem] flex h-28 items-center justify-center border border-[#B69A61]/35 bg-[#F4EBDD] px-5 shadow-md">
-            <p
-              className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#94763C]"
-              style={{ fontFamily: "var(--font-cy-utility)" }}
-            >
-              Con cariño para ti
-            </p>
-          </div>
-          <div className="absolute inset-x-0 top-[4.25rem] z-10 flex justify-center">
-            <motion.button
-              type="button"
-              onClick={onOpen}
-              whileHover={reduceMotion ? undefined : { scale: 1.035 }}
-              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-              className="relative flex flex-col items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E6CD8D] focus-visible:ring-offset-4 focus-visible:ring-offset-[#293025]"
-              aria-label="Abrir invitación"
-            >
-              <span className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-double border-[#D7BA72]/70 bg-[#4B573F] text-2xl italic text-[#F1DDA7] shadow-[0_10px_24px_rgba(0,0,0,.3)]">
-                {groom[0]}
-                <span className="mx-1 text-sm">&amp;</span>
-                {bride[0]}
-              </span>
-              <span
-                className="rounded-full border border-[#D5BD7E]/45 bg-[#263022]/90 px-6 py-2 text-[9px] font-bold uppercase tracking-[0.3em] text-[#F1DDA7] backdrop-blur-sm"
-                style={{ fontFamily: "var(--font-cy-utility)" }}
-              >
-                Abrir invitación
-              </span>
-            </motion.button>
-          </div>
+        <div aria-hidden="true" className="mb-4 flex items-center gap-3 text-[#E6CF9C]">
+          <span className="h-px w-10 bg-current opacity-50" />
+          <span className="text-2xl leading-none">❦</span>
+          <span className="h-px w-10 bg-current opacity-50" />
         </div>
-      </motion.div>
+        <p className="text-xs uppercase tracking-[.28em] text-[#E6CF9C]">Nuestra boda</p>
+        <h1 className="mt-2 text-[clamp(2.75rem,11vw,5rem)] italic leading-none text-[#FFF6E5]">{openingNames}</h1>
+        <p className="mt-3 text-sm text-[#F0D8A6]">{date}</p>
+
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="Abrir invitación"
+          className="group mt-9 w-full max-w-[29rem] rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-[#F4E6C8]"
+        >
+          <span className="relative block aspect-[1.5] w-full [perspective:1000px]">
+            <span className="absolute inset-0 rounded-lg bg-[#B9A481] shadow-[0_24px_45px_rgba(0,0,0,.4)]" />
+            <motion.span
+              aria-hidden="true"
+              className="absolute inset-x-[10%] top-[6%] h-[86%] overflow-hidden rounded-sm border-4 border-[#F4E6C8] bg-[#F4E6C8]"
+              exit={reduceMotion ? undefined : { y: "-64%", transition: { delay: 0.38, duration: 0.82, ease: "easeOut" } }}
+            >
+              <Image src={image} alt="" fill sizes="(max-width: 512px) 80vw, 372px" className="object-cover object-[center_35%]" />
+            </motion.span>
+            <span aria-hidden="true" className="absolute inset-0 rounded-lg bg-gradient-to-br from-[#F5E9D0] to-[#D8C49F] [clip-path:polygon(0_0,50%_60%,100%_0,100%_100%,0_100%)]" />
+            <span aria-hidden="true" className="absolute inset-0 rounded-b-lg bg-gradient-to-b from-[#F6EAD4] to-[#EBDBBC] [clip-path:polygon(0_100%,50%_49%,100%_100%)]" />
+            <motion.span
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-[64%] origin-top rounded-t-lg bg-gradient-to-b from-[#F9EFDB] to-[#D8C29A] [clip-path:polygon(0_0,100%_0,50%_100%)]"
+              exit={reduceMotion ? undefined : { rotateX: 175, opacity: 0, transition: { duration: 0.46 } }}
+            />
+            <Image src="/pictures/wedding/watercolor-olive-spray.png" alt="" width={1300} height={1221} className="pointer-events-none absolute bottom-1 left-1 w-[30%] -rotate-12 opacity-60" />
+            <Image src="/pictures/wedding/watercolor-olive-spray.png" alt="" width={1300} height={1221} className="pointer-events-none absolute bottom-1 right-1 w-[30%] rotate-12 scale-x-[-1] opacity-60" />
+            <span aria-hidden="true" className="pointer-events-none absolute inset-x-2 bottom-2 h-[23%] rounded-b-md border-x border-b border-[#A17B40]/55" />
+            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[7%] text-[#8A6A3D]">◆</span>
+            <motion.span
+              aria-hidden="true"
+              className="absolute left-1/2 top-[61%] grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-double border-[#E8CC89] bg-[#46543B] text-xl italic text-[#F8E5B3] shadow-md transition-colors group-hover:bg-[#596748] sm:size-16"
+              exit={reduceMotion ? undefined : { opacity: 0, scale: 0.75, transition: { duration: 0.18 } }}
+            >
+              {shortGroom[0]}&amp;{shortBride[0]}
+            </motion.span>
+          </span>
+          <span className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full border border-[#DBC084] bg-[#F4E6C8] px-5 py-3 text-[10px] font-bold uppercase tracking-[.14em] text-[#303B2B] group-hover:bg-[#FFF4DE]" style={{ fontFamily: "var(--font-cy-utility)" }}>
+            Abrir invitación
+            <ChevronRight aria-hidden="true" className="size-4" />
+          </span>
+        </button>
+      </div>
     </motion.section>
   );
 }
@@ -346,6 +290,62 @@ interface Props {
   qrEnabled?: boolean;
 }
 
+function PhotoPair({ photos }: { photos: string[] }) {
+  if (!photos.length) return null;
+
+  return (
+    <section aria-label="Fotografías de la pareja" className="bg-[#DDD0B8] px-6 py-12 sm:px-10 sm:py-16">
+      <div className="mx-auto grid max-w-3xl grid-cols-2 items-center gap-4 sm:gap-8">
+        {photos.map((photo, index) => (
+          <figure key={photo} className={`bg-[#F4EBD9] p-2 pb-5 shadow-lg sm:p-3 sm:pb-8 ${index === 0 ? "-rotate-2" : "mt-8 rotate-2"}`}>
+            <div className="relative aspect-[4/5] overflow-hidden border border-[#8F7342]/35">
+              <Image src={photo} alt="Fotografía de la pareja" fill sizes="(max-width: 640px) 44vw, 360px" className="object-cover sepia-[.25] saturate-[.85]" />
+            </div>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StoryPhotoPair({ label, photos, stacked }: {
+  label: string;
+  photos: [string, string];
+  stacked?: boolean;
+}) {
+  return (
+    <section className={`relative isolate overflow-hidden px-6 py-16 sm:px-10 ${stacked ? "bg-[#E9DEC8] text-[#454938]" : "bg-[#526046] text-[#F7EDD9]"}`}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-3 -z-10 rounded-[2rem] border border-[#B69559]/65" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-5 -z-10 rounded-[1.6rem] border border-[#B69559]/30" />
+      <FloralSpray className="-left-12 -top-12 h-52 w-36 -rotate-12 opacity-35 sm:h-72 sm:w-52" />
+      <FloralSpray className="-bottom-12 -right-12 h-52 w-36 rotate-[168deg] opacity-35 sm:h-72 sm:w-52" />
+      <div className="relative mx-auto max-w-3xl">
+        <div aria-hidden="true" className={`mb-3 flex items-center justify-center gap-3 ${stacked ? "text-[#8A6A3D]" : "text-[#E6CF9C]"}`}>
+          <span className="h-px w-10 bg-current opacity-60" />
+          <span>❦</span>
+          <span className="h-px w-10 bg-current opacity-60" />
+        </div>
+        <h2 className="mb-7 text-center text-4xl italic">{label}</h2>
+        <div className={stacked ? "mx-auto grid max-w-xl gap-5" : "grid grid-cols-[.85fr_1.15fr] items-center gap-3 sm:gap-6"}>
+          {photos.map((photo, index) => (
+            <figure key={photo} className={`min-w-0 bg-[#F4EBD9] p-1.5 shadow-xl sm:p-3 ${stacked && index === 1 ? "ml-8 sm:ml-16" : ""}`}>
+              <div className="relative aspect-[4/3] overflow-hidden bg-[#D9CCB5]">
+                <Image
+                  src={photo}
+                  alt={`Fotografía de la pareja, ${label.toLowerCase()}`}
+                  fill
+                  className="object-contain"
+                  sizes={stacked ? "(max-width: 640px) 90vw, 576px" : "(max-width: 640px) 45vw, 420px"}
+                />
+              </div>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function WeddingOliveVintage({
   data,
   invitado: initialInvitado,
@@ -374,8 +374,12 @@ export default function WeddingOliveVintage({
   const eventMonth = datePart("month");
   const eventYear = datePart("year");
   const [opened, setOpened] = useState(false);
+  const { audioRef, playMusic } = useInvitationMusic();
+  const mapEmbedUrl = data.location.mapEmbedUrl ?? (data.location.reception === "Finca San José"
+    ? "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d483680.5891845961!2d-99.19703368462967!3d18.719801575826544!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85cef1665ac3fa17%3A0x85a88bedb3e9838f!2sFINCA%20SAN%20JOS%C3%89!5e0!3m2!1ses-419!2smx!4v1792553073980!5m2!1ses-419!2smx"
+    : undefined);
   const galleryPhotos = Array.from(
-    new Set([data.media.coverImage, ...data.media.gallery]),
+    new Set(data.media.carousel ?? [data.media.coverImage, ...data.media.gallery]),
   );
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [galleryDirection, setGalleryDirection] = useState(1);
@@ -493,6 +497,8 @@ export default function WeddingOliveVintage({
   };
 
   return (
+    <>
+      <InvitationMusic src={data.media.musicUrl} audioRef={audioRef} visible={opened} align="right" themeClassName="border-[#9A7837] bg-[#E8CC89] text-[#302516] hover:bg-[#F4DDA8] focus-visible:outline-[#9A7837]" />
     <AnimatePresence mode="wait" initial={false}>
       {!opened ? (
         <OpeningCover
@@ -500,10 +506,11 @@ export default function WeddingOliveVintage({
           groom={groom}
           bride={bride}
           date={formatDateLongMx(evento.fecha_evento)}
-          image={data.media.coverImage}
+          image={data.media.envelopeImage ?? data.media.coverImage}
           reduceMotion={reduceMotion}
           onOpen={() => {
             window.scrollTo({ top: 0, behavior: "auto" });
+            playMusic();
             setOpened(true);
           }}
         />
@@ -525,7 +532,7 @@ export default function WeddingOliveVintage({
                 !(invitado.pases_confirmados && invitado.pases_confirmados > 0)
               }
               href="#pase-qr"
-              className="fixed bottom-5 right-5 z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl"
+              className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${data.media.musicUrl?.trim() ? "right-20" : "right-5"} z-40 rounded-full bg-[#183126] px-5 py-3 text-sm font-semibold text-white shadow-xl`}
             >
               Ver mi pase QR
             </a>
@@ -566,7 +573,7 @@ export default function WeddingOliveVintage({
               className="relative h-[calc(100svh-3rem)] min-h-[31rem] w-full max-w-2xl overflow-hidden rounded-t-[10rem] border-[5px] border-[#D7C7A8] text-center outline outline-1 outline-offset-2 outline-[#B49350]/65 shadow-[0_30px_90px_rgba(14,20,12,.45)] sm:h-auto sm:min-h-[86svh] sm:rounded-t-[16rem] sm:border-[7px] sm:outline-offset-4"
             >
               <Image
-                src={data.media.coverImage}
+                src={data.media.heroImage ?? data.media.coverImage}
                 alt="Fotografía de portada"
                 fill
                 priority
@@ -775,6 +782,10 @@ export default function WeddingOliveVintage({
               </div>
             </section>
           )}
+
+          {data.media.storyPhotos?.map((section, index) => (
+            <StoryPhotoPair key={section.label} {...section} stacked={index % 2 === 0} />
+          ))}
 
           {/* Galería completa */}
           <section className="relative overflow-hidden bg-[#6C7854] px-5 py-28 text-[#F7F0E2]">
@@ -987,6 +998,7 @@ export default function WeddingOliveVintage({
                         invitationDate.toLocaleTimeString("es-MX", {
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "America/Mexico_City",
                         })}
                     </p>
                   </div>
@@ -1044,11 +1056,11 @@ export default function WeddingOliveVintage({
               </div>
 
               <div className="relative mx-auto max-w-xl">
-                {data.location.reception === "Finca San José" && <>
+                {mapEmbedUrl && <>
                 <div className="absolute -inset-x-3 -top-3 h-[466px] rounded-t-[16rem] rounded-b-[2.75rem] border border-[#D2B777]/30 sm:h-[526px]" />
                 <div className="relative h-[460px] overflow-hidden rounded-t-[15rem] rounded-b-[2.25rem] border-[5px] border-[#D6C294] bg-[#D6C294] shadow-[0_38px_90px_rgba(0,0,0,.58)] sm:h-[520px]">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d483680.5891845961!2d-99.19703368462967!3d18.719801575826544!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85cef1665ac3fa17%3A0x85a88bedb3e9838f!2sFINCA%20SAN%20JOS%C3%89!5e0!3m2!1ses-419!2smx!4v1792553073980!5m2!1ses-419!2smx"
+                    src={mapEmbedUrl}
                     width="100%"
                     height="100%"
                     style={{
@@ -1096,7 +1108,7 @@ export default function WeddingOliveVintage({
                       </p>
                     </div>
                     <a
-                      href={`https://maps.google.com/?q=${encodeURIComponent(data.location.reception)}`}
+                      href={data.location.mapsUrl ?? `https://maps.google.com/?q=${encodeURIComponent(data.location.reception)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#3E4635] px-5 py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#E8D194] transition-transform hover:scale-[1.03]"
@@ -1162,6 +1174,8 @@ export default function WeddingOliveVintage({
                 </motion.div>
               </section>
             )}
+
+          <PhotoPair photos={data.media.gallery.slice(4, 6)} />
 
           {/* Countdown */}
           <section className="relative overflow-hidden bg-[#6C7854] px-8 py-20 text-center text-[#F5F0E7] [background-image:radial-gradient(rgba(214,190,133,.08)_1px,transparent_1px)] [background-size:12px_12px]">
@@ -1283,6 +1297,8 @@ export default function WeddingOliveVintage({
               </motion.div>
             </section>
           )}
+
+          <PhotoPair photos={data.media.gallery.slice(6, 8)} />
 
           {/* RSVP */}
           <section className="relative overflow-hidden bg-[#DED3BE] px-5 py-20">
@@ -1632,5 +1648,6 @@ export default function WeddingOliveVintage({
         </motion.main>
       )}
     </AnimatePresence>
+    </>
   );
 }
