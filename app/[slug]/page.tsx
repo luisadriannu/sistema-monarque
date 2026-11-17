@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { cache } from "react";
 import prisma from "@/lib/prisma";
 import WeddingOliveVintage from "@/app/templates/WeddingOliveVintage";
 import WeddingPersonalized from "@/app/templates/WeddingPersonalized";
@@ -11,9 +12,7 @@ import { isEventFinished } from "@/lib/utils";
 import { isOrganizationServiceActive } from "@/lib/organization-access";
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+
 
 const yazminPhotoFolder = "/pictures/wedding/yazmin-y-carlos";
 const yazminStudioPhotos = Array.from(
@@ -55,6 +54,55 @@ function isStoredInvitationData(value: unknown): value is StoredInvitationData {
   return Boolean(data.event && data.location);
 }
 
+
+const getInvitationEvent = cache((slug: string) =>
+  prisma.evento.findUnique({
+    where: { slug },
+    include: { usuario: { select: { email: true, organizacion: true, organizacion_id: true, lector_qr_habilitado: true } } },
+  }),
+);
+
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
+  const fallback: Metadata = {
+    title: "Invitación privada",
+    description: "Abre tu enlace personal para ver la invitación.",
+    robots: { index: false, follow: false },
+  };
+  const { slug } = await params;
+  const { id, token } = await searchParams;
+  const effectiveToken = (id || token || "").trim();
+  if (!effectiveToken) return fallback;
+  const evento = await getInvitationEvent(slug);
+  if (!evento || ["borrador", "cancelado", "archivado"].includes(evento.estado)
+    || (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion))) return fallback;
+  const guest = await prisma.invitado.findFirst({
+    where: { token: effectiveToken, evento_id: evento.id },
+    select: { id: true },
+  });
+  if (!guest) return fallback;
+
+  const stored = isStoredInvitationData(evento.configuracion_invitacion) ? evento.configuracion_invitacion : {};
+  const isYazmin = slug === "boda-de-yazmin-y-carlos" && evento.usuario.email === "yazmin@monarque.com";
+  const original = slug === "boda-yazmin-y-cesar";
+  const title = stored.seo?.title || evento.nombre;
+  const date = new Intl.DateTimeFormat("es-MX", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "America/Mexico_City",
+  }).format(evento.fecha_evento);
+  const description = stored.seo?.description
+    || [evento.anfitriones, date, evento.lugar, "Nos encantará compartir contigo este momento especial."].filter(Boolean).join(" · ");
+  const photo = isYazmin ? yazminWeddingMedia.coverImage
+    : stored.seo?.image || (original ? carlosYYazmin.media.coverImage : undefined);
+  const base = new URL(process.env.NEXT_PUBLIC_APP_URL || "https://sistema-monarque.vercel.app");
+  const images = photo ? [{ url: new URL(photo, base).href, alt: title }] : [];
+  return {
+    title,
+    description,
+    robots: { index: false, follow: false },
+    openGraph: { type: "website", locale: "es_MX", title, description, images },
+    twitter: { card: photo ? "summary_large_image" : "summary", title, description, images: images.map(image => image.url) },
+  };
+}
+
 export default async function InvitationPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const { id, token, preview } = await searchParams;
@@ -63,10 +111,7 @@ export default async function InvitationPage({ params, searchParams }: PageProps
 
   if (!effectiveToken && !isPreview) return <InvitacionNoDisponible />;
 
-  const evento = await prisma.evento.findUnique({
-    where: { slug },
-    include: { usuario: { select: { email: true, organizacion: true, organizacion_id: true, lector_qr_habilitado: true } } },
-  });
+  const evento = await getInvitationEvent(slug);
   if (!evento) return <InvitacionNoDisponible />;
   if (evento.usuario.organizacion && !isOrganizationServiceActive(evento.usuario.organizacion)) return <InvitacionNoDisponible />;
   if (!isPreview && ["borrador", "cancelado", "archivado"].includes(evento.estado)) {
