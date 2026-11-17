@@ -179,7 +179,7 @@ function InvitadosContent() {
   // Formulario Agregar / Editar
   const [formNombre, setFormNombre] = useState("");
   const [formGrupo, setFormGrupo] = useState("");
-  const [formPases, setFormPases] = useState("2");
+  const [formPases, setFormPases] = useState("1");
   const [guardando, setGuardando] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -487,7 +487,7 @@ function InvitadosContent() {
       setModalAgregar(false);
       setFormNombre("");
       setFormGrupo("");
-      setFormPases("2");
+      setFormPases("1");
       setToast({
         type: refreshed === false ? "error" : "success",
         title: refreshed === false ? "Invitado guardado; lista pendiente de actualizar" : "Invitado agregado",
@@ -1268,7 +1268,7 @@ function InvitadosContent() {
                 onClick={() => {
                   setFormNombre("");
                   setFormGrupo("");
-                  setFormPases("2");
+                  setFormPases("1");
                   setFormError(null);
                   setModalAgregar(true);
                 }}

@@ -1556,30 +1556,28 @@ export default function WeddingOliveVintage({
                           className="text-[10px] uppercase tracking-[0.25em] text-[#9A7837]"
                           style={{ fontFamily: "var(--font-cy-utility)" }}
                         >
-                          ¿Cuántas personas asistirán?
+                          ¿Cuántos adultos asistirán?
                         </p>
                         <div className="flex items-center justify-center gap-6">
                           <button
                             type="button"
                             onClick={() => {
                               const n = pasesSeleccionados - 1;
-                              if (n >= 0) {
+                              if (n >= ninosSeleccionados) {
                                 setPasesSeleccionados(n);
-                                if (ninosSeleccionados > n)
-                                  setNinosSeleccionados(n);
                               }
                             }}
-                            disabled={previewMode || pasesSeleccionados <= 0}
+                            disabled={previewMode || pasesSeleccionados <= ninosSeleccionados}
                             className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
                           >
                             −
                           </button>
                           <div className="w-20 text-center">
                             <span className="block text-5xl font-medium text-[#464B38]">
-                              {pasesSeleccionados}
+                              {pasesSeleccionados - ninosSeleccionados}
                             </span>
                             <span className="text-[9px] uppercase tracking-[0.2em] text-[#9A7837]">
-                              de {maxPases} máx.
+                              de {maxPases - ninosSeleccionados} máx.
                             </span>
                           </div>
                           <button
@@ -1614,13 +1612,13 @@ export default function WeddingOliveVintage({
                       </div>
 
                       {/* Contador niños */}
-                      {maxPases >= 2 && pasesSeleccionados > 0 && (
+                      {maxPases >= 2 && (
                         <div className="text-center space-y-3 border-t border-[#B08D46]/20 pt-5">
                           <p
                             className="text-[10px] uppercase tracking-[0.25em] text-[#9A7837]"
                             style={{ fontFamily: "var(--font-cy-utility)" }}
                           >
-                            ¿Cuántos son niños?
+                            ¿Cuántos niños asistirán?
                           </p>
                           <p className="text-xs italic text-[#9A7837]">
                             ({evento.texto_edad_nino || "menores de 12 años"})
@@ -1629,8 +1627,10 @@ export default function WeddingOliveVintage({
                             <button
                               type="button"
                               onClick={() => {
-                                if (ninosSeleccionados > 0)
+                                if (ninosSeleccionados > 0) {
+                                  setPasesSeleccionados(pasesSeleccionados - 1);
                                   setNinosSeleccionados(ninosSeleccionados - 1);
+                                }
                               }}
                               disabled={previewMode || ninosSeleccionados <= 0}
                               className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
@@ -1642,18 +1642,20 @@ export default function WeddingOliveVintage({
                                 {ninosSeleccionados}
                               </span>
                               <span className="text-[9px] uppercase tracking-[0.2em] text-[#9A7837]">
-                                de {pasesSeleccionados} máx.
+                                de {maxPases - (pasesSeleccionados - ninosSeleccionados)} máx.
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={() => {
-                                if (ninosSeleccionados < pasesSeleccionados)
+                                if (pasesSeleccionados < maxPases) {
+                                  setPasesSeleccionados(pasesSeleccionados + 1);
                                   setNinosSeleccionados(ninosSeleccionados + 1);
+                                }
                               }}
                               disabled={
                                 previewMode ||
-                                ninosSeleccionados >= pasesSeleccionados
+                                pasesSeleccionados >= maxPases
                               }
                               className="w-12 h-12 border border-[#B08D46]/50 bg-[#EDE1C8] text-[#464B38] text-xl font-bold disabled:opacity-30 hover:bg-[#E0D0B0] transition-colors active:scale-95"
                             >

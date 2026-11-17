@@ -102,23 +102,22 @@ export default function InvitationGuestView({
   };
 
   const handleDecrement = () => {
-    if (pasesSeleccionados > 0) {
+    if (pasesSeleccionados > ninosSeleccionados) {
       const nuevo = pasesSeleccionados - 1;
       setPasesSeleccionados(nuevo);
-      if (ninosSeleccionados > nuevo) {
-        setNinosSeleccionados(nuevo);
-      }
     }
   };
 
   const handleIncrementNinos = () => {
-    if (ninosSeleccionados < pasesSeleccionados) {
+    if (pasesSeleccionados < maxPases) {
+      setPasesSeleccionados(pasesSeleccionados + 1);
       setNinosSeleccionados(ninosSeleccionados + 1);
     }
   };
 
   const handleDecrementNinos = () => {
     if (ninosSeleccionados > 0) {
+      setPasesSeleccionados(pasesSeleccionados - 1);
       setNinosSeleccionados(ninosSeleccionados - 1);
     }
   };
@@ -285,7 +284,7 @@ export default function InvitationGuestView({
             <div className="space-y-4 pt-2">
               <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] text-center space-y-3">
                 <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                  ¿Cuántas personas asistirán?
+                  ¿Cuántos adultos asistirán?
                 </label>
 
                 {/* Contador interactivo */}
@@ -293,7 +292,7 @@ export default function InvitationGuestView({
                   <button
                     type="button"
                     onClick={handleDecrement}
-                    disabled={pasesSeleccionados <= 0}
+                    disabled={pasesSeleccionados <= ninosSeleccionados}
                     className="w-12 h-12 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 flex items-center justify-center font-bold text-lg disabled:opacity-30 disabled:cursor-not-allowed shadow-xs active:scale-95 transition-all"
                   >
                     -
@@ -301,10 +300,10 @@ export default function InvitationGuestView({
 
                   <div className="w-20 text-center">
                     <span className="font-serif text-4xl font-bold text-[#2b211b] block leading-none">
-                      {pasesSeleccionados}
+                      {pasesSeleccionados - ninosSeleccionados}
                     </span>
                     <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
-                      de {maxPases} máx.
+                      de {maxPases - ninosSeleccionados} máx.
                     </span>
                   </div>
 
@@ -335,11 +334,11 @@ export default function InvitationGuestView({
               </div>
 
               {/* Selector de niños (RF-30: si el invitado tiene 2 o más pases asignados y asistirán 1 o más) */}
-              {maxPases >= 2 && pasesSeleccionados > 0 && (
+              {maxPases >= 2 && (
                 <div className="bg-[#fbf8f4] p-5 rounded-2xl border border-[#ebd9c4] text-center space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                      ¿Cuántos de ellos son niños?
+                      ¿Cuántos niños asistirán?
                     </label>
                     <span className="text-[11px] text-[#e05a1b] font-medium block mt-0.5">
                       ({evento.texto_edad_nino || "menores de 12 años"})
@@ -362,14 +361,14 @@ export default function InvitationGuestView({
                         {ninosSeleccionados}
                       </span>
                       <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
-                        de {pasesSeleccionados} máx.
+                        de {maxPases - (pasesSeleccionados - ninosSeleccionados)} máx.
                       </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={handleIncrementNinos}
-                      disabled={ninosSeleccionados >= pasesSeleccionados}
+                      disabled={pasesSeleccionados >= maxPases}
                       className="w-12 h-12 rounded-2xl bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 flex items-center justify-center font-bold text-lg disabled:opacity-30 disabled:cursor-not-allowed shadow-xs active:scale-95 transition-all"
                     >
                       +

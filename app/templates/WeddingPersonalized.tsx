@@ -483,24 +483,29 @@ export default function WeddingPersonalized({
                   ) : !(evento.expirado || rsvpClosed) ? (
                     <>
                       <Counter
-                        label="¿Cuántas personas asistirán?"
-                        value={pases}
-                        max={invitado.pases_asignados}
+                        label="¿Cuántos adultos asistirán?"
+                        value={pases - ninos}
+                        max={invitado.pases_asignados - ninos}
                         disabled={previewMode}
                         onChange={(value) => {
-                          setPases(value);
-                          if (ninos > value) setNinos(value);
+                          setPases(value + ninos);
                         }}
                       />
-                      {invitado.pases_asignados >= 2 && pases > 0 && (
+                      {invitado.pases_asignados >= 2 && (
                         <Counter
-                          label={`¿Cuántos son niños? (${evento.texto_edad_nino || "menores de 12 años"})`}
+                          label={`¿Cuántos niños asistirán? (${evento.texto_edad_nino || "menores de 12 años"})`}
                           value={ninos}
-                          max={pases}
+                          max={invitado.pases_asignados - (pases - ninos)}
                           disabled={previewMode}
-                          onChange={setNinos}
+                          onChange={(value) => {
+                            setPases(pases - ninos + value);
+                            setNinos(value);
+                          }}
                         />
                       )}
+                      <p className="text-center text-sm text-[var(--muted)]">
+                        Confirmarás {pases} asistentes: {pases - ninos} adultos y {ninos} niños.
+                      </p>
                       <AsyncButton
                         type="button"
                         onClick={() => submitRsvp()}
