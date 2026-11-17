@@ -818,7 +818,9 @@ export default function WeddingOliveVintage({
                     sizes="66vw"
                   />
                 </div>
-              
+                <p className="mt-2 ml-8 text-[1.375rem] leading-tight italic text-[#5A5544]">
+                  Un instante
+                </p>
               </motion.div>
               <motion.div
                 {...reveal}
@@ -833,7 +835,9 @@ export default function WeddingOliveVintage({
                     sizes="53vw"
                   />
                 </div>
-              
+                <p className="mt-2 text-center text-xl leading-tight italic text-[#5A5544]">
+                  Para toda la vida
+                </p>
               </motion.div>
               <div className="absolute right-4 top-5 z-30 min-w-max border border-[#8F7342]/25 bg-[#F4EBD9]/90 px-4 py-3 text-center text-[#5A5544] shadow-[0_8px_24px_rgba(52,43,27,.16)] backdrop-blur-sm sm:right-[8%] sm:top-[9%]">
                 <p className="text-2xl leading-none">❦</p>
@@ -884,7 +888,9 @@ export default function WeddingOliveVintage({
                       sizes="60vw"
                     />
                   </div>
-               
+                  <p className="mt-2 ml-14 text-center text-[1.375rem] leading-tight italic text-[#5A5544]">
+                    Amor eterno
+                  </p>
                 </motion.div>
                 <motion.div
                   {...reveal}
@@ -899,7 +905,9 @@ export default function WeddingOliveVintage({
                       sizes="50vw"
                     />
                   </div>
-               
+                  <p className="mt-2 text-center text-xl leading-tight italic text-[#5A5544]">
+                    Juntos para siempre
+                  </p>
                 </motion.div>
                 <div className="absolute left-4 top-5 z-30 min-w-max border border-[#8F7342]/25 bg-[#F4EBD9]/90 px-4 py-3 text-center text-[#5A5544] shadow-[0_8px_24px_rgba(52,43,27,.16)] backdrop-blur-sm sm:left-[8%] sm:top-[9%]">
                   <p className="text-2xl leading-none">❦</p>
